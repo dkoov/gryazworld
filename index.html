@@ -1882,6 +1882,10 @@ function openCommunityPage(id) {
     mcBannerImg.src = c.banner_url;
     mcBannerImg.style.display = 'block';
     mcBannerPlaceholder.style.display = 'none';
+    mcBannerImg.onerror = function() {
+      this.style.display = 'none';
+      mcBannerPlaceholder.style.display = 'block';
+    };
   } else {
     mcBannerImg.style.display = 'none';
     mcBannerPlaceholder.style.display = 'block';
@@ -1933,6 +1937,25 @@ function openCommunityPage(id) {
   document.getElementById('comm-page-manage').style.display = isOwner ? 'block' : 'none';
   document.getElementById('comm-page-join-btn').style.display = isOwner ? 'none' : 'block';
 
+  // Загрузить блоки информации
+  const infoBlocks = document.getElementById('comm-info-blocks');
+  if (c.info_blocks && c.info_blocks.length > 0) {
+    infoBlocks.innerHTML = c.info_blocks.map((block, i) => `
+      <div style="background:var(--card,#1a1a1a);border:1px solid var(--border,#2a2a2a);border-radius:10px;padding:16px;position:relative">
+        ${isOwner ? `<button onclick="removeInfoBlock(${i})" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:#e05c5c;font-size:16px">🗑</button>` : ''}
+        <p style="margin:0;font-size:14px;color:#fff;line-height:1.8;white-space:pre-wrap">${block.content}</p>
+      </div>`).join('');
+  } else {
+    infoBlocks.innerHTML = '';
+  }
+
+  // Показать кнопку добавления только владельцу без блока
+  const addBlockBtn = document.getElementById('comm-add-block-btn');
+  if (addBlockBtn) {
+    const hasBlock = c.info_blocks && c.info_blocks.length > 0;
+    addBlockBtn.style.display = (isOwner && !hasBlock) ? 'block' : 'none';
+  }
+
   showPage('community');
 }
 
@@ -1944,6 +1967,14 @@ function openCommEditModal() {
   document.getElementById('ce-desc').value = c.description || '';
   document.getElementById('ce-desc-count').textContent = (c.description||'').length + '/100';
   document.getElementById('ce-banner').value = c.banner_url || '';
+  const preview = document.getElementById('ce-banner-preview');
+  const previewImg = document.getElementById('ce-banner-preview-img');
+  if (c.banner_url) {
+    previewImg.src = c.banner_url;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
   document.getElementById('ce-tag').value = c.tag || '';
   openModal('commEditModal');
 }
@@ -2060,6 +2091,86 @@ async function applyCommImages() {
   }
 }
 
+function addInfoBlock() {
+  const currentComm = (window._communities || []).find(x => x.id === currentCommunityId);
+  const existing = currentComm?.info_blocks || [];
+  if (existing.length >= 1) { alert('Можно добавить только один блок'); return; }
+
+  const infoBlocks = document.getElementById('comm-info-blocks');
+  infoBlocks.innerHTML = `
+    <div style="background:var(--card,#1a1a1a);border:1px solid #5b9bd5;border-radius:10px;padding:16px;position:relative">
+      <textarea id="new-info-block-text" placeholder="Введите текст блока... Поддерживается Markdown" rows="5" style="width:100%;background:transparent;border:none;color:#fff;font-size:14px;resize:vertical;outline:none;font-family:inherit;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+        <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" style="color:#5b9bd5;font-size:12px;text-decoration:none">Поддерживается Markdown</a>
+        <button onclick="saveNewInfoBlock()" style="padding:8px 20px;border-radius:8px;border:none;background:#5b9bd5;color:#fff;cursor:pointer;font-size:14px;font-weight:600">Сохранить</button>
+      </div>
+    </div>`;
+}
+
+async function saveNewInfoBlock() {
+  const content = document.getElementById('new-info-block-text').value.trim();
+  if (!content) { alert('Введите текст'); return; }
+  await saveInfoBlock('', content);
+}
+
+async function saveInfoBlock(title, content) {
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user || !currentCommunityId) return;
+  const currentComm = (window._communities || []).find(x => x.id === currentCommunityId);
+  const existing = currentComm?.info_blocks || [];
+  const updated = [...existing, { title: title, content: content }];
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, info_blocks: updated })
+  });
+  if (!res.ok) { alert('Ошибка сохранения'); return; }
+  await loadCommunities();
+  openCommunityPage(currentCommunityId);
+}
+
+async function uploadBannerFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const btn = document.querySelector('#commEditModal button[onclick*="ce-banner-file"]');
+  if (btn) { btn.textContent = 'Загрузка...'; btn.disabled = true; }
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'gryazworld');
+    const res = await fetch('https://api.cloudinary.com/v1_1/dzwhmfizw/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (data.secure_url) {
+      document.getElementById('ce-banner').value = data.secure_url;
+      document.getElementById('ce-banner-preview-img').src = data.secure_url;
+      document.getElementById('ce-banner-preview').style.display = 'block';
+    } else throw new Error(data.error?.message || 'Ошибка');
+  } catch(e) {
+    alert('Ошибка загрузки: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '📁 Загрузить'; btn.disabled = false; }
+  }
+}
+
+async function removeInfoBlock(index) {
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user || !currentCommunityId) return;
+  const currentComm = (window._communities || []).find(x => x.id === currentCommunityId);
+  const existing = currentComm?.info_blocks || [];
+  existing.splice(index, 1);
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, info_blocks: existing })
+  });
+  if (!res.ok) { alert('Ошибка'); return; }
+  await loadCommunities();
+  openCommunityPage(currentCommunityId);
+}
+
 </script>
 
 
@@ -2120,38 +2231,46 @@ async function applyCommImages() {
       <span id="comm-page-name">—</span>
     </div>
 
-    <!-- Шапка -->
-    <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:20px">
-      <div id="comm-page-mc-banner" style="width:64px;flex-shrink:0">
-        <img id="comm-page-mc-banner-img" src="" style="width:64px;border-radius:6px;display:none" onerror="this.style.display='none';document.getElementById('comm-page-mc-banner-placeholder').style.display='block'">
-        <div id="comm-page-mc-banner-placeholder" style="width:64px;height:96px;border-radius:6px;background:var(--card,#1a1a1a);border:1px solid var(--border,#2a2a2a)"></div>
-      </div>
-      <div style="flex:1">
-        <div id="comm-page-recruit-badge" style="display:none;margin-bottom:8px">
-          <span style="background:#22c55e;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px">● Идёт набор</span>
+    <div style="display:flex;gap:20px;align-items:flex-start">
+
+      <!-- Левая часть — шапка + галерея + инфоблоки -->
+      <div style="flex:1;min-width:0">
+
+        <!-- Шапка -->
+        <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:20px">
+          <div id="comm-page-mc-banner" style="width:64px;flex-shrink:0">
+            <img id="comm-page-mc-banner-img" src="" style="width:64px;border-radius:6px;display:none" onerror="this.style.display='none';document.getElementById('comm-page-mc-banner-placeholder').style.display='block'">
+            <div id="comm-page-mc-banner-placeholder" style="width:64px;height:96px;border-radius:6px;background:var(--card,#1a1a1a);border:1px solid var(--border,#2a2a2a)"></div>
+          </div>
+          <div style="flex:1">
+            <div id="comm-page-recruit-badge" style="display:none;margin-bottom:8px">
+              <span style="background:#22c55e;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px">● Идёт набор</span>
+            </div>
+            <h1 id="comm-page-title" style="font-size:24px;font-weight:700;margin:0 0 6px"></h1>
+            <div id="comm-page-desc" style="color:#fff;font-size:13px;margin-bottom:8px;line-height:1.5"></div>
+            <div style="font-size:13px;color:var(--muted,#888)">
+              <span id="comm-page-members"></span>
+              <span id="comm-page-tag"></span>
+              <span id="comm-page-discord-badge"></span>
+            </div>
+          </div>
         </div>
-        <h1 id="comm-page-title" style="font-size:24px;font-weight:700;margin:0 0 6px"></h1>
-        <div id="comm-page-desc" style="color:#fff;font-size:13px;margin-bottom:8px;line-height:1.5"></div>
-        <div style="font-size:13px;color:var(--muted,#888)">
-          <span id="comm-page-members"></span>
-          <span id="comm-page-tag"></span>
-          <span id="comm-page-discord-badge"></span>
+
+        <!-- Галерея -->
+        <div id="comm-page-images-gallery" style="display:none;margin-bottom:20px">
+          <div id="comm-page-images-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-radius:10px;overflow:hidden"></div>
         </div>
+
+        <!-- Инфоблоки -->
+        <div id="comm-info-blocks" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div id="comm-add-block-btn-wrap">
+          <button id="comm-add-block-btn" onclick="addInfoBlock()" style="display:none;margin-top:12px;color:#5b9bd5;font-size:13px;background:none;border:none;cursor:pointer;text-decoration:underline">+ Нажмите, чтобы добавить блок с информацией</button>
+        </div>
+
       </div>
-    </div>
 
-    <!-- Галерея -->
-    <div id="comm-page-images-gallery" style="display:none;margin-bottom:20px">
-      <div id="comm-page-images-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-radius:10px;overflow:hidden"></div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 280px;gap:20px">
-
-      <!-- Левая часть — пустая для контента -->
-      <div></div>
-
-      <!-- Правая часть -->
-      <div style="display:flex;flex-direction:column;gap:12px">
+      <!-- Правая колонка — управление/ссылки/участники -->
+      <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
 
         <!-- Управление (только для владельца) -->
         <div id="comm-page-manage" style="display:none;background:var(--card,#1a1a1a);border:1px solid var(--border,#2a2a2a);border-radius:10px;padding:16px">
@@ -2186,6 +2305,7 @@ async function applyCommImages() {
         </div>
 
       </div>
+
     </div>
   </div>
 </div>
@@ -2203,9 +2323,16 @@ async function applyCommImages() {
       <div id="ce-desc-count" style="font-size:11px;color:var(--muted,#888);margin-top:4px">0/100</div>
     </div>
     <div class="inp-group">
-      <label>Баннер (ссылка с planetminecraft.com/banner)</label>
-      <input type="text" id="ce-banner" placeholder="https://www.planetminecraft.com/banner/..."/>
-      <div style="font-size:11px;color:var(--muted,#888);margin-top:4px">Создайте баннер на <a href="https://www.planetminecraft.com/banner" target="_blank" style="color:#c8a84b">Planet Minecraft</a> и вставьте Shareable URL</div>
+      <label>Баннер общины</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="ce-banner" placeholder="URL баннера" style="flex:1"/>
+        <button onclick="document.getElementById('ce-banner-file').click()" style="padding:8px 12px;border-radius:6px;border:1px solid var(--border,#2a2a2a);background:var(--card,#1a1a1a);color:#fff;cursor:pointer;white-space:nowrap">📁 Загрузить</button>
+      </div>
+      <input type="file" id="ce-banner-file" accept="image/*" style="display:none" onchange="uploadBannerFile(event)">
+      <div id="ce-banner-preview" style="margin-top:8px;display:none">
+        <img id="ce-banner-preview-img" src="" style="max-width:100px;border-radius:6px">
+      </div>
+      <div style="font-size:11px;color:var(--muted,#888);margin-top:4px">Загрузите картинку или вставьте прямую ссылку на изображение</div>
     </div>
     <div class="inp-group"><label>Тематика</label><input type="text" id="ce-tag" placeholder="Строительство, PvP..."/></div>
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
