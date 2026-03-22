@@ -1,0 +1,53 @@
+name: ServerPanel
+version: 1.0.0
+main: dev.serverpanel.plugin.ServerPanelPlugin
+api-version: '1.21'
+description: Connects Minecraft server with Discord and web panel
+authors: [ServerPanel]
+
+commands:
+  fine:
+    description: Issue a fine to a player
+    usage: /fine <player> <amount> <reason> <hours>
+    permission: serverpanel.admin
+  warn:
+    description: Warn a player
+    usage: /warn <player> <reason>
+    permission: serverpanel.admin
+  unwarn:
+    description: Remove warns from a player
+    usage: /unwarn <player> [amount]
+    permission: serverpanel.admin
+  bank:
+    description: Open bank menu
+    usage: /bank [balance|transfer <player> <amount>|payfine <id>]
+    permission: serverpanel.player
+  setatm:
+    description: Set current block as ATM
+    usage: /setatm
+    permission: serverpanel.admin
+  adminbank:
+    description: Admin bank management
+    usage: /adminbank <player> [balance|add <amount>|remove <amount>]
+    permission: serverpanel.admin
+  invite:
+    description: Пригласить игрока в общину
+    usage: /invite <ник>
+    permission: serverpanel.invite
+  acceptinvite:
+    description: Принять приглашение в общину
+    usage: /acceptinvite <id>
+  declineinvite:
+    description: Отклонить приглашение в общину
+    usage: /declineinvite <id>
+
+permissions:
+  serverpanel.admin:
+    description: Admin commands
+    default: op
+  serverpanel.player:
+    description: Player commands
+    default: true
+  serverpanel.invite:
+    description: Позволяет приглашать игроков в общину
+    default: true

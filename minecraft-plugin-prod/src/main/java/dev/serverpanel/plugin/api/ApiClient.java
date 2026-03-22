@@ -1,19 +1,17 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package dev.serverpanel.plugin.api;
 
-import dev.serverpanel.lib.gson.Gson;
-import dev.serverpanel.lib.gson.JsonObject;
-import dev.serverpanel.lib.gson.JsonParser;
-import dev.serverpanel.lib.okhttp3.MediaType;
-import dev.serverpanel.lib.okhttp3.OkHttpClient;
-import dev.serverpanel.lib.okhttp3.Request;
-import dev.serverpanel.lib.okhttp3.RequestBody;
-import dev.serverpanel.lib.okhttp3.Response;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class ApiClient {
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
@@ -21,11 +19,17 @@ public class ApiClient {
     private final String baseUrl;
     private final String secret;
     private final Gson gson = new Gson();
+    private final JavaPlugin plugin;
 
-    public ApiClient(String baseUrl, String secret) {
+    public ApiClient(JavaPlugin plugin, String baseUrl, String secret) {
+        this.plugin = plugin;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.secret = secret;
         this.http = new OkHttpClient.Builder().connectTimeout(5L, TimeUnit.SECONDS).readTimeout(10L, TimeUnit.SECONDS).build();
+    }
+
+    public JavaPlugin getPlugin() {
+        return this.plugin;
     }
 
     public ApiResponse playerJoin(String uuid, String nickname) {
@@ -102,20 +106,40 @@ public class ApiClient {
         return this.get("/mc/fines/" + uuid);
     }
 
-    private ApiResponse get(String path) {
+    public ApiResponse getDiscordId(String nickname) {
+        return this.get("/mc/player/discord-id?nickname=" + nickname);
+    }
+
+    public ApiResponse getOwnedCommunity(String discordId) {
+        return this.get("/web/communities/owned?discord_id=" + discordId);
+    }
+
+    public ApiResponse inviteToComm(int communityId, String discordId, String targetNickname) {
+        JsonObject body = new JsonObject();
+        body.addProperty("discord_id", discordId);
+        body.addProperty("nickname", targetNickname);
+        return this.post("/web/communities/" + communityId + "/invite", body);
+    }
+
+    public ApiResponse get(String path) {
         Request request = new Request.Builder().url(this.baseUrl + path).header("X-Plugin-Secret", this.secret).build();
         return this.execute(request);
     }
 
-    private ApiResponse post(String path, JsonObject body) {
-        RequestBody rb = RequestBody.create(this.gson.toJson(body), JSON);
+    public ApiResponse post(String path, String jsonBody) {
+        RequestBody rb = RequestBody.create(jsonBody, JSON);
         Request request = new Request.Builder().url(this.baseUrl + path).header("X-Plugin-Secret", this.secret).post(rb).build();
         return this.execute(request);
     }
 
+    private ApiResponse post(String path, JsonObject body) {
+        return this.post(path, this.gson.toJson(body));
+    }
+
     private ApiResponse execute(Request request) {
-        Response response = this.http.newCall(request).execute();
+        Response response = null;
         try {
+            response = this.http.newCall(request).execute();
             String bodyStr = response.body() != null ? response.body().string() : "{}";
             JsonObject json = JsonParser.parseString(bodyStr).getAsJsonObject();
             ApiResponse apiResponse = new ApiResponse(response.code(), json);
@@ -179,4 +203,3 @@ public class ApiClient {
         }
     }
 }
-

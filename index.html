@@ -1756,7 +1756,10 @@ function filterComm() {
       document.getElementById('commGrid').innerHTML = '<div style="color:var(--muted)">Войдите через Discord чтобы увидеть свои общины</div>';
       return;
     }
-    list = list.filter(c => c.owner_discord_id === user.id);
+    list = list.filter(c =>
+      c.owner_discord_id === user.id ||
+      (c.members_discord_ids && c.members_discord_ids.includes(user.id))
+    );
   }
   if (search) list = list.filter(c => c.name.toLowerCase().includes(search) || (c.description||'').toLowerCase().includes(search));
   const grid = document.getElementById('commGrid');

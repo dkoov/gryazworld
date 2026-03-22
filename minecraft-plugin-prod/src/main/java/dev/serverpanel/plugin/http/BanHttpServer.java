@@ -11,8 +11,8 @@ package dev.serverpanel.plugin.http;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import dev.serverpanel.lib.gson.JsonObject;
-import dev.serverpanel.lib.gson.JsonParser;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import dev.serverpanel.plugin.ServerPanelPlugin;
 import java.io.IOException;
 import java.io.InputStream;
@@ -124,7 +124,7 @@ public class BanHttpServer {
                     return null;
                 }
             }
-            is.close();
+            try { is.close(); } catch (IOException e) { /* ignore */ }
         }
         return jsonObject;
     }

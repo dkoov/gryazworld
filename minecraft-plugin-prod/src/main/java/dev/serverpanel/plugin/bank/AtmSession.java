@@ -13,8 +13,8 @@
  */
 package dev.serverpanel.plugin.bank;
 
-import dev.serverpanel.lib.gson.JsonArray;
-import dev.serverpanel.lib.gson.JsonObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import dev.serverpanel.plugin.ServerPanelPlugin;
 import dev.serverpanel.plugin.api.ApiClient;
 import java.util.ArrayList;
