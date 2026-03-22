@@ -1,0 +1,3 @@
+iv style="padding:14px 18px;background:rgba(200,168,75,.06);border:1px solid rgba(200,168,75,.15);font-size:11px;color:var(--muted);margin-top:24px">
+
+      🔧 <strong style="color:var(--accent)">Для разработчика:</strong> данные подтягиваются через API бэкенда

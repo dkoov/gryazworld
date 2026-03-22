@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GryazWorld — Ванильный сервер Minecraft</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0a0a0b; --surface:#111114; --surface2:#18181d; --surface3:#1e1e24;
+      --border:#222228; --border2:#2e2e38;
+      --text:#e8e8ec; --muted:#6b6b7a; --muted2:#4a4a58;
+      --accent:#c8a84b; --accent2:#8b6f2a;
+      --green:#4a7c59; --green2:#6bbc88;
+      --discord:#5865F2;
+    }
+    html { scroll-behavior: smooth; }
+    body { background:var(--bg); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:14px; line-height:1.7; overflow-x:hidden; }
+    body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:9999; opacity:0.4; }
+    ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border2)}
+
+    nav { position:fixed; top:0; left:0; right:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:0 40px; height:58px; background:rgba(10,10,11,0.92); backdrop-filter:blur(14px); border-bottom:1px solid var(--border); }
+    .nav-logo { font-family:'Unbounded',sans-serif; font-weight:900; font-size:15px; letter-spacing:.05em; color:var(--accent); text-decoration:none; cursor:pointer; }
+    .nav-logo span { color:var(--muted); }
+    .nav-links { display:flex; gap:0; list-style:none; }
+    .nav-links li a, .nav-links li button { background:none; border:none; color:var(--muted); text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; padding:0 13px; height:58px; display:flex; align-items:center; transition:color .2s,background .2s; }
+    .nav-links li a:hover, .nav-links li button:hover { color:var(--text); background:rgba(255,255,255,.03); }
+    .nav-links li a.active, .nav-links li button.active { color:var(--accent); border-bottom:2px solid var(--accent); }
+    .nav-right { display:flex; align-items:center; gap:10px; }
+    .status-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; background:rgba(74,124,89,.1); border:1px solid rgba(74,124,89,.3); color:var(--green2); font-size:11px; letter-spacing:.08em; }
+    .status-dot { width:6px; height:6px; background:var(--green2); border-radius:50%; animation:pulse 2s infinite; }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 18px; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; text-decoration:none; border:none; cursor:pointer; transition:all .2s; }
+    .btn-discord {
+      background: linear-gradient(135deg, #5865F2 0%, #4752d8 100%);
+      color: #fff;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(88,101,242,.3);
+      letter-spacing: .02em;
+    }
+    .btn-discord::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .btn-discord:hover {
+      background: linear-gradient(135deg, #6875f5 0%, #5865F2 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(88,101,242,.45), 0 0 0 1px rgba(88,101,242,.4);
+    }
+    .btn-discord:active { transform: translateY(0); }
+    .btn-discord svg { flex-shrink:0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
+    .btn-discord-lg { width:100%; justify-content:center; padding:15px 20px; font-size:14px; gap:12px; letter-spacing:.04em; font-weight:600; }
+    .btn-primary { background:var(--accent); color:#0a0a0b; font-weight:600; }
+    .btn-primary:hover { background:#d4b460; transform:translateY(-1px); }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border2); }
+    .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--border2); }
+
+    .page { display:none; padding-top:58px; min-height:100vh; }
+    .page.active { display:block; animation:pageFadeIn .25s ease; }
+    #page-access .section,
+    #page-wiki .section,
+    #page-stats .section,
+    #page-communities .section,
+    #page-map .section { padding-top:40px; }
+
+    .section { padding:80px 40px; }
+    .section-label { font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+    .section-title { font-family:'Unbounded',sans-serif; font-weight:700; font-size:clamp(22px,3.5vw,38px); line-height:1.1; color:var(--text); margin-bottom:14px; }
+    .section-sub { color:var(--muted); max-width:540px; margin-bottom:50px; font-size:13px; }
+
+    /* HOME */
+    .hero { display:flex; flex-direction:column; justify-content:center; padding:64px 40px 56px; position:relative; overflow:hidden; }
+    .hero-bg { position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 60% 40%,rgba(92,61,30,.15) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 20% 80%,rgba(74,124,89,.08) 0%,transparent 50%); }
+    .hero-bg::after { content:''; position:absolute; inset:0; background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size:80px 80px; opacity:.22; mask-image:radial-gradient(ellipse 70% 70% at 70% 40%,black 30%,transparent 70%); }
+    .hero-content { position:relative; max-width:700px; }
+    .hero-tag { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; background:rgba(200,168,75,.1); border:1px solid rgba(200,168,75,.25); color:var(--accent); font-size:11px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:26px; animation:fadeUp .6s ease both; }
+    .hero-tag::before { content:''; width:6px; height:6px; background:var(--accent); animation:pulse 2s infinite; }
+    .hero h1 { font-family:'Unbounded',sans-serif; font-weight:900; font-size:clamp(40px,7vw,78px); line-height:.95; letter-spacing:-.02em; margin-bottom:22px; animation:fadeUp .6s .1s ease both; }
+    .hero h1 .l1 { color:var(--text); display:block; }
+    .hero h1 .l2 { color:var(--accent); display:block; }
+    .hero-desc { color:var(--muted); font-size:13px; max-width:460px; margin-bottom:36px; animation:fadeUp .6s .2s ease both; }
+    .hero-actions { display:flex; gap:10px; flex-wrap:wrap; animation:fadeUp .6s .3s ease both; }
+    .hero-stats { display:flex; gap:28px; margin-top:56px; animation:fadeUp .6s .4s ease both; flex-wrap:wrap; }
+    .hstat { display:flex; flex-direction:column; gap:2px; }
+    .hstat-v { font-family:'Unbounded',sans-serif; font-weight:700; font-size:20px; color:var(--text); }
+    .hstat-l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+    .hstat-div { width:1px; background:var(--border); align-self:stretch; }
+
+    .card-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .card { background:var(--surface); padding:32px 28px; transition:background .2s; }
+    .card:hover { background:var(--surface2); }
+    .card-icon { font-size:26px; margin-bottom:14px; line-height:0; }
+    .card h3 { font-family:'Unbounded',sans-serif; font-weight:600; font-size:13px; color:var(--text); margin-bottom:8px; }
+    .card p { color:var(--muted); font-size:12px; }
+
+    .feat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .feat { background:var(--bg); padding:28px 32px; display:flex; gap:18px; transition:background .2s; }
+    .feat:hover { background:var(--surface); }
+    .feat-num { font-family:'Unbounded',sans-serif; font-size:11px; color:var(--border2); flex-shrink:0; padding-top:2px; }
+    .feat-body h4 { font-family:'Unbounded',sans-serif; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; }
+    .feat-body p { color:var(--muted); font-size:12px; }
+
+    .steps-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .step { background:var(--bg); padding:28px 24px; position:relative; }
+    .step::after { content:'→'; position:absolute; right:-9px; top:28px; color:var(--border2); font-size:14px; z-index:2; }
+    .step:last-child::after { display:none; }
+    .step-num { font-family:'Unbounded',sans-serif; font-size:32px; font-weight:900; color:var(--border); line-height:1; margin-bottom:14px; }
+    .step h4 { font-family:'Unbounded',sans-serif; font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px; }
+    .step p { font-size:12px; color:var(--muted); }
+
+    /* PRICING */
+    .pricing-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; max-width:820px; align-items:stretch; }
+    .pcard {
+      background: var(--surface2);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      border-radius: 16px;
+      border: 1px solid var(--border2);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .pcard:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,.4); }
+    .pcard .btn { margin-top: auto; border-radius: 8px; width: 100%; justify-content: center; }
+    .pcard.featured {
+      background: linear-gradient(160deg, #18181d 0%, #1a1a22 100%);
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 1px rgba(200,168,75,.12), 0 8px 40px rgba(200,168,75,.08);
+    }
+    .pcard.featured:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(200,168,75,.25), 0 20px 60px rgba(200,168,75,.15); }
+    .pcard-badge-area { height: 28px; display: flex; align-items: center; margin-bottom: 16px; }
+    .pbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(90deg, var(--accent2) 0%, var(--accent) 100%);
+      color: #0a0a0b;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .pbadge::before { content: '★'; font-size: 9px; }
+    .pname { font-family:'Unbounded',sans-serif; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+    .pprice { font-family:'Unbounded',sans-serif; font-weight:900; font-size:52px; color:var(--text); line-height:1; margin-bottom:4px; letter-spacing:-.02em; }
+    .pprice span { font-size:20px; font-weight:400; color:var(--muted); letter-spacing:0; }
+    .pperiod { font-size:12px; color:var(--muted); margin-bottom:28px; padding-bottom:24px; border-bottom:1px solid var(--border); }
+    .pfeats { list-style:none; margin-bottom:28px; display:flex; flex-direction:column; gap:10px; flex:1; }
+    .pfeats li { display:flex; align-items:flex-start; gap:10px; font-size:12px; color:var(--muted); }
+    .pfeats li::before {
+      content: '—';
+      color: var(--accent);
+      flex-shrink: 0;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .notice { background:rgba(200,168,75,.07); border:1px solid rgba(200,168,75,.2); border-left:3px solid var(--accent); padding:14px 18px; font-size:12px; color:var(--muted); margin-bottom:28px; max-width:820px; }
+    .notice strong { color:var(--accent); }
+
+    .faq-list { max-width:740px; }
+    .faq-item { border-bottom:1px solid var(--border); }
+    .faq-q { width:100%; background:none; border:none; padding:18px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer; color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:13px; text-align:left; gap:16px; transition:color .2s; }
+    .faq-q:hover { color:var(--accent); }
+    .faq-icon { color:var(--accent); font-size:18px; flex-shrink:0; transition:transform .3s; font-style:normal; }
+    .faq-item.open .faq-icon { transform:rotate(45deg); }
+    .faq-a { max-height:0; overflow:hidden; transition:max-height .3s ease; }
+    .faq-item.open .faq-a { max-height:200px; }
+    .faq-a p { color:var(--muted); font-size:12px; padding-bottom:18px; line-height:1.8; }
+
+    /* STATS */
+    .stats-hero { display:flex; align-items:flex-start; gap:32px; margin-bottom:48px; flex-wrap:wrap; }
+    .server-avatar { width:96px; height:96px; background:var(--surface2); border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:40px; flex-shrink:0; overflow:hidden; }
+    .server-avatar img { width:100%; height:100%; object-fit:cover; }
+    .server-info h2 { font-family:'Unbounded',sans-serif; font-weight:700; font-size:26px; color:var(--text); margin-bottom:8px; }
+    .server-info p { color:var(--muted); font-size:13px; margin-bottom:14px; }
+    .ip-box { display:inline-flex; align-items:center; border:1px solid var(--border2); overflow:hidden; }
+    .ip-text { padding:10px 16px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text); background:var(--surface); letter-spacing:.05em; }
+    .ip-copy { padding:10px 14px; background:var(--surface2); border:none; border-left:1px solid var(--border2); color:var(--muted); cursor:pointer; display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; transition:all .2s; }
+    .ip-copy:hover { background:var(--accent); color:#0a0a0b; }
+    .ip-copy.copied { background:var(--green); color:#fff; }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:48px; }
+    .sstat { background:var(--surface); padding:28px 24px; }
+    .sstat-v { font-family:'Unbounded',sans-serif; font-weight:700; font-size:28px; color:var(--text); margin-bottom:4px; }
+    .sstat-v.online { color:var(--green2); }
+    .sstat-l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+
+    .players-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .player-item { background:var(--surface); padding:14px 18px; display:flex; align-items:center; gap:12px; transition:background .2s; }
+    .player-item:hover { background:var(--surface2); }
+    .player-avatar { width:36px; height:36px; background:var(--surface2); border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .player-name { font-size:13px; color:var(--text); }
+    .no-players { padding:40px; text-align:center; color:var(--muted); font-size:13px; background:var(--surface); border:1px solid var(--border); }
+
+    /* WIKI */
+    .wiki-layout { display:grid; grid-template-columns:220px 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; min-height:65vh; }
+    .wiki-sidebar { background:var(--surface); padding:20px 0; }
+    .wiki-sidebar-title { font-family:'Unbounded',sans-serif; font-size:10px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); padding:0 22px 12px; }
+    .wiki-nav-item { display:flex; align-items:center; gap:9px; padding:9px 22px; color:var(--muted); font-size:12px; cursor:pointer; border:none; background:none; width:100%; text-align:left; font-family:'IBM Plex Mono',monospace; transition:all .2s; border-left:2px solid transparent; }
+    .wiki-nav-item svg { flex-shrink:0; transition:stroke .2s; }
+    .wiki-nav-item:hover { color:var(--text); background:rgba(255,255,255,.03); }
+    .wiki-nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(200,168,75,.05); }
+    .wiki-content { background:var(--bg); padding:36px 44px; }
+    .wiki-article { display:none; }
+    .wiki-article.active { display:block; }
+    .wiki-article h2 { font-family:'Unbounded',sans-serif; font-weight:700; font-size:22px; color:var(--text); margin-bottom:8px; }
+    .wiki-sub { color:var(--muted); font-size:13px; margin-bottom:28px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+    .wiki-article h3 { font-family:'Unbounded',sans-serif; font-size:13px; font-weight:600; color:var(--text); margin:24px 0 10px; }
+    .wiki-article p { color:var(--muted); font-size:13px; line-height:1.9; margin-bottom:12px; }
+    .wiki-article ul { list-style:none; display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .wiki-article ul li { color:var(--muted); font-size:13px; padding-left:18px; position:relative; }
+    .wiki-article ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+    .wiki-tag { display:inline-block; padding:2px 10px; background:rgba(200,168,75,.1); border:1px solid rgba(200,168,75,.2); color:var(--accent); font-size:10px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:12px; }
+
+    /* COMMUNITIES */
+    .comm-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; flex-wrap:wrap; gap:16px; }
+    .comm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .comm-card { background:var(--surface); padding:28px 24px; transition:background .2s; }
+    .comm-card:hover { background:var(--surface2); }
+    .comm-card-header { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+    .comm-icon { width:46px; height:46px; display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; }
+    .comm-name { font-family:'Unbounded',sans-serif; font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; }
+    .comm-members { font-size:11px; color:var(--muted); }
+    .comm-desc { color:var(--muted); font-size:12px; line-height:1.7; margin-bottom:16px; }
+    .comm-footer { display:flex; justify-content:space-between; align-items:center; }
+    .comm-tag { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); background:rgba(200,168,75,.08); padding:2px 8px; }
+    .comm-join { background:none; border:1px solid var(--border2); color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:all .2s; }
+    .comm-join:hover { border-color:var(--accent); color:var(--accent); }
+
+    /* MAP */
+    .map-notice { background:rgba(200,168,75,.07); border:1px solid rgba(200,168,75,.2); border-left:3px solid var(--accent); padding:14px 18px; font-size:12px; color:var(--muted); margin-bottom:24px; }
+    .map-notice strong { color:var(--accent); }
+    .map-frame { width:100%; height:68vh; border:1px solid var(--border2); background:var(--surface); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+    .map-frame p { color:var(--muted); font-size:13px; text-align:center; line-height:1.8; }
+    .map-icon { font-size:48px; opacity:.25; }
+
+    /* MODALS */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); backdrop-filter:blur(8px); z-index:200; align-items:center; justify-content:center; }
+    .overlay.open { display:flex; }
+    .modal { background:var(--surface); border:1px solid var(--border2); padding:44px; max-width:420px; width:100%; margin:20px; animation:fadeUp .3s ease; position:relative; }
+    .modal-wide { max-width:540px; }
+    .modal h2 { font-family:'Unbounded',sans-serif; font-weight:700; font-size:19px; color:var(--text); margin-bottom:6px; }
+    .modal > p { color:var(--muted); font-size:12px; margin-bottom:24px; }
+    .modal-close { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:22px; line-height:1; transition:color .2s; }
+    .modal-close:hover { color:var(--text); }
+    .inp-group { margin-bottom:16px; }
+    .inp-group label { display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+    .inp-group input, .inp-group textarea { width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text); padding:11px 14px; font-family:'IBM Plex Mono',monospace; font-size:13px; outline:none; transition:border-color .2s; resize:vertical; }
+    .inp-group input:focus, .inp-group textarea:focus { border-color:var(--accent); }
+    .inp-group input::placeholder, .inp-group textarea::placeholder { color:var(--muted2); }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:6px; }
+
+    footer { border-top:1px solid var(--border); padding:32px 40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+    .footer-logo { font-family:'Unbounded',sans-serif; font-weight:900; font-size:13px; color:var(--accent); }
+    .footer-logo span { color:var(--muted); }
+    .footer-links { display:flex; gap:20px; }
+    .footer-links a { color:var(--muted); text-decoration:none; font-size:11px; letter-spacing:.08em; text-transform:uppercase; transition:color .2s; cursor:pointer; }
+    .footer-links a:hover { color:var(--text); }
+    .footer-copy { color:var(--border2); font-size:11px; }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pageFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    @media(max-width:900px) {
+      nav { padding:0 16px; }
+      .nav-links { display:none; }
+      .section { padding:50px 20px; }
+      .hero { padding:60px 20px 50px; }
+      .card-grid,.feat-grid,.steps-grid,.stats-grid { grid-template-columns:1fr; }
+      .pricing-grid { grid-template-columns:1fr; }
+      .wiki-layout { grid-template-columns:1fr; }
+      .step::after { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo" onclick="showPage('home')">Gryaz<span>World</span></div>
+  <ul class="nav-links">
+    <li><button id="nav-home" class="active" onclick="showPage('home')">Главная</button></li>
+    <li><button id="nav-about" onclick="activateAbout()">О сервере</button></li>
+    <li><button id="nav-access" onclick="showPage('access')">Проходка</button></li>
+    <li><button id="nav-wiki" onclick="showPage('wiki')">Wiki</button></li>
+    <li><button id="nav-stats" onclick="showPage('stats')">Статистика</button></li>
+    <li><button id="nav-communities" onclick="showPage('communities')">Общины</button></li>
+    <li><button id="nav-map" onclick="showPage('map')">Карта</button></li>
+  </ul>
+  <div class="nav-right">
+    <div class="status-pill"><span class="status-dot"></span><span id="nav-online">0 онлайн</span></div>
+    <button id="btn-login" class="btn btn-discord" onclick="window.location.href='/cabinet.html'">
+      <svg width="18" height="14" viewBox="0 0 71 55" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M60.1045 4.8978C55.5792 2.8214 50.7265 1.2916 45.6527 0.41542C45.5603 0.39851 45.468 0.440769 45.4204 0.525289C44.7963 1.6353 44.105 3.0834 43.6209 4.2216C38.1637 3.4046 32.7345 3.4046 27.3892 4.2216C26.905 3.0581 26.1886 1.6353 25.5617 0.525289C25.5141 0.443589 25.4218 0.40133 25.3294 0.41542C20.2584 1.2888 15.4057 2.8186 10.8776 4.8978C10.8384 4.9147 10.8048 4.9429 10.7825 4.9795C1.57795 18.7309-0.943561 32.1443.293408 45.3914C.299005 45.4562.335386 45.5182.385761 45.5576C6.45866 50.0174 12.3413 52.7249 18.1147 54.5195C18.2071 54.5477 18.305 54.5139 18.3638 54.4378C19.7295 52.5728 20.9469 50.6063 21.9907 48.5383C22.0523 48.4172 21.9935 48.2735 21.8676 48.2256C19.9366 47.4931 18.0979 46.6 16.3292 45.5858C16.1893 45.5041 16.1781 45.304 16.3068 45.2082C16.679 44.9293 17.0513 44.6391 17.4067 44.3461C17.471 44.2926 17.5606 44.2813 17.6362 44.3151C29.2558 49.6202 41.8354 49.6202 53.3179 44.3151C53.3935 44.2785 53.4831 44.2898 53.5502 44.3433C53.9057 44.6363 54.2779 44.9293 54.6529 45.2082C54.7816 45.304 54.7732 45.5041 54.6333 45.5858C52.8646 46.6197 51.0259 47.4931 49.0921 48.2228C48.9662 48.2707 48.9102 48.4172 48.9718 48.5383C50.038 50.6034 51.2554 52.5699 52.5959 54.435C52.6519 54.5139 52.7526 54.5477 52.845 54.5195C58.6464 52.7249 64.529 50.0174 70.6019 45.5576C70.6551 45.5182 70.6887 45.459 70.6943 45.3942C72.1747 30.0791 68.2147 16.7757 60.1968 4.9823C60.1772 4.9429 60.1437 4.9147 60.1045 4.8978ZM23.7259 37.3253C20.2276 37.3253 17.3451 34.1136 17.3451 30.1693C17.3451 26.225 20.1717 23.0133 23.7259 23.0133C27.308 23.0133 30.1626 26.2532 30.1066 30.1693C30.1066 34.1136 27.28 37.3253 23.7259 37.3253ZM47.3178 37.3253C43.8196 37.3253 40.9371 34.1136 40.9371 30.1693C40.9371 26.225 43.7636 23.0133 47.3178 23.0133C50.9 23.0133 53.7545 26.2532 53.6986 30.1693C53.6986 34.1136 50.9 37.3253 47.3178 37.3253Z"/></svg>
+      Войти
+    </button>
+    <div id="user-info" style="display:none;align-items:center;gap:10px;">
+      <a href="/cabinet.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+        <img id="user-avatar" src="" alt="" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--discord);object-fit:cover;">
+        <span id="user-name" style="font-size:13px;font-weight:500;color:var(--text);"></span>
+      </a>
+      <button class="btn btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="logout()">Выйти</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-tag">Ванильный сервер · Java Edition · Minecraft</div>
+      <h1><span class="l1">Выживание без</span><span class="l2">компромиссов</span></h1>
+      <p class="hero-desc">Приватный Minecraft-сервер с акцентом на честную игру, живое сообщество и реальную экономику. Никаких донат-привилегий.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="showPage('access')">Купить проходку</button>
+        <button class="btn btn-outline" onclick="goTo('about')">О сервере</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><span class="hstat-v" id="hero-online">0</span><span class="hstat-l">Онлайн</span></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><span class="hstat-v">Ваниль</span><span class="hstat-l">Без доната</span></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><span class="hstat-v">Java</span><span class="hstat-l">Edition</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="about" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="section-label">О сервере</div>
+    <div class="section-title">Честная игра.<br>Живое сообщество.</div>
+    <p class="section-sub">GryazWorld — приватный ванильный сервер, где каждый начинает с нуля. Никаких привилегий за деньги.</p>
+    <div class="card-grid">
+      <div class="card"><div class="card-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg></div><h3>Чистая ваниль</h3><p>Никаких лишних плагинов. Классический Minecraft таким, каким он должен быть.</p></div>
+      <div class="card"><div class="card-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-1a6 6 0 0 1 6-6h0a6 6 0 0 1 6 6v1"/><circle cx="18" cy="8" r="2.5"/><path d="M21 21v-1a4 4 0 0 0-3-3.87"/></svg></div><h3>Живое сообщество</h3><p>Discord с активными игроками, совместные стройки, торговля и события.</p></div>
+      <div class="card"><div class="card-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="11" width="14" height="11" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><line x1="12" y1="15" x2="12" y2="18"/></svg></div><h3>Без донат-привилегий</h3><p>Проходка даёт только доступ. Никаких нечестных преимуществ.</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Особенности</div>
+    <div class="section-title">Что вас ждёт</div>
+    <p class="section-sub">Сервер настроен под комфортную долгосрочную игру.</p>
+    <div class="feat-grid">
+      <div class="feat"><span class="feat-num">01</span><div class="feat-body"><h4>Белый список</h4><p>Доступ только через проходку. Отсеивает гриферов и случайных людей.</p></div></div>
+      <div class="feat"><span class="feat-num">02</span><div class="feat-body"><h4>Discord-интеграция</h4><p>При покупке проходки автоматически получаете роль в нашем Discord.</p></div></div>
+      <div class="feat"><span class="feat-num">03</span><div class="feat-body"><h4>Общины</h4><p>Создавайте объединения игроков, стройте города, общайтесь вместе.</p></div></div>
+      <div class="feat"><span class="feat-num">04</span><div class="feat-body"><h4>Карта сервера</h4><p>Интерактивная карта мира в реальном времени прямо на сайте.</p></div></div>
+    </div>
+  </div>
+
+  <div class="section" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="section-label">Как попасть</div>
+    <div class="section-title">Три шага до игры</div>
+    <div class="steps-grid">
+      <div class="step"><div class="step-num">01</div><h4>Войдите через Discord</h4><p>Нажмите «Войти» в шапке. Никаких паролей.</p></div>
+      <div class="step"><div class="step-num">02</div><h4>Укажите ник</h4><p>Введите ваш игровой никнейм для белого списка.</p></div>
+      <div class="step"><div class="step-num">03</div><h4>Купите проходку</h4><p>После оплаты — роль в Discord и доступ к серверу.</p></div>
+      <div class="step"><div class="step-num">04</div><h4>Играйте</h4><p>Адрес сервера придёт в Discord сразу после покупки.</p></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo">Gryaz<span>World</span></div>
+    <div class="footer-links">
+      <a onclick="showPage('access')">Проходка</a>
+      <a onclick="showPage('wiki')">Wiki</a>
+      <a onclick="showPage('stats')">Статистика</a>
+      <a onclick="openModal('loginModal')" style="cursor:pointer">Discord</a>
+    </div>
+    <div class="footer-copy">© 2025 GryazWorld</div>
+  </footer>
+</div>
+
+<!-- PRICING -->
+<div class="page" id="page-access">
+  <div class="section">
+    <div class="section-label">Проходка</div>
+    <div class="section-title">Выберите тариф</div>
+    <p class="section-sub">Проходка даёт доступ к серверу. Никаких доп. преимуществ — только игра на равных.</p>
+    <div class="notice"><strong>Важно:</strong> для покупки необходимо войти через Discord и указать ник в Minecraft. После оплаты доступ выдаётся автоматически.</div>
+    <div class="pricing-grid">
+      <div class="pcard">
+        <div class="pcard-badge-area"></div>
+        <div class="pname">Месячная проходка</div>
+        <div class="pprice">199<span> ₽</span></div>
+        <div class="pperiod">на 30 дней</div>
+        <ul class="pfeats">
+          <li>Полный доступ к серверу</li>
+          <li>Роль «Игрок» в Discord</li>
+          <li>Белый список на сервере</li>
+          <li>Java Edition</li>
+        </ul>
+        <button class="btn btn-outline" onclick="openModal('loginModal')">Войдите для покупки</button>
+      </div>
+      <div class="pcard featured">
+        <div class="pcard-badge-area"><div class="pbadge">Выгодно</div></div>
+        <div class="pname">Сезонная проходка</div>
+        <div class="pprice">499<span> ₽</span></div>
+        <div class="pperiod">на весь сезон (3–6 мес.)</div>
+        <ul class="pfeats">
+          <li>Полный доступ к серверу</li>
+          <li>Роль «Игрок» в Discord</li>
+          <li>Белый список на сервере</li>
+          <li>Java Edition</li>
+          <li>Приоритетная поддержка</li>
+        </ul>
+        <button class="btn btn-primary" onclick="openModal('loginModal')">Войдите для покупки</button>
+      </div>
+    </div>
+
+    <div style="margin-top:60px">
+      <div class="section-label">FAQ</div>
+      <div class="section-title" style="font-size:22px;margin-bottom:24px">Частые вопросы</div>
+      <div class="faq-list">
+        <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Нужна лицензия Minecraft?<i class="faq-icon">+</i></button><div class="faq-a"><p>Нет, можно играть с пиратской версии Java Edition. Официальная лицензия тоже подходит.</p></div></div>
+        <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Как быстро дают доступ после оплаты?<i class="faq-icon">+</i></button><div class="faq-a"><p>Автоматически, в течение нескольких секунд. Система сама добавляет ник в белый список и выдаёт роль в Discord.</p></div></div>
+        <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Можно вернуть деньги?<i class="faq-icon">+</i></button><div class="faq-a"><p>Да, если наиграли меньше 2 часов и прошло не более 3 дней — напишите администратору в Discord.</p></div></div>
+        <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Зачем платить за доступ?<i class="faq-icon">+</i></button><div class="faq-a"><p>Платный доступ отсеивает гриферов. Сервер существует на деньги от проходок, а не донат-привилегии.</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIKI -->
+<div class="page" id="page-wiki">
+  <div class="section">
+    <div class="section-label">Wiki</div>
+    <div class="section-title">База знаний</div>
+    <p class="section-sub">Всё о правилах, механиках и особенностях сервера.</p>
+    <div class="wiki-layout">
+      <div class="wiki-sidebar">
+        <div class="wiki-sidebar-title">Разделы</div>
+        <button class="wiki-nav-item active" onclick="showWiki('start',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.5-1 5.5-1 5.5s4-.5 5.5-2l7.5-7.5A4.5 4.5 0 0 0 10 6L4.5 16.5z"/><path d="M14 10l-4-4"/><path d="M15 3l3 3-1.5 1.5"/><circle cx="16.5" cy="7.5" r="1"/></svg>
+          Начало игры
+        </button>
+        <button class="wiki-nav-item" onclick="showWiki('rules',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          Правила
+        </button>
+        <button class="wiki-nav-item" onclick="showWiki('economy',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Экономика
+        </button>
+        <button class="wiki-nav-item" onclick="showWiki('communities',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Общины
+        </button>
+        <button class="wiki-nav-item" onclick="showWiki('grief',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Грифинг
+        </button>
+        <button class="wiki-nav-item" onclick="showWiki('faq',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </button>
+      </div>
+      <div class="wiki-content">
+        <div class="wiki-article active" id="wiki-start">
+          <div class="wiki-tag">Начало</div>
+          <h2>Начало игры</h2>
+          <p class="wiki-sub">Всё что нужно знать перед первым входом на сервер.</p>
+          <h3>Как зайти на сервер</h3>
+          <p>После покупки проходки ваш ник автоматически добавляется в белый список. Адрес сервера указан на странице Статистика. Подключайтесь через Java Edition.</p>
+          <h3>Первые шаги</h3>
+          <ul>
+            <li>Отойдите от спавна — ресурсы там уже истощены</li>
+            <li>Найдите место для базы подальше от других игроков</li>
+            <li>Зайдите в Discord сервера — там можно найти соседей</li>
+            <li>Познакомьтесь с другими и, возможно, вступите в общину</li>
+          </ul>
+          <h3>Версия</h3>
+          <p>Сервер работает на Java Edition последней стабильной версии. Пиратская версия поддерживается.</p>
+        </div>
+        <div class="wiki-article" id="wiki-rules">
+          <div class="wiki-tag">Правила</div>
+          <h2>Правила сервера</h2>
+          <p class="wiki-sub">Обязательно прочитайте перед игрой.</p>
+          <h3>Основные правила</h3>
+          <ul>
+            <li>Запрещён грифинг построек других игроков</li>
+            <li>Запрещено воровство из сундуков</li>
+            <li>Запрещены читы, x-ray и другие нечестные модификации</li>
+            <li>Запрещено использование багов и дюпов (кроме разрешённых)</li>
+            <li>Уважительное отношение к другим игрокам обязательно</li>
+          </ul>
+          <h3>Санкции</h3>
+          <p>За нарушение — предупреждение, затем временный бан, затем постоянный без возврата средств.</p>
+        </div>
+        <div class="wiki-article" id="wiki-economy">
+          <div class="wiki-tag">Экономика</div>
+          <h2>Экономика</h2>
+          <p class="wiki-sub">Валюта сервера — алмазы. Никаких плагинов на деньги.</p>
+          <h3>Как работает</h3>
+          <p>Всё строится на реальных отношениях между игроками. Торгуйте ресурсами, открывайте магазины, устанавливайте цены самостоятельно.</p>
+          <h3>Торговля</h3>
+          <ul>
+            <li>Прямой обмен между игроками</li>
+            <li>Магазины на территории общин</li>
+            <li>Аукционы в Discord-чате</li>
+          </ul>
+        </div>
+        <div class="wiki-article" id="wiki-communities">
+          <div class="wiki-tag">Общины</div>
+          <h2>Общины</h2>
+          <p class="wiki-sub">Объединяйтесь с другими для совместного строительства и торговли.</p>
+          <h3>Что такое община</h3>
+          <p>Группа игроков с общей территорией или целью. У каждой общины есть страница на сайте со списком участников.</p>
+          <h3>Создание общины</h3>
+          <p>Создать может любой игрок с активной проходкой. Перейдите на страницу «Общины» и нажмите «Создать общину».</p>
+        </div>
+        <div class="wiki-article" id="wiki-grief">
+          <div class="wiki-tag">Безопасность</div>
+          <h2>Грифинг и кражи</h2>
+          <p class="wiki-sub">Как защититься и что делать если вас загрифили.</p>
+          <h3>Если загрифили</h3>
+          <p>На сервере ведётся лог всех действий. Обратитесь к администратору в Discord. Грифер получит бан, постройки восстановят.</p>
+          <h3>Профилактика</h3>
+          <ul>
+            <li>Стройте базу подальше от спавна</li>
+            <li>Не оставляйте ценности на поверхности</li>
+            <li>Доверяйте только проверенным игрокам</li>
+          </ul>
+        </div>
+        <div class="wiki-article" id="wiki-faq">
+          <div class="wiki-tag">FAQ</div>
+          <h2>Часто задаваемые вопросы</h2>
+          <p class="wiki-sub">Быстрые ответы.</p>
+          <ul>
+            <li>Нужна ли лицензия? — Нет, пиратка работает</li>
+            <li>Какая версия? — Java Edition, последняя стабильная</li>
+            <li>Можно с Bedrock? — Пока нет</li>
+            <li>Когда вайп? — Объявляем в Discord заранее</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="page" id="page-stats">
+  <div class="section">
+    <div class="section-label">Статистика</div>
+    <div class="stats-hero">
+      <div class="server-avatar" id="serverAvatar">🌍</div>
+      <div class="server-info">
+        <h2>GryazWorld</h2>
+        <p>Ванильный выживательный сервер · Java Edition</p>
+        <div class="ip-box">
+          <span class="ip-text" id="serverIp">play.gryazworld.ru</span>
+          <button class="ip-copy" id="copyBtn" onclick="copyIp()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Копировать
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="sstat"><div class="sstat-v online" id="stat-online">0</div><div class="sstat-l">Игроков онлайн</div></div>
+      <div class="sstat"><div class="sstat-v" id="stat-max">20</div><div class="sstat-l">Максимум слотов</div></div>
+      <div class="sstat"><div class="sstat-v" id="stat-tps">20.0</div><div class="sstat-l">TPS сервера</div></div>
+      <div class="sstat"><div class="sstat-v">Java</div><div class="sstat-l">Версия</div></div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:12px">Игроки в сети</div>
+      <div id="playersList"><div class="no-players">Сейчас никого нет онлайн. Станьте первым! ⛏️</div></div>
+    </div>
+
+    <div style="padding:14px 18px;background:rgba(200,168,75,.06);border:1px solid rgba(200,168,75,.15);font-size:11px;color:var(--muted);margin-top:24px">
+      🔧 <strong style="color:var(--accent)">Для разработчика:</strong> данные подтягиваются через API бэкенда. После подключения здесь будет реальный онлайн, список игроков и TPS.
+    </div>
+  </div>
+</div>
+
+<!-- COMMUNITIES -->
+<div class="page" id="page-communities">
+  <div class="section">
+    <div class="comm-header">
+      <div>
+        <div class="section-label">Общины</div>
+        <div class="section-title">Объединения игроков</div>
+        <p style="color:var(--muted);font-size:13px">Вступайте в существующие или создавайте свои общины. Нужна активная проходка.</p>
+      </div>
+      <button class="btn btn-primary" onclick="openCreateComm()">+ Создать общину</button>
+    </div>
+    <div id="commGrid" class="comm-grid"></div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="page" id="page-map">
+  <div class="section">
+    <div class="section-label">Карта</div>
+    <div class="section-title">Карта мира</div>
+    <p class="section-sub">Интерактивная карта сервера в реальном времени.</p>
+    <div class="map-notice">
+      <strong>Для разработчика:</strong> карта генерируется плагином <strong>Dynmap</strong> или <strong>BlueMap</strong> на Minecraft-сервере. После установки замените блок ниже на iframe с адресом плагина.
+    </div>
+    <!-- После установки Dynmap замените div на: <iframe src="http://ВАШ_IP:8123" style="width:100%;height:68vh;border:1px solid var(--border2)"></iframe> -->
+    <div class="map-frame">
+      <div class="map-icon">🗺</div>
+      <p>Карта появится после установки плагина<br><strong style="color:var(--text)">Dynmap</strong> или <strong style="color:var(--text)">BlueMap</strong> на Minecraft-сервер</p>
+      <button class="btn btn-outline" onclick="openModal('mapInfoModal')">Как подключить?</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Login -->
+<div class="overlay" id="loginModal" onclick="closeOnOverlay(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loginModal')">×</button>
+    <h2>Вход на сайт</h2>
+    <p>Авторизуйтесь через Discord, чтобы купить проходку и получить доступ к серверу.</p>
+    <button class="btn btn-discord btn-discord-lg" onclick="discordLogin()">
+      <svg width="22" height="17" viewBox="0 0 71 55" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M60.1045 4.8978C55.5792 2.8214 50.7265 1.2916 45.6527 0.41542C45.5603 0.39851 45.468 0.440769 45.4204 0.525289C44.7963 1.6353 44.105 3.0834 43.6209 4.2216C38.1637 3.4046 32.7345 3.4046 27.3892 4.2216C26.905 3.0581 26.1886 1.6353 25.5617 0.525289C25.5141 0.443589 25.4218 0.40133 25.3294 0.41542C20.2584 1.2888 15.4057 2.8186 10.8776 4.8978C10.8384 4.9147 10.8048 4.9429 10.7825 4.9795C1.57795 18.7309-0.943561 32.1443.293408 45.3914C.299005 45.4562.335386 45.5182.385761 45.5576C6.45866 50.0174 12.3413 52.7249 18.1147 54.5195C18.2071 54.5477 18.305 54.5139 18.3638 54.4378C19.7295 52.5728 20.9469 50.6063 21.9907 48.5383C22.0523 48.4172 21.9935 48.2735 21.8676 48.2256C19.9366 47.4931 18.0979 46.6 16.3292 45.5858C16.1893 45.5041 16.1781 45.304 16.3068 45.2082C16.679 44.9293 17.0513 44.6391 17.4067 44.3461C17.471 44.2926 17.5606 44.2813 17.6362 44.3151C29.2558 49.6202 41.8354 49.6202 53.3179 44.3151C53.3935 44.2785 53.4831 44.2898 53.5502 44.3433C53.9057 44.6363 54.2779 44.9293 54.6529 45.2082C54.7816 45.304 54.7732 45.5041 54.6333 45.5858C52.8646 46.6197 51.0259 47.4931 49.0921 48.2228C48.9662 48.2707 48.9102 48.4172 48.9718 48.5383C50.038 50.6034 51.2554 52.5699 52.5959 54.435C52.6519 54.5139 52.7526 54.5477 52.845 54.5195C58.6464 52.7249 64.529 50.0174 70.6019 45.5576C70.6551 45.5182 70.6887 45.459 70.6943 45.3942C72.1747 30.0791 68.2147 16.7757 60.1968 4.9823C60.1772 4.9429 60.1437 4.9147 60.1045 4.8978ZM23.7259 37.3253C20.2276 37.3253 17.3451 34.1136 17.3451 30.1693C17.3451 26.225 20.1717 23.0133 23.7259 23.0133C27.308 23.0133 30.1626 26.2532 30.1066 30.1693C30.1066 34.1136 27.28 37.3253 23.7259 37.3253ZM47.3178 37.3253C43.8196 37.3253 40.9371 34.1136 40.9371 30.1693C40.9371 26.225 43.7636 23.0133 47.3178 23.0133C50.9 23.0133 53.7545 26.2532 53.6986 30.1693C53.6986 34.1136 50.9 37.3253 47.3178 37.3253Z"/></svg>
+      Войти через Discord
+    </button>
+    <p style="margin:14px 0 0;font-size:11px;text-align:center;color:var(--muted2)">Нажимая, вы соглашаетесь с политикой конфиденциальности</p>
+  </div>
+</div>
+
+<!-- MODAL: Create community -->
+<div class="overlay" id="createCommModal" onclick="closeOnOverlay(event)">
+  <div class="modal modal-wide">
+    <button class="modal-close" onclick="closeModal('createCommModal')">×</button>
+    <h2>Создать общину</h2>
+    <p>Заполните информацию. Нужна активная проходка.</p>
+    <div class="inp-group"><label>Название общины</label><input type="text" id="commName" placeholder="Северный форт" maxlength="40"/></div>
+    <div class="inp-group"><label>Иконка (эмодзи)</label><input type="text" id="commIcon" placeholder="🏰" maxlength="2"/></div>
+    <div class="inp-group"><label>Описание</label><textarea id="commDesc" rows="3" placeholder="Расскажите о вашей общине..."></textarea></div>
+    <div class="inp-group"><label>Тематика</label><input type="text" id="commTag" placeholder="Строительство, Торговля, PvP..."/></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('createCommModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="createCommunity()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Map info -->
+<div class="overlay" id="mapInfoModal" onclick="closeOnOverlay(event)">
+  <div class="modal modal-wide">
+    <button class="modal-close" onclick="closeModal('mapInfoModal')">×</button>
+    <h2>Как подключить карту</h2>
+    <p>Инструкция по установке Dynmap на Minecraft-сервер.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:12px;color:var(--muted)">
+      <div style="padding:14px;background:var(--bg);border:1px solid var(--border)"><div style="color:var(--accent);margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.1em">Шаг 1</div>Скачайте плагин <strong style="color:var(--text)">Dynmap</strong> на dev.bukkit.org/projects/dynmap</div>
+      <div style="padding:14px;background:var(--bg);border:1px solid var(--border)"><div style="color:var(--accent);margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.1em">Шаг 2</div>Положите .jar файл в папку <strong style="color:var(--text)">/plugins</strong> вашего сервера</div>
+      <div style="padding:14px;background:var(--bg);border:1px solid var(--border)"><div style="color:var(--accent);margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.1em">Шаг 3</div>Откройте порт <strong style="color:var(--text)">8123</strong> и перезапустите Minecraft-сервер</div>
+      <div style="padding:14px;background:var(--bg);border:1px solid var(--border)"><div style="color:var(--accent);margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.1em">Шаг 4</div>В коде сайта замените блок карты на:<br><strong style="color:var(--text)">&lt;iframe src="http://ВАШ_IP:8123"&gt;&lt;/iframe&gt;</strong></div>
+    </div>
+    <div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="closeModal('mapInfoModal')">Понятно</button></div>
+  </div>
+</div>
+
+<script>
+  const PAGES = ['home','access','wiki','stats','communities','map'];
+  const communities = [
+    { name:'Северный форт', icon:'🏰', members:4, desc:'Строим укреплённое поселение на севере карты. Ищем шахтёров и строителей.', tag:'Строительство' },
+    { name:'Торговая гильдия', icon:'⚗️', members:7, desc:'Объединение торговцев. Рынки, аукционы, торговые маршруты между общинами.', tag:'Торговля' },
+    { name:'Деревня Гряз', icon:'🌾', members:12, desc:'Первая и крупнейшая деревня. Открыты для всех новичков.', tag:'Открытая' },
+  ];
+
+  function showPage(name) {
+    PAGES.forEach(p => {
+      document.getElementById('page-'+p).classList.remove('active');
+      const n = document.getElementById('nav-'+p);
+      if (n) n.classList.remove('active');
+    });
+    const navAbout = document.getElementById('nav-about');
+    if (navAbout) navAbout.classList.remove('active');
+    window.scrollTo({top: 0, left: 0, behavior: 'instant'});
+    document.getElementById('page-'+name).classList.add('active');
+    const n = document.getElementById('nav-'+name);
+    if (n) n.classList.add('active');
+    if (name === 'home') document.getElementById('nav-home').classList.add('active');
+  }
+
+  function activateAbout() {
+    showPage('home');
+    document.getElementById('nav-home').classList.remove('active');
+    document.getElementById('nav-about').classList.add('active');
+    goTo('about');
+  }
+
+  function goTo(id) {
+    setTimeout(()=>{
+      const el = document.getElementById(id);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    },80);
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function closeOnOverlay(e) { if(e.target.classList.contains('overlay')) e.target.classList.remove('open'); }
+
+  function discordLogin() {
+    window.location.href = 'https://api.gryazworld.ru/auth/discord';
+  }
+
+  function showUserInNav(user) {
+    document.getElementById('btn-login').style.display = 'none';
+    const ui = document.getElementById('user-info');
+    ui.style.display = 'flex';
+    document.getElementById('user-avatar').src = user.avatar;
+    document.getElementById('user-name').textContent = user.username;
+  }
+
+  async function checkAuth() {
+    // Сначала проверяем localStorage (после авторизации через cabinet.html)
+    const stored = localStorage.getItem('discord_user');
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        const avatarUrl = user.avatar
+          ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+          : `https://cdn.discordapp.com/embed/avatars/0.png`;
+        // Show minecraft nick if linked
+        let displayName = user.global_name || user.username;
+        try {
+          const pr = await fetch(`/proxy.php?path=/web/profile/${user.id}`);
+          if (pr.ok) {
+            const profile = await pr.json();
+            if (profile.linked && profile.nickname) displayName = profile.nickname;
+          }
+        } catch(e) {}
+        showUserInNav({ avatar: avatarUrl, username: displayName });
+        return;
+      } catch (e) {}
+    }
+    // Fallback: проверяем сессию на сервере
+    try {
+      const res = await fetch('https://api.gryazworld.ru/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        const user = await res.json();
+        showUserInNav(user);
+      }
+    } catch (e) {}
+  }
+
+  async function logout() {
+    localStorage.removeItem('discord_user');
+    try {
+      await fetch('https://api.gryazworld.ru/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {}
+    document.getElementById('user-info').style.display = 'none';
+    document.getElementById('btn-login').style.display = '';
+  }
+
+  checkAuth();
+
+  function copyIp() {
+    const ip = document.getElementById('serverIp').textContent;
+    navigator.clipboard.writeText(ip).then(()=>{
+      const btn = document.getElementById('copyBtn');
+      btn.classList.add('copied');
+      btn.innerHTML = '✓ Скопировано';
+      setTimeout(()=>{
+        btn.classList.remove('copied');
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Копировать';
+      },2000);
+    });
+  }
+
+  function showWiki(id, btn) {
+    document.querySelectorAll('.wiki-article').forEach(a=>a.classList.remove('active'));
+    document.querySelectorAll('.wiki-nav-item').forEach(b=>b.classList.remove('active'));
+    document.getElementById('wiki-'+id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function toggleFaq(btn) {
+    const item = btn.parentElement;
+    const was = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+    if(!was) item.classList.add('open');
+  }
+
+  function openCreateComm() { openModal('createCommModal'); }
+
+  function createCommunity() {
+    const name = document.getElementById('commName').value.trim();
+    const icon = document.getElementById('commIcon').value.trim() || '🏠';
+    const desc = document.getElementById('commDesc').value.trim();
+    const tag  = document.getElementById('commTag').value.trim() || 'Общая';
+    if(!name){alert('Введите название!');return;}
+    if(!desc){alert('Добавьте описание!');return;}
+    communities.push({name,icon,members:1,desc,tag});
+    renderComm();
+    closeModal('createCommModal');
+    ['commName','commIcon','commDesc','commTag'].forEach(id=>document.getElementById(id).value='');
+  }
+
+  function renderComm() {
+    const grid = document.getElementById('commGrid');
+    grid.innerHTML = communities.map(c=>`
+      <div class="comm-card">
+        <div class="comm-card-header">
+          <div class="comm-icon">${c.icon}</div>
+          <div><div class="comm-name">${c.name}</div><div class="comm-members">🧑‍🤝‍🧑 ${c.members} участник${c.members===1?'':c.members<5?'а':'ов'}</div></div>
+        </div>
+        <p class="comm-desc">${c.desc}</p>
+        <div class="comm-footer">
+          <span class="comm-tag">${c.tag}</span>
+          <button class="comm-join" onclick="openModal('loginModal')">Вступить</button>
+        </div>
+      </div>`).join('');
+  }
+  renderComm();
+
+  // placeholder онлайн
+  document.getElementById('nav-online').textContent = '0 онлайн';
+  document.getElementById('hero-online').textContent = '0';
+  document.getElementById('stat-online').textContent = '0';
+</script>
+</body>
+</html>

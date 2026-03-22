@@ -1,0 +1,82 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  org.bukkit.OfflinePlayer
+ *  org.bukkit.command.Command
+ *  org.bukkit.command.CommandExecutor
+ *  org.bukkit.command.CommandSender
+ *  org.bukkit.entity.Player
+ *  org.bukkit.plugin.Plugin
+ */
+package dev.serverpanel.plugin.commands;
+
+import dev.serverpanel.plugin.ServerPanelPlugin;
+import dev.serverpanel.plugin.api.ApiClient;
+import java.util.Arrays;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+
+public class WarnCommand
+implements CommandExecutor {
+    private final ServerPanelPlugin plugin;
+
+    public WarnCommand(ServerPanelPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args2) {
+        String string;
+        String targetName;
+        String targetUuid;
+        if (!sender.hasPermission("serverpanel.admin")) {
+            sender.sendMessage(this.plugin.prefix() + "\u00a7c\u041d\u0435\u0442 \u043f\u0440\u0430\u0432.");
+            return true;
+        }
+        if (args2.length < 2) {
+            sender.sendMessage(this.plugin.prefix() + "\u00a7c\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435: \u00a7f/warn <\u0438\u0433\u0440\u043e\u043a> <\u043f\u0440\u0438\u0447\u0438\u043d\u0430>");
+            return true;
+        }
+        Player online = this.plugin.getServer().getPlayer(args2[0]);
+        if (online != null) {
+            targetUuid = online.getUniqueId().toString();
+            targetName = online.getName();
+        } else {
+            OfflinePlayer offline = this.plugin.getServer().getOfflinePlayer(args2[0]);
+            if (!offline.hasPlayedBefore()) {
+                sender.sendMessage(this.plugin.prefix() + "\u00a7c\u0418\u0433\u0440\u043e\u043a \u00a7f" + args2[0] + " \u00a7c\u043d\u0438\u043a\u043e\u0433\u0434\u0430 \u043d\u0435 \u0431\u044b\u043b \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435.");
+                return true;
+            }
+            targetUuid = offline.getUniqueId().toString();
+            targetName = offline.getName() != null ? offline.getName() : args2[0];
+        }
+        String reason = String.join((CharSequence)" ", Arrays.copyOfRange(args2, 1, args2.length));
+        if (sender instanceof Player) {
+            Player p = (Player)sender;
+            string = p.getUniqueId().toString();
+        } else {
+            string = "console";
+        }
+        String adminUuid = string;
+        this.plugin.getServer().getScheduler().runTaskAsynchronously((Plugin)this.plugin, () -> {
+            ApiClient.ApiResponse resp = this.plugin.getApiClient().issueWarn(adminUuid, targetUuid, reason);
+            this.plugin.getServer().getScheduler().runTask((Plugin)this.plugin, () -> {
+                if (resp.isSuccess()) {
+                    int totalWarns = resp.getInt("total_warns");
+                    sender.sendMessage(this.plugin.prefix() + "\u00a7a\u0412\u0430\u0440\u043d \u0432\u044b\u0434\u0430\u043d \u00a7f" + targetName + "\u00a7a. \u0412\u0441\u0435\u0433\u043e \u0432\u0430\u0440\u043d\u043e\u0432: \u00a7c" + totalWarns);
+                    if (online != null) {
+                        online.sendMessage(this.plugin.prefix() + "\u00a7c\u0412\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u043b\u0438 \u0432\u0430\u0440\u043d! \u041f\u0440\u0438\u0447\u0438\u043d\u0430: \u00a7f" + reason + " \u00a7c| \u0412\u0441\u0435\u0433\u043e \u0432\u0430\u0440\u043d\u043e\u0432: \u00a7f" + totalWarns);
+                    }
+                } else {
+                    sender.sendMessage(this.plugin.prefix() + "\u00a7c\u041e\u0448\u0438\u0431\u043a\u0430: " + resp.getMessage());
+                }
+            });
+        });
+        return true;
+    }
+}
+

@@ -1,0 +1,81 @@
+id="page-access">
+
+  <div class="section">
+
+    <div class="section-label">Проходка</div>
+
+    <div class="section-title">Выберите тариф</div>
+
+    <p class="section-sub">Проходка даёт доступ к серверу. Никаких доп. преимуществ — только игра на равных.</p>
+
+    <div class="notice"><strong>Важно:</strong> для покупки необходимо войти через Discord и указать ник в Minecraft. После оплаты доступ выдаётся автоматически.</div>
+
+    <div class="pricing-grid">
+
+      <div class="pcard">
+
+        <div class="pcard-badge-area"></div>
+
+        <div class="pname">Месячная проходка</div>
+
+        <div class="pprice">199<span> ₽</span></div>
+
+        <div class="pperiod">на 30 дней</div>
+
+        <ul class="pfeats">
+
+          <li>Полный доступ к серверу</li>
+
+          <li>Роль «Игрок» в Discord</li>
+
+          <li>Белый список на сервере</li>
+
+          <li>Java Edition</li>
+
+        </ul>
+
+        <button class="btn btn-outline" onclick="openModal('loginModal')">Войдите для покупки</button>
+
+      </div>
+
+      <div class="pcard featured">
+
+        <div class="pcard-badge-area"><div class="pbadge">Выгодно</div></div>
+
+        <div class="pname">Сезонная проходка</div>
+
+        <div class="pprice">499<span> ₽</span></div>
+
+        <div class="pperiod">на весь сезон (3–6 мес.)</div>
+
+        <ul class="pfeats">
+
+          <li>Полный доступ к серверу</li>
+
+          <li>Роль «Игрок» в Discord</li>
+
+          <li>Белый список на сервере</li>
+
+          <li>Java Edition</li>
+
+          <li>Приоритетная поддержка</li>
+
+        </ul>
+
+        <button class="btn btn-primary" onclick="openModal('loginModal')">Войдите для покупки</button>
+
+      </div>
+
+    </div>
+
+
+
+    <div style="margin-top:60px">
+
+      <div class="section-label">FAQ</div>
+
+      <div class="section-title" style="font-size:22px;margin-bottom:24px">Частые вопросы</div>
+
+      <div class="faq-list">
+
+        <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Нужна лицензия Minecraft?<i class="faq-i

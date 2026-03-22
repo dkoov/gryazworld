@@ -1,0 +1,13 @@
+          <button class="comm-join" onclick="openModal('loginModal')">Вступить</button>
+        </div>
+      </div>`).join('');
+  }
+  renderComm();
+
+  // placeholder онлайн
+  document.getElementById('nav-online').textContent = '0 онлайн';
+  document.getElementById('hero-online').textContent = '0';
+  document.getElementById('stat-online').textContent = '0';
+</script>
+</body>
+</html>

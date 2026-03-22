@@ -1,0 +1,6 @@
+
+    <div class="hero-content">
+
+      <div class="hero-tag">Ванильный сервер · Java Edition · Minecraft</div>
+
+      <h1><span class="l1">Выживание без</span><span class="l2">комп
