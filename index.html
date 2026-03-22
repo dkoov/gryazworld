@@ -9,6 +9,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
   <title>GryazWorld — Ванильный сервер Minecraft</title>
+  <link rel="icon" type="image/jpeg" href="favicon.jpg">
+  <link rel="apple-touch-icon" href="favicon.jpg">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
 
@@ -762,7 +764,6 @@
 
     <div class="footer-copy">© 2025 GryazWorld</div>
 
-    <p style="color:var(--muted);font-size:12px;margin-top:8px">ИНН 504724866290 · gryazentia@gmail.com · Бойков В.А.</p>
 
   </footer>
 
@@ -1192,6 +1193,7 @@
         <button id="tab-all" onclick="switchStatsTab('all')" style="padding:10px 24px;border-radius:8px;border:1px solid var(--border,#2a2a2a);background:var(--card,#1a1a1a);color:var(--text,#fff);cursor:pointer;font-size:16px;font-weight:600">Все игроки</button>
         <button id="tab-online" onclick="switchStatsTab('online')" style="padding:10px 24px;border-radius:8px;border:1px solid var(--border,#2a2a2a);background:transparent;color:var(--muted,#888);cursor:pointer;font-size:16px;font-weight:600">Онлайн</button>
       </div>
+      <input type="text" id="statsSearch" placeholder="Поиск по нику..." oninput="filterStats(this.value)" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border,#2a2a2a);background:var(--card,#1a1a1a);color:var(--text,#fff);font-size:14px;margin-bottom:16px;box-sizing:border-box">
       <div id="statsTable"></div>
     </div>
 
@@ -1764,24 +1766,35 @@ function filterComm() {
   }
   const discordUser = JSON.parse(localStorage.getItem('discord_user') || 'null');
   grid.innerHTML = list.map(c => `
-    <div class="comm-card" onclick="openCommunityPage(${c.id})" style="cursor:pointer">
-      ${c.banner_url ? `<img src="${c.banner_url}" style="width:100%;height:80px;object-fit:cover;border-radius:6px 6px 0 0;margin-bottom:8px">` : ''}
-      <div class="comm-top">
-        <span class="comm-icon">${c.icon || '🏘️'}</span>
-        <div>
-          <div class="comm-name">${c.name}</div>
-          <div class="comm-members">👥 ${c.member_count} участников</div>
-        </div>
+  <div class="comm-card" onclick="openCommunityPage(${c.id})" style="cursor:pointer;display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden">
+    <div style="width:100%;height:120px;background:#111;overflow:hidden;flex-shrink:0">
+      ${c.banner_url ? `<img src="${c.banner_url}" style="width:100%;height:100%;object-fit:cover">` : ''}
+    </div>
+
+    <!-- Контент карточки -->
+    <div style="padding:14px;display:flex;flex-direction:column;gap:8px;flex:1">
+
+      <!-- Название -->
+      <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+      ${c.is_private ? '<span style="font-size:11px;background:#e05c5c22;color:#e05c5c;padding:2px 6px;border-radius:4px;border:1px solid #e05c5c44">🔒 Приватная</span>' : '<span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 6px;border-radius:4px;border:1px solid #22c55e44">🌐 Открытая</span>'}
+
+      <!-- Описание -->
+      ${c.description ? `<div style="font-size:12px;color:var(--muted,#888);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${c.description}</div>` : ''}
+
+      <!-- Статистика -->
+      <div style="font-size:12px;color:var(--muted,#888);display:flex;flex-direction:column;gap:3px">
+        <div>👥 ${c.member_count} участников</div>
+        <div>⏱ ${c.total_hours || 0} ч. наиграно всего</div>
+        ${c.discord_url ? '<div>💬 Есть Discord сервер</div>' : ''}
       </div>
-      <div class="comm-desc">${c.description || ''}</div>
-      <div class="comm-footer">
-        <span class="comm-tag">${c.tag || ''}</span>
-        <div style="display:flex;gap:6px">
-          ${c.discord_url ? `<a href="${c.discord_url}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">Discord</a>` : ''}
-          <button class="comm-join" onclick="event.stopPropagation();joinCommunity(${c.id})">Вступить</button>
-        </div>
+
+      <!-- Кнопки -->
+      <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px" onclick="event.stopPropagation()">
+        <button class="comm-join" onclick="joinCommunity(${c.id})" style="font-size:12px">Вступить</button>
       </div>
-    </div>`).join('');
+    </div>
+
+  </div>`).join('');
 }
 
 async function loadCommunities() {
@@ -1805,6 +1818,7 @@ async function joinCommunity(id) {
     body: JSON.stringify({ discord_id: user.id })
   });
   const data = await res.json();
+  if (res.status === 403) { alert('Община приватная. Вступление только по приглашению через /invite в Minecraft'); return; }
   if (!res.ok) { alert(data.detail || 'Ошибка'); return; }
   loadCommunities();
 }
@@ -1896,12 +1910,25 @@ function openCommunityPage(id) {
 
   // Галерея
   const gallery = document.getElementById('comm-page-images-gallery');
-  const grid = document.getElementById('comm-page-images-grid');
   if (c.images && c.images.length > 0) {
-    grid.innerHTML = c.images.map(url => '<img src="' + url + '" style="width:100%;height:160px;object-fit:cover;border-radius:6px">').join('');
     gallery.style.display = 'block';
+    gallery.innerHTML = `
+      <div style="position:relative;border-radius:10px;overflow:hidden;background:#111">
+        <div id="carousel-track" style="display:flex;transition:transform .3s ease">
+          ${c.images.map(url => `<img src="${url}" style="min-width:100%;height:280px;object-fit:cover;flex-shrink:0">`).join('')}
+        </div>
+        ${c.images.length > 1 ? `
+          <button onclick="carouselPrev()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:#00000088;border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer">‹</button>
+          <button onclick="carouselNext()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#00000088;border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer">›</button>
+          <div id="carousel-dots" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px">
+            ${c.images.map((_, i) => `<div onclick="carouselGo(${i})" style="width:8px;height:8px;border-radius:50%;background:${i===0?'#fff':'#ffffff66'};cursor:pointer;transition:background .2s"></div>`).join('')}
+          </div>` : ''}
+      </div>`;
+    window._carouselIndex = 0;
+    window._carouselTotal = c.images.length;
   } else {
     gallery.style.display = 'none';
+    gallery.innerHTML = '';
   }
 
   // Ссылки
@@ -1936,6 +1963,14 @@ function openCommunityPage(id) {
   // Управление
   document.getElementById('comm-page-manage').style.display = isOwner ? 'block' : 'none';
   document.getElementById('comm-page-join-btn').style.display = isOwner ? 'none' : 'block';
+
+  const privateToggle = document.getElementById('comm-private-toggle');
+  const privateDot = privateToggle?.querySelector('div');
+  if (privateToggle && privateDot) {
+    const isPrivate = c.is_private == 1;
+    privateToggle.style.background = isPrivate ? '#e05c5c' : '#444';
+    privateDot.style.left = isPrivate ? '20px' : '2px';
+  }
 
   // Загрузить блоки информации
   const infoBlocks = document.getElementById('comm-info-blocks');
@@ -1975,7 +2010,6 @@ function openCommEditModal() {
   } else {
     preview.style.display = 'none';
   }
-  document.getElementById('ce-tag').value = c.tag || '';
   openModal('commEditModal');
 }
 
@@ -1986,7 +2020,7 @@ async function saveCommEditModal() {
     discord_id: user.id,
     name: document.getElementById('ce-name').value.trim(),
     description: document.getElementById('ce-desc').value.trim(),
-    tag: document.getElementById('ce-tag').value.trim(),
+
     banner_url: document.getElementById('ce-banner').value.trim(),
     discord_url: document.getElementById('ce-discord').value.trim(),
   };
@@ -2025,33 +2059,68 @@ function toggleRecruit() {
 let commImageFiles = [];
 function openCommImagesModal() {
   commImageFiles = [];
-  document.getElementById('comm-images-list').innerHTML = '';
+  const currentComm = (window._communities || []).find(x => x.id === currentCommunityId);
+  window._existingImages = currentComm?.images || [];
+  renderCommImagesModal();
   openModal('commImagesModal');
 }
 
-function handleCommImages(event) {
-  const files = Array.from(event.target.files);
-  commImageFiles = [...commImageFiles, ...files];
-  renderCommImagesList();
-}
-
-function renderCommImagesList() {
+function renderCommImagesModal() {
   const list = document.getElementById('comm-images-list');
-  list.innerHTML = commImageFiles.map((f, i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--card,#1a1a1a);border-radius:8px;border:1px solid var(--border,#2a2a2a)">
-      <img src="${URL.createObjectURL(f)}" style="width:48px;height:36px;object-fit:cover;border-radius:4px">
-      <span style="flex:1;font-size:13px;color:var(--muted,#aaa)">${f.name}</span>
-      <button onclick="removeCommImage(${i})" style="background:none;border:none;cursor:pointer;color:#e05c5c;font-size:16px">🗑</button>
-    </div>`).join('');
+  const existing = window._existingImages || [];
+  const newFiles = commImageFiles || [];
+
+  let html = '';
+
+  // Существующие изображения
+  existing.forEach((url, i) => {
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card,#1a1a1a);border-radius:8px;border:1px solid var(--border,#2a2a2a)">
+      <img src="${url}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;flex-shrink:0">
+      <span style="flex:1;font-size:13px;color:var(--muted,#aaa);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url.split('/').pop().split('?')[0]}</span>
+      <button onclick="removeExistingImage(${i})" style="background:none;border:none;cursor:pointer;color:var(--muted,#888);font-size:18px;padding:4px">🗑</button>
+    </div>`;
+  });
+
+  // Новые файлы
+  newFiles.forEach((f, i) => {
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card,#1a1a1a);border-radius:8px;border:1px solid #c8a84b44">
+      <img src="${URL.createObjectURL(f)}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;flex-shrink:0">
+      <span style="flex:1;font-size:13px;color:var(--muted,#aaa);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+      <button onclick="removeNewImage(${i})" style="background:none;border:none;cursor:pointer;color:var(--muted,#888);font-size:18px;padding:4px">🗑</button>
+    </div>`;
+  });
+
+  list.innerHTML = html || '<div style="color:var(--muted,#888);font-size:13px;text-align:center;padding:16px">Нет изображений</div>';
+
+  // Показать кнопку добавления только если меньше 3
+  const total = existing.length + newFiles.length;
+  const dropzone = document.getElementById('comm-images-dropzone');
+  if (dropzone) dropzone.style.display = total >= 3 ? 'none' : 'block';
+  const limitMsg = document.getElementById('comm-images-limit');
+  if (limitMsg) limitMsg.style.display = total >= 3 ? 'block' : 'none';
 }
 
-function removeCommImage(i) {
+function removeExistingImage(i) {
+  window._existingImages.splice(i, 1);
+  renderCommImagesModal();
+}
+
+function removeNewImage(i) {
   commImageFiles.splice(i, 1);
-  renderCommImagesList();
+  renderCommImagesModal();
+}
+
+function handleCommImages(event) {
+  const existing = window._existingImages || [];
+  const current = commImageFiles.length;
+  const available = 3 - existing.length - current;
+  const files = Array.from(event.target.files).slice(0, available);
+  commImageFiles = [...commImageFiles, ...files];
+  renderCommImagesModal();
+  event.target.value = '';
 }
 
 async function applyCommImages() {
-  if (commImageFiles.length === 0) { closeModal('commImagesModal'); return; }
   const btn = document.querySelector('#commImagesModal .btn-primary');
   btn.textContent = 'Загрузка...';
   btn.disabled = true;
@@ -2069,17 +2138,14 @@ async function applyCommImages() {
       if (data.secure_url) uploadedUrls.push(data.secure_url);
       else throw new Error(data.error?.message || 'Ошибка загрузки');
     }
-    if (uploadedUrls.length > 0) {
-      const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
-      const currentComm = (window._communities || []).find(x => x.id === currentCommunityId);
-      const existingImages = currentComm?.images || [];
-      const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ discord_id: user.id, images: [...existingImages, ...uploadedUrls] })
-      });
-      if (!res.ok) throw new Error('Ошибка сохранения');
-    }
+    const allImages = [...(window._existingImages || []), ...uploadedUrls];
+    const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+    const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ discord_id: user.id, images: allImages })
+    });
+    if (!res.ok) throw new Error('Ошибка сохранения');
     closeModal('commImagesModal');
     await loadCommunities();
     openCommunityPage(currentCommunityId);
@@ -2127,6 +2193,48 @@ async function saveInfoBlock(title, content) {
   if (!res.ok) { alert('Ошибка сохранения'); return; }
   await loadCommunities();
   openCommunityPage(currentCommunityId);
+}
+
+function filterStats(query) {
+  const q = query.toLowerCase();
+  const filtered = q
+    ? lastLeaders.filter(p => p.nickname.toLowerCase().includes(q))
+    : lastLeaders;
+  renderStatsTable(filtered);
+}
+
+function carouselGo(i) {
+  window._carouselIndex = i;
+  const track = document.getElementById('carousel-track');
+  if (track) track.style.transform = 'translateX(-' + (i * 100) + '%)';
+  const dots = document.querySelectorAll('#carousel-dots div');
+  dots.forEach((d, j) => d.style.background = j === i ? '#fff' : '#ffffff66');
+}
+
+function carouselNext() {
+  const next = (window._carouselIndex + 1) % window._carouselTotal;
+  carouselGo(next);
+}
+
+function carouselPrev() {
+  const prev = (window._carouselIndex - 1 + window._carouselTotal) % window._carouselTotal;
+  carouselGo(prev);
+}
+
+async function togglePrivate() {
+  const toggle = document.getElementById('comm-private-toggle');
+  const dot = toggle.querySelector('div');
+  const isPrivate = dot.style.left === '20px';
+  toggle.style.background = isPrivate ? '#444' : '#e05c5c';
+  dot.style.left = isPrivate ? '2px' : '20px';
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user || !currentCommunityId) return;
+  await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, is_private: isPrivate ? 0 : 1 })
+  });
+  await loadCommunities();
 }
 
 async function uploadBannerFile(event) {
@@ -2284,6 +2392,12 @@ async function removeInfoBlock(index) {
                 <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;right:2px;transition:right .2s"></div>
               </div>
             </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;border:1px solid var(--border,#2a2a2a);margin-top:6px">
+              <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text,#fff)">🔒 Приватная</div>
+              <div id="comm-private-toggle" onclick="togglePrivate()" style="width:40px;height:22px;border-radius:11px;background:#444;cursor:pointer;position:relative;transition:background .2s">
+                <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2334,7 +2448,6 @@ async function removeInfoBlock(index) {
       </div>
       <div style="font-size:11px;color:var(--muted,#888);margin-top:4px">Загрузите картинку или вставьте прямую ссылку на изображение</div>
     </div>
-    <div class="inp-group"><label>Тематика</label><input type="text" id="ce-tag" placeholder="Строительство, PvP..."/></div>
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
       <button onclick="closeModal('commEditModal')" class="btn btn-ghost">Отменить</button>
       <button onclick="saveCommEditModal()" class="btn btn-primary">Сохранить</button>
@@ -2347,10 +2460,11 @@ async function removeInfoBlock(index) {
   <div class="modal">
     <button class="modal-close" onclick="closeModal('commImagesModal')">×</button>
     <h2>Изменить картинки</h2>
-    <div onclick="document.getElementById('comm-images-input').click()" style="border:2px dashed var(--border,#2a2a2a);border-radius:10px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px;color:var(--muted,#888)">
+    <div id="comm-images-dropzone" onclick="document.getElementById('comm-images-input').click()" style="border:2px dashed var(--border,#2a2a2a);border-radius:10px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px;color:var(--muted,#888)">
       <div style="font-size:15px;font-weight:600;margin-bottom:4px">Добавить картинки</div>
       <div style="font-size:12px">Перетащите сюда файл, или нажмите, чтобы выбрать</div>
     </div>
+    <div id="comm-images-limit" style="display:none;font-size:12px;color:#e05c5c;margin-bottom:8px">Максимум 3 изображения</div>
     <input type="file" id="comm-images-input" accept="image/*" multiple style="display:none" onchange="handleCommImages(event)">
     <div style="font-size:12px;color:#e05c5c;margin-bottom:12px">Запрещено использовать NSFW изображения, минимальный размер картинки 619x364</div>
     <div id="comm-images-list" style="display:flex;flex-direction:column;gap:8px"></div>
