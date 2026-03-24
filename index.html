@@ -1762,6 +1762,13 @@ function filterComm() {
     );
   }
   if (search) list = list.filter(c => c.name.toLowerCase().includes(search) || (c.description||'').toLowerCase().includes(search));
+  // Сортировка: сначала с набором, внутри группы — по часам
+  list = [...list].sort((a, b) => {
+    const aRecruiting = a.is_recruiting !== 0 ? 1 : 0;
+    const bRecruiting = b.is_recruiting !== 0 ? 1 : 0;
+    if (aRecruiting !== bRecruiting) return bRecruiting - aRecruiting;
+    return (b.total_hours || 0) - (a.total_hours || 0);
+  });
   const grid = document.getElementById('commGrid');
   if (!list || list.length === 0) {
     grid.innerHTML = '<div style="color:var(--muted)">Ничего не найдено</div>';
@@ -1769,10 +1776,11 @@ function filterComm() {
   }
   const discordUser = JSON.parse(localStorage.getItem('discord_user') || 'null');
   grid.innerHTML = list.map(c => `
-  <div class="comm-card" onclick="openCommunityPage(${c.id})" style="cursor:pointer;display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden">
+  <div class="comm-card" onclick="openCommunityPage(${c.id})" style="cursor:pointer;display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;${c.is_recruiting !== 0 ? 'border:2px solid #22c55e;box-shadow:0 0 12px #22c55e33;' : ''}">
     <div style="width:100%;height:120px;background:#111;overflow:hidden;flex-shrink:0">
       ${c.banner_url ? `<img src="${c.banner_url}" style="width:100%;height:100%;object-fit:cover">` : ''}
     </div>
+    ${c.is_recruiting !== 0 ? '<div style="background:#22c55e;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;letter-spacing:1px">● ИДЕТ НАБОР</div>' : ''}
 
     <!-- Контент карточки -->
     <div style="padding:14px;display:flex;flex-direction:column;gap:8px;flex:1">
@@ -1780,7 +1788,6 @@ function filterComm() {
       <!-- Название -->
       <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
       ${c.is_private ? '<span style="font-size:11px;background:#e05c5c22;color:#e05c5c;padding:2px 6px;border-radius:4px;border:1px solid #e05c5c44">🔒 Приватная</span>' : '<span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 6px;border-radius:4px;border:1px solid #22c55e44">🌐 Открытая</span>'}
-      ${c.slug ? `<div style="font-size:11px;color:var(--muted,#888)">gryazworld.ru/c/${c.slug}</div>` : ''}
 
       <!-- Описание -->
       ${c.description ? `<div style="font-size:12px;color:var(--muted,#888);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${c.description}</div>` : ''}
@@ -1910,7 +1917,16 @@ function openCommunityPage(id) {
   }
 
   // Бейдж набора
-  document.getElementById('comm-page-recruit-badge').style.display = 'block';
+  const isRecruiting = c.is_recruiting !== 0;
+  const recruitBadge = document.getElementById('comm-page-recruit-badge');
+  if (recruitBadge) recruitBadge.style.display = isRecruiting ? 'block' : 'none';
+
+  const recruitToggle = document.getElementById('comm-recruit-toggle');
+  const recruitDot = recruitToggle?.querySelector('div');
+  if (recruitToggle && recruitDot) {
+    recruitToggle.style.background = isRecruiting ? '#c8a84b' : '#444';
+    recruitDot.style.right = isRecruiting ? '2px' : '20px';
+  }
 
   // Галерея
   const gallery = document.getElementById('comm-page-images-gallery');
@@ -1948,17 +1964,24 @@ function openCommunityPage(id) {
   fetch('/proxy.php?path=/web/communities/' + id + '/members')
     .then(r => r.json())
     .then(members => {
+      window._currentMembers = members;
+      const currentMember = (members || []).find(mm => mm.discord_id === user?.id);
+      const currentUserRole = currentMember?.role || 'member';
       if (!members || members.length === 0) {
         membersList.innerHTML = '<div style="color:var(--muted,#888);font-size:13px">Участников нет</div>';
         return;
       }
-      membersList.innerHTML = members.map(m => `
-        <div class="member-item" style="display:flex;align-items:center;gap:10px">
-          <img src="https://mc-heads.net/avatar/${m.nickname}/32" style="width:32px;height:32px;border-radius:4px;image-rendering:pixelated" onerror="this.src='https://mc-heads.net/avatar/Steve/32'">
-          <span style="font-size:13px;font-weight:${m.is_owner ? '700' : '400'};color:${m.is_owner ? '#c8a84b' : 'var(--text,#fff)'}">
-            ${m.is_owner ? '👑 ' : ''}${m.nickname}
-          </span>
-        </div>`).join('');
+      membersList.innerHTML = members.map(m => {
+        const roleIcon = m.role === 'owner' ? '👑' : m.role === 'deputy' ? '⭐' : '';
+        const roleColor = m.role === 'owner' ? '#c8a84b' : m.role === 'deputy' ? '#a0c4ff' : 'var(--text,#fff)';
+        const canKick = (isOwner || currentUserRole === 'deputy') && m.role !== 'owner' && !(currentUserRole === 'deputy' && m.role === 'deputy');
+        const canSetDeputy = isOwner && m.role !== 'owner';
+        return `<div class="member-item" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border,#2a2a2a)" onclick="${(canKick || canSetDeputy) ? 'openMemberMenu(event, \'' + m.discord_id + '\', \'' + m.nickname + '\', \'' + m.role + '\')' : ''}">
+          <img src="https://mc-heads.net/avatar/${m.nickname}/32" style="width:32px;height:32px;border-radius:4px;image-rendering:pixelated;flex-shrink:0" onerror="this.src='https://mc-heads.net/avatar/Steve/32'">
+          <span style="flex:1;font-size:13px;font-weight:${m.role !== 'member' ? '600' : '400'};color:${roleColor}">${roleIcon} ${m.nickname}</span>
+          ${m.discord_id === user?.id && m.role !== 'owner' ? '<span style="font-size:11px;color:#e05c5c;cursor:pointer" onclick="event.stopPropagation();leaveCurrentCommunity()">✕</span>' : ''}
+        </div>`;
+      }).join('');
     })
     .catch(() => {
       membersList.innerHTML = '<div style="color:var(--muted,#888);font-size:13px">Ошибка загрузки</div>';
@@ -2015,6 +2038,11 @@ function openCommEditModal() {
   } else {
     preview.style.display = 'none';
   }
+  const deleteBtnWrap = document.getElementById('comm-delete-btn-wrap');
+  if (deleteBtnWrap) {
+    const user2 = JSON.parse(localStorage.getItem('discord_user') || 'null');
+    deleteBtnWrap.style.display = (user2 && c && c.owner_discord_id === user2.id) ? 'block' : 'none';
+  }
   openModal('commEditModal');
 }
 
@@ -2053,12 +2081,21 @@ function filterCommMembers(query) {
   });
 }
 
-function toggleRecruit() {
+async function toggleRecruit() {
   const toggle = document.getElementById('comm-recruit-toggle');
   const dot = toggle.querySelector('div');
   const isOn = dot.style.right === '2px' || dot.style.right === '';
   toggle.style.background = isOn ? '#444' : '#c8a84b';
   dot.style.right = isOn ? '20px' : '2px';
+
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user || !currentCommunityId) return;
+  await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, is_recruiting: isOn ? 0 : 1 })
+  });
+  await loadCommunities();
 }
 
 let commImageFiles = [];
@@ -2301,6 +2338,91 @@ async function removeInfoBlock(index) {
   openCommunityPage(currentCommunityId);
 }
 
+// Контекстное меню участника
+function openMemberMenu(event, discordId, nickname, role) {
+  event.stopPropagation();
+  document.getElementById('member-menu')?.remove();
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user) return;
+  const comm = (window._communities || []).find(x => x.id === currentCommunityId);
+  const isOwner = comm?.owner_discord_id === user.id;
+  const currentMember = (window._currentMembers || []).find(m => m.discord_id === user.id);
+  const isDeputy = currentMember?.role === 'deputy';
+  const menu = document.createElement('div');
+  menu.id = 'member-menu';
+  menu.style.cssText = 'position:fixed;background:var(--card,#1a1a1a);border:1px solid var(--border,#2a2a2a);border-radius:8px;padding:8px;z-index:9999;min-width:160px;box-shadow:0 4px 20px #0008';
+  menu.style.left = event.clientX + 'px';
+  menu.style.top = event.clientY + 'px';
+  let html = `<div style="font-size:12px;color:var(--muted,#888);padding:4px 8px;margin-bottom:4px">${nickname}</div>`;
+  if (isOwner && role !== 'owner') {
+    const deputyLabel = role === 'deputy' ? '⭐ Снять заместителя' : '⭐ Сделать заместителем';
+    html += `<div onclick="setMemberRole('${discordId}', '${role === 'deputy' ? 'member' : 'deputy'}')" style="padding:8px;cursor:pointer;border-radius:6px;font-size:13px" onmouseover="this.style.background='#2a2a2a'" onmouseout="this.style.background=''">${deputyLabel}</div>`;
+  }
+  const canKick = (isOwner || isDeputy) && role !== 'owner' && !(isDeputy && role === 'deputy');
+  if (canKick) {
+    html += `<div onclick="kickMember('${discordId}', '${nickname}')" style="padding:8px;cursor:pointer;border-radius:6px;font-size:13px;color:#e05c5c" onmouseover="this.style.background='#2a2a2a'" onmouseout="this.style.background=''">🚫 Исключить</div>`;
+  }
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+}
+
+async function kickMember(targetDiscordId, nickname) {
+  if (!confirm('Исключить ' + nickname + ' из общины?')) return;
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user) return;
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId + '/kick', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, target_discord_id: targetDiscordId })
+  });
+  const data = await res.json();
+  if (res.ok) { await loadCommunities(); openCommunityPage(currentCommunityId); }
+  else alert(data.detail || 'Ошибка');
+}
+
+async function setMemberRole(targetDiscordId, role) {
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user) return;
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId + '/set-role', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id, target_discord_id: targetDiscordId, role })
+  });
+  const data = await res.json();
+  if (res.ok) { await loadCommunities(); openCommunityPage(currentCommunityId); }
+  else alert(data.detail || 'Ошибка');
+}
+
+async function leaveCurrentCommunity() {
+  if (!confirm('Покинуть общину?')) return;
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user) return;
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId + '/leave', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id })
+  });
+  const data = await res.json();
+  if (res.ok) { await loadCommunities(); showPage('communities'); }
+  else alert(data.detail || 'Ошибка');
+}
+
+async function deleteCurrentCommunity() {
+  if (!confirm('Удалить общину навсегда? Это действие необратимо!')) return;
+  if (!confirm('Вы уверены? Все участники будут исключены.')) return;
+  const user = JSON.parse(localStorage.getItem('discord_user') || 'null');
+  if (!user) return;
+  const res = await fetch('/proxy.php?path=/web/communities/' + currentCommunityId, {
+    method: 'DELETE',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ discord_id: user.id })
+  });
+  const data = await res.json();
+  if (res.ok) { await loadCommunities(); showPage('communities'); }
+  else alert(data.detail || 'Ошибка');
+}
+
 </script>
 
 
@@ -2481,6 +2603,9 @@ async function removeInfoBlock(index) {
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
       <button onclick="closeModal('commEditModal')" class="btn btn-ghost">Отменить</button>
       <button onclick="saveCommEditModal()" class="btn btn-primary">Сохранить</button>
+    </div>
+    <div id="comm-delete-btn-wrap" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border,#2a2a2a)">
+      <button onclick="deleteCurrentCommunity()" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e05c5c;background:transparent;color:#e05c5c;cursor:pointer;font-size:14px">Удалить общину</button>
     </div>
   </div>
 </div>
