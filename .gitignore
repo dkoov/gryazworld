@@ -2,3 +2,11 @@
 *.key
 *.secret
 node_modules/
+frontend/dist/
+frontend/node_modules/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+.venv/
+.idea/

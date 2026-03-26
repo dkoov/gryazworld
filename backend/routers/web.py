@@ -7,11 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db, Player, BankAccount, Fine
 
+import logging
+
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/web", tags=["web"])
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1481258609902882888")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "REDACTED_CLIENT_SECRET")
-DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "https://gryazworld.ru/cabinet.html")
+DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "https://gryazworld.ru/cabinet")
+
+MC_SERVER_HOST = os.getenv("MC_SERVER_HOST", "play.gryazworld.ru")
+MC_SERVER_PORT = int(os.getenv("MC_SERVER_PORT", "25565"))
 
 
 class TokenRequest(BaseModel):
@@ -139,3 +146,37 @@ async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
             for f in active_fines
         ],
     }
+
+
+@router.get("/server-stats")
+async def server_stats():
+    """Return basic server stats (online count)."""
+    online = 0
+    try:
+        import asyncio
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(MC_SERVER_HOST, MC_SERVER_PORT),
+            timeout=3,
+        )
+        writer.close()
+        await writer.wait_closed()
+    except Exception:
+        pass
+    return {"online": online, "max": 20, "tps": "20.0"}
+
+
+@router.get("/stats")
+async def player_stats(db: AsyncSession = Depends(get_db)):
+    """Return all players sorted by playtime for the leaderboard."""
+    result = await db.execute(
+        select(Player).order_by(Player.total_seconds.desc())
+    )
+    players = result.scalars().all()
+    return [
+        {
+            "nickname": p.nickname,
+            "total_seconds": p.total_seconds,
+            "is_online": False,
+        }
+        for p in players
+    ]

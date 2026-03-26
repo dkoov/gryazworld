@@ -1,0 +1,134 @@
+.cp-banner {
+  width: 100%;
+  height: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.cp-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cp-banner-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--surface2), var(--surface));
+}
+
+.cp-recruit-badge {
+  background: #22c55e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  letter-spacing: 1px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.cp-header h1 {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.cp-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.cp-desc {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  max-width: 600px;
+}
+
+.cp-info-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.cp-info-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.cp-info-block p {
+  margin: 0;
+  font-size: 14px;
+  color: #fff;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.cp-gallery {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.cp-gallery-img {
+  height: 200px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cp-links {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.cp-links a {
+  color: #5b9bd5;
+  font-size: 14px;
+  text-decoration: none;
+}
+.cp-links a:hover { text-decoration: underline; }
+
+.cp-section {
+  margin-top: 24px;
+}
+.cp-section h3 {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.cp-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cp-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.cp-member img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.cp-member .role-highlight {
+  font-weight: 600;
+  color: var(--accent);
+}

@@ -1,0 +1,107 @@
+import { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../api'
+import './StatsPage.css'
+
+export default function StatsPage() {
+  const [players, setPlayers] = useState([])
+  const [tab, setTab] = useState('all')
+  const [search, setSearch] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const load = useCallback(() => {
+    apiFetch('/web/stats').then(setPlayers).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 30000)
+    return () => clearInterval(id)
+  }, [load])
+
+  const filtered = players
+    .filter(p => tab === 'online' ? p.is_online : true)
+    .filter(p => p.nickname.toLowerCase().includes(search.toLowerCase()))
+
+  function copyIp() {
+    navigator.clipboard.writeText('play.gryazworld.ru').then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <section className="section">
+      <div className="section-label">Статистика</div>
+
+      <div className="stats-hero">
+        <div className="server-avatar">
+          <img src="/favicon.jpg" alt="GryazWorld" />
+        </div>
+        <div className="server-info">
+          <h2>GryazWorld</h2>
+          <div className="ip-box">
+            <span className="ip-text">play.gryazworld.ru</span>
+            <button className={`ip-copy ${copied ? 'copied' : ''}`} onClick={copyIp}>
+              {copied ? '\u2713 Скопировано' : 'Копировать'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="stats-controls">
+        <div className="stats-tabs">
+          <button className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>
+            Все игроки
+          </button>
+          <button className={tab === 'online' ? 'active' : ''} onClick={() => setTab('online')}>
+            Онлайн
+          </button>
+        </div>
+        <input
+          type="text"
+          placeholder="Поиск по нику..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="stats-search"
+        />
+      </div>
+
+      <div className="players-grid">
+        {filtered.length === 0 ? (
+          <div className="no-players">
+            {tab === 'online' ? 'Никого нет онлайн' : 'Нет данных'}
+          </div>
+        ) : (
+          filtered.map(p => (
+            <PlayerCard key={p.nickname} player={p} />
+          ))
+        )}
+      </div>
+    </section>
+  )
+}
+
+function PlayerCard({ player }) {
+  const hours = Math.floor((player.total_seconds || 0) / 3600)
+  const skinUrl = `https://mc-heads.net/avatar/${player.nickname}/64`
+
+  return (
+    <div className="player-card">
+      <img
+        src={skinUrl}
+        alt={player.nickname}
+        className="player-skin"
+        onError={e => { e.target.src = 'https://mc-heads.net/avatar/Steve/64' }}
+      />
+      <div>
+        <div className="player-name">
+          {player.is_online && <span className="online-dot" />}
+          {player.nickname}
+        </div>
+        <div className="player-hours">
+          Наиграл: <strong>{hours} ч.</strong>
+        </div>
+      </div>
+    </div>
+  )
+}

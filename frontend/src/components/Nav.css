@@ -1,0 +1,186 @@
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  height: 58px;
+  background: rgba(10, 10, 11, 0.92);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  cursor: pointer;
+}
+.nav-logo span { color: var(--muted); }
+
+.nav-links {
+  display: flex;
+  gap: 0;
+  list-style: none;
+}
+
+.nav-links li a {
+  color: var(--muted);
+  text-decoration: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 13px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.nav-links li a:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-links li a.active {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(74, 124, 89, 0.1);
+  border: 1px solid rgba(74, 124, 89, 0.3);
+  color: var(--green2);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--green2);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--discord);
+  object-fit: cover;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-discord {
+  background: linear-gradient(135deg, #5865F2 0%, #4752d8 100%);
+  color: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+}
+.btn-discord:hover {
+  background: linear-gradient(135deg, #6875f5 0%, #5865F2 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(88, 101, 242, 0.45);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0b;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.btn-primary:hover {
+  background: #d4b460;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+}
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+.btn-ghost:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(200, 75, 75, 0.25);
+  border-radius: 8px;
+}
+.btn-danger:hover {
+  background: rgba(200, 75, 75, 0.2);
+}
+
+@media (max-width: 900px) {
+  .nav { padding: 0 16px; }
+  .nav-links { display: none; }
+}

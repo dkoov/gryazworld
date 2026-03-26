@@ -1,7 +1,0 @@
-ryazWorld</h2>
-
-        <p>Ванильный выживательный сервер · Java Edition</p>
-
-        <div class="ip-box">
-
-          <s
