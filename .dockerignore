@@ -1,0 +1,11 @@
+.git
+.gitignore
+.idea
+.venv
+*.md
+*.db
+*.sqlite
+__pycache__
+node_modules
+frontend/dist
+minecraft-plugin-prod
