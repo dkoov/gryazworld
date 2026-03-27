@@ -13,8 +13,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/web", tags=["web"])
 
-DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1481258609902882888")
-DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "REDACTED_CLIENT_SECRET")
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "https://gryazworld.ru/cabinet")
 
 MC_SERVER_HOST = os.getenv("MC_SERVER_HOST", "play.gryazworld.ru")

@@ -8,6 +8,7 @@ import dev.serverpanel.plugin.commands.DeclineInviteCommand;
 import dev.serverpanel.plugin.commands.FineCommand;
 import dev.serverpanel.plugin.commands.InviteCommand;
 import dev.serverpanel.plugin.commands.SetAtmCommand;
+import dev.serverpanel.plugin.commands.UnsetAtmCommand;
 import dev.serverpanel.plugin.commands.UnwarnCommand;
 import dev.serverpanel.plugin.commands.WarnCommand;
 import dev.serverpanel.plugin.http.BanHttpServer;
@@ -38,6 +39,7 @@ public class ServerPanelPlugin extends JavaPlugin {
         this.getCommand("unwarn").setExecutor((CommandExecutor)new UnwarnCommand(this));
         this.getCommand("bank").setExecutor((CommandExecutor)new BankCommand(this));
         this.getCommand("setatm").setExecutor((CommandExecutor)new SetAtmCommand(this));
+        this.getCommand("unsetatm").setExecutor((CommandExecutor)new UnsetAtmCommand(this.atmManager));
         this.getCommand("adminbank").setExecutor((CommandExecutor)new AdminBankCommand(this));
         this.getCommand("invite").setExecutor((CommandExecutor)new InviteCommand(this));
         this.getCommand("acceptinvite").setExecutor((CommandExecutor)new AcceptInviteCommand(this.apiClient));

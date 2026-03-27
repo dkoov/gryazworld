@@ -40,6 +40,10 @@ commands:
   declineinvite:
     description: Отклонить приглашение в общину
     usage: /declineinvite <id>
+  unsetatm:
+    description: Удалить банкомат
+    usage: /unsetatm
+    permission: serverpanel.admin
 
 permissions:
   serverpanel.admin:

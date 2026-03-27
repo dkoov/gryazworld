@@ -160,15 +160,6 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
         if player is None:
             continue
 
-        warn = Warn(
-            player_id=player.id,
-            issued_by="system",
-            reason=f"Просрочен штраф #{fine.id}",
-        )
-        db.add(warn)
-        player.warns += 1
-        await db.flush()
-
         await _notify_discord({
             "type": "fine_overdue",
             "fine_id": fine.id,
@@ -177,16 +168,9 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
             "reason": fine.reason,
         })
 
-        if player.warns >= 3:
-            await _notify_discord({
-                "type": "ban",
-                "player": player.nickname,
-            })
-
         processed.append({
             "fine_id": fine.id,
             "player": player.nickname,
-            "warns": player.warns,
         })
 
     await db.commit()
@@ -197,7 +181,7 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
 async def get_fines(uuid: str, db: AsyncSession = Depends(get_db)):
     player = await get_player(uuid, db)
 
-    result = await db.execute(select(Fine).where(Fine.player_id == player.id))
+    result = await db.execute(select(Fine).where(Fine.player_id == player.id, Fine.status.in_(["pending", "overdue", "paid"])))
     fines = result.scalars().all()
 
     return {

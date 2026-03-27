@@ -370,6 +370,56 @@ sudo systemctl restart gryazworld-bot
 
 ---
 
+## Бэкап базы данных
+
+База данных — SQLite файл `serverpanel.db`. В репозитории есть готовый скрипт `scripts/backup.sh`.
+
+### Разовый бэкап
+
+```bash
+# Установить sqlite3 если ещё нет
+sudo apt install -y sqlite3
+
+# Запустить бэкап
+/opt/gryazworld/scripts/backup.sh
+```
+
+Бэкап сохраняется в `/opt/gryazworld/backups/` в формате `serverpanel_20260327_120000.db.gz`.
+
+### Автоматический бэкап по расписанию (cron)
+
+```bash
+# Открыть crontab
+crontab -e
+
+# Добавить строку — бэкап каждые 6 часов:
+0 */6 * * * /opt/gryazworld/scripts/backup.sh >> /opt/gryazworld/backups/backup.log 2>&1
+```
+
+По умолчанию хранятся последние 30 бэкапов (настраивается в `MAX_BACKUPS` внутри скрипта).
+
+### Восстановить из бэкапа
+
+```bash
+# Остановить бэкенд
+docker compose stop backend          # Docker
+# или
+sudo systemctl stop gryazworld-backend  # systemd
+
+# Распаковать бэкап
+gunzip /opt/gryazworld/backups/serverpanel_20260327_120000.db.gz
+
+# Заменить базу
+cp /opt/gryazworld/backups/serverpanel_20260327_120000.db /opt/gryazworld/data/serverpanel.db
+
+# Запустить обратно
+docker compose start backend
+# или
+sudo systemctl start gryazworld-backend
+```
+
+---
+
 ## Открыть порты (файрвол)
 
 ```bash

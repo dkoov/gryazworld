@@ -40,5 +40,5 @@ export function getAvatarUrl(user) {
     : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) % 6n)}.png`
 }
 
-export const DISCORD_CLIENT_ID = '1481258609902882888'
+export const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || ''
 export const DISCORD_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://gryazworld.ru/cabinet'

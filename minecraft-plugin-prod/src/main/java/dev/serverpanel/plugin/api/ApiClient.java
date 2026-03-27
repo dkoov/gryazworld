@@ -72,6 +72,13 @@ public class ApiClient {
         return this.post("/mc/bank/pay_fine", body);
     }
 
+    public ApiResponse withdraw(String nickname, int amount) {
+        JsonObject body = new JsonObject();
+        body.addProperty("nickname", nickname);
+        body.addProperty("amount", amount);
+        return this.post("/mc/bank/withdraw", body);
+    }
+
     public ApiResponse issueFine(String adminUuid, String targetUuid, int amount, String reason, int deadlineHours) {
         JsonObject body = new JsonObject();
         body.addProperty("issued_by", adminUuid);

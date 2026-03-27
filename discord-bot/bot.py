@@ -1,20 +1,24 @@
 import asyncio
 import logging
 import math
+import os
 from datetime import datetime
 
 import aiohttp
 import discord
 from aiohttp import web
 from discord import app_commands
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ─── Config ────────────────────────────────────────────────────────────────────
-BOT_TOKEN = "REDACTED_BOT_TOKEN"
-GUILD_ID = 1032350404035493918
-FINES_CHANNEL_ID = 1481259071742152797
-BACKEND_URL = "http://155.212.210.252:8000"
-API_SECRET = "CHANGE_ME"
-WEBHOOK_PORT = 5000
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+GUILD_ID = int(os.getenv("GUILD_ID", "0"))
+FINES_CHANNEL_ID = int(os.getenv("FINES_CHANNEL_ID", "0"))
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+API_SECRET = os.getenv("API_SECRET", "")
+WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "5000"))
 
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -103,6 +107,18 @@ def _unban_embed(data: dict) -> discord.Embed:
     return embed
 
 
+def _fine_paid_embed(data: dict) -> discord.Embed:
+    embed = discord.Embed(
+        title="Штраф оплачен",
+        color=0x2ecc71,
+    )
+    embed.add_field(name="Игрок", value=data.get("nickname", "—"), inline=True)
+    embed.add_field(name="Сумма", value=f"{int(data.get('amount', 0))} алмазов", inline=True)
+    embed.add_field(name="Причина", value=data.get("reason", "—"), inline=False)
+    embed.set_footer(text="GryazWorld • Штрафы")
+    return embed
+
+
 def _ban_embed(data: dict) -> discord.Embed:
     embed = discord.Embed(
         title="Игрок забанен",
@@ -151,6 +167,8 @@ async def handle_notify(request: web.Request) -> web.Response:
             embed = _unban_embed(data)
         elif event_type == "ban":
             embed = _ban_embed(data)
+        elif event_type == "fine_paid":
+            embed = _fine_paid_embed(data)
         else:
             return web.json_response({"error": "unknown type"}, status=400)
 

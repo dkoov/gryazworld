@@ -1,3 +1,6 @@
+import logging
+
+import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -5,6 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
 from database import get_db, Player, BankAccount, Transaction, Fine
+
+log = logging.getLogger(__name__)
+
+DISCORD_BOT_URL = "http://localhost:5000/discord/notify"
+
+
+async def _notify_discord(payload: dict):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(DISCORD_BOT_URL, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status != 200:
+                    log.warning("Discord notify вернул статус %s", resp.status)
+    except Exception as e:
+        log.warning("Не удалось отправить уведомление в Discord: %s", e)
+
 
 router = APIRouter(prefix="/mc/bank", tags=["bank"])
 
@@ -96,6 +114,31 @@ async def transfer(data: TransferRequest, db: AsyncSession = Depends(get_db)):
     return {"status": "ok", "from_balance": from_account.balance, "to_balance": to_account.balance}
 
 
+class WithdrawRequest(BaseModel):
+    nickname: str
+    amount: int
+
+
+@router.post("/withdraw", dependencies=[Depends(verify_plugin_secret)])
+async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
+    player = await db.execute(select(Player).where(Player.nickname == data.nickname))
+    player = player.scalar_one_or_none()
+    if not player:
+        raise HTTPException(404, "Игрок не найден")
+
+    account = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    account = account.scalar_one_or_none()
+    if not account:
+        raise HTTPException(404, "Счёт не найден")
+
+    if account.balance < data.amount:
+        raise HTTPException(400, "Недостаточно средств")
+
+    account.balance -= data.amount
+    await db.commit()
+    return {"balance": account.balance}
+
+
 @router.post("/pay_fine", dependencies=[Depends(verify_plugin_secret)])
 async def pay_fine(data: PayFineRequest, db: AsyncSession = Depends(get_db)):
     player, account = await get_player_and_account(data.uuid, db)
@@ -123,5 +166,14 @@ async def pay_fine(data: PayFineRequest, db: AsyncSession = Depends(get_db)):
     )
     db.add(tx)
     await db.commit()
+
+    await _notify_discord({
+        "type": "fine_paid",
+        "nickname": player.nickname,
+        "discord_id": player.discord_id if hasattr(player, "discord_id") else None,
+        "fine_id": fine.id,
+        "reason": fine.reason,
+        "amount": fine.amount,
+    })
 
     return {"status": "ok", "fine_id": fine.id, "balance": account.balance}
