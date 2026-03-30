@@ -74,28 +74,30 @@ async def discord_token(data: TokenRequest):
 @router.post("/link")
 async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
     """Link Discord ID to a Minecraft nickname."""
+    existing = await db.execute(
+        select(Player).where(Player.discord_id == data.discord_id)
+    )
+    other = existing.scalar_one_or_none()
+    if other is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Этот Discord аккаунт уже привязан к другому Minecraft нику.",
+        )
+
     result = await db.execute(
         select(Player).where(func.lower(Player.nickname) == data.minecraft_nick.lower())
     )
     player = result.scalar_one_or_none()
 
     if player is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден. Убедись, что ты заходил на сервер хотя бы раз.",
-        )
+        player = Player(uuid=data.minecraft_nick.lower(), nickname=data.minecraft_nick, discord_id=data.discord_id)
+        db.add(player)
+        await db.flush()
+        account = BankAccount(player_id=player.id, balance=0.0)
+        db.add(account)
+    else:
+        player.discord_id = data.discord_id
 
-    existing = await db.execute(
-        select(Player).where(Player.discord_id == data.discord_id)
-    )
-    other = existing.scalar_one_or_none()
-    if other is not None and other.id != player.id:
-        raise HTTPException(
-            status_code=400,
-            detail="Этот Discord аккаунт уже привязан к другому Minecraft нику.",
-        )
-
-    player.discord_id = data.discord_id
     await db.commit()
 
     # Notify Discord bot to update nickname

@@ -198,7 +198,6 @@ export default function CabinetPage() {
             </button>
           </div>
           {linkError && <p className="link-screen-error">{linkError}</p>}
-          <p className="link-screen-hint">Ты должен был зайти на сервер хотя бы раз</p>
         </div>
       )}
 
