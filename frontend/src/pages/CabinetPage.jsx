@@ -10,6 +10,7 @@ export default function CabinetPage() {
   const [alerts, setAlerts] = useState([])
   const [linkNick, setLinkNick] = useState('')
   const [linking, setLinking] = useState(false)
+  const [linkError, setLinkError] = useState('')
 
   function addAlert(msg, type = 'error') {
     const id = Date.now()
@@ -97,8 +98,9 @@ export default function CabinetPage() {
   }
 
   async function linkAccount() {
-    if (!linkNick.trim()) { addAlert('Введи Minecraft ник'); return }
-    if (!user) { addAlert('Не авторизован'); return }
+    setLinkError('')
+    if (!linkNick.trim()) { setLinkError('Введи Minecraft ник'); return }
+    if (!user) { setLinkError('Не авторизован'); return }
     setLinking(true)
     try {
       await apiFetch('/web/link', {
@@ -111,7 +113,7 @@ export default function CabinetPage() {
       setScreen('profile')
       window.dispatchEvent(new Event('auth-change'))
     } catch (e) {
-      addAlert(e.message)
+      setLinkError(e.message)
     } finally {
       setLinking(false)
     }
@@ -178,8 +180,8 @@ export default function CabinetPage() {
           </div>
           <h2 className="link-screen-title">Привяжи Minecraft аккаунт</h2>
           <p className="link-screen-desc">
-            Введи свой игровой ник, под которым ты будешь играть<br />
-            и на который будешь покупать проходку.
+            Введи свой игровой ник, под которым ты играешь<br />
+            на сервере и на который будешь покупать проходку
           </p>
           <div className="link-screen-input-wrap">
             <input
@@ -188,13 +190,14 @@ export default function CabinetPage() {
               placeholder="Твой Minecraft ник"
               maxLength={32}
               value={linkNick}
-              onChange={e => setLinkNick(e.target.value)}
+              onChange={e => { setLinkNick(e.target.value); setLinkError('') }}
               onKeyDown={e => e.key === 'Enter' && linkAccount()}
             />
             <button className="btn btn-primary btn-link-submit" disabled={linking} onClick={linkAccount}>
               {linking ? 'Привязка...' : 'Привязать'}
             </button>
           </div>
+          {linkError && <p className="link-screen-error">{linkError}</p>}
           <p className="link-screen-hint">Ты должен был зайти на сервер хотя бы раз</p>
         </div>
       )}
