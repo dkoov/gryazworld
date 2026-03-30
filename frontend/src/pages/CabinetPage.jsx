@@ -4,7 +4,7 @@ import DiscordIcon from '../components/DiscordIcon'
 import './CabinetPage.css'
 
 export default function CabinetPage() {
-  const [screen, setScreen] = useState('login') // login | loading | profile
+  const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [alerts, setAlerts] = useState([])
@@ -55,7 +55,7 @@ export default function CabinetPage() {
 
           const p = await loadProfile(u.id)
           setProfile(p)
-          setScreen('profile')
+          setScreen(p.linked ? 'profile' : 'link')
         } catch (e) {
           addAlert(e.message)
           setScreen('login')
@@ -70,7 +70,7 @@ export default function CabinetPage() {
           setUser(stored)
           const p = await loadProfile(stored.id)
           setProfile(p)
-          setScreen('profile')
+          setScreen(p.linked ? 'profile' : 'link')
         } catch (e) {
           addAlert(e.message)
           setScreen('login')
@@ -108,6 +108,8 @@ export default function CabinetPage() {
       addAlert('Аккаунт успешно привязан!', 'success')
       const p = await loadProfile(user.id)
       setProfile(p)
+      setScreen('profile')
+      window.dispatchEvent(new Event('auth-change'))
     } catch (e) {
       addAlert(e.message)
     } finally {
@@ -165,6 +167,38 @@ export default function CabinetPage() {
         </div>
       )}
 
+      {/* Link screen */}
+      {screen === 'link' && user && (
+        <div className="cab-card cab-link-screen">
+          <div className="link-screen-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </div>
+          <h2 className="link-screen-title">Привяжи Minecraft аккаунт</h2>
+          <p className="link-screen-desc">
+            Введи свой игровой ник, под которым ты будешь играть<br />
+            и на который будешь покупать проходку.
+          </p>
+          <div className="link-screen-input-wrap">
+            <input
+              type="text"
+              className="link-screen-input"
+              placeholder="Твой Minecraft ник"
+              maxLength={32}
+              value={linkNick}
+              onChange={e => setLinkNick(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && linkAccount()}
+            />
+            <button className="btn btn-primary btn-link-submit" disabled={linking} onClick={linkAccount}>
+              {linking ? 'Привязка...' : 'Привязать'}
+            </button>
+          </div>
+          <p className="link-screen-hint">Ты должен был зайти на сервер хотя бы раз</p>
+        </div>
+      )}
+
       {/* Profile screen */}
       {screen === 'profile' && user && (
         <div className="cab-card cab-profile">
@@ -183,28 +217,6 @@ export default function CabinetPage() {
           </div>
 
           <div className="divider" />
-
-          {/* Link MC block */}
-          {profile && !profile.linked && (
-            <div className="block-link">
-              <div className="cab-section-title">Привязка Minecraft аккаунта</div>
-              <p className="link-hint">
-                Введи свой ник в Minecraft (точно как в игре). Ты должен был зайти на сервер хотя бы раз.
-              </p>
-              <div className="input-row">
-                <input
-                  type="text"
-                  placeholder="Ваш Minecraft ник"
-                  maxLength={32}
-                  value={linkNick}
-                  onChange={e => setLinkNick(e.target.value)}
-                />
-                <button className="btn btn-primary" disabled={linking} onClick={linkAccount}>
-                  {linking ? 'Привязка...' : 'Привязать'}
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Stats block */}
           {profile && profile.linked && (

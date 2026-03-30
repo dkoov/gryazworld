@@ -11,6 +11,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
+DISCORD_BOT_URL = "http://localhost:5000/discord/notify"
+
 router = APIRouter(prefix="/web", tags=["web"])
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
@@ -95,6 +97,21 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
 
     player.discord_id = data.discord_id
     await db.commit()
+
+    # Notify Discord bot to update nickname
+    try:
+        async with aiohttp.ClientSession() as session:
+            await session.post(
+                DISCORD_BOT_URL,
+                json={
+                    "type": "nick_linked",
+                    "discord_id": data.discord_id,
+                    "nickname": player.nickname,
+                },
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+    except Exception as e:
+        log.warning("Не удалось уведомить Discord бота о привязке: %s", e)
 
     return {"status": "ok", "nickname": player.nickname, "discord_id": data.discord_id}
 
