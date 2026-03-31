@@ -3,7 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime,
-    ForeignKey, Enum as SAEnum
+    ForeignKey, Enum as SAEnum, text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -82,6 +82,36 @@ class Warn(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     player = relationship("Player", foreign_keys=[player_id], back_populates="warn_records")
+
+
+class Community(Base):
+    __tablename__ = "communities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, default="")
+    tag = Column(String, default="")
+    icon = Column(String, default="🏘️")
+    owner_discord_id = Column(String, nullable=False)
+    member_count = Column(Integer, default=1, nullable=False)
+    banner_url = Column(String, nullable=True)
+    discord_url = Column(String, nullable=True)
+    members_can_invite = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    members = relationship("CommunityMember", back_populates="community", cascade="all, delete-orphan")
+
+
+class CommunityMember(Base):
+    __tablename__ = "community_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"), nullable=False)
+    discord_id = Column(String, nullable=False)
+    role = Column(String, default="member", nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    community = relationship("Community", back_populates="members")
 
 
 async def get_db() -> AsyncSession:
