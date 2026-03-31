@@ -8,6 +8,7 @@ from typing import Optional
 
 from database import get_db, Player, BankAccount, Fine, Community, CommunityMember
 
+import json
 import logging
 
 log = logging.getLogger(__name__)
@@ -239,10 +240,68 @@ class CommunityUpdate(BaseModel):
     icon: Optional[str] = None
     banner_url: Optional[str] = None
     discord_url: Optional[str] = None
+    slug: Optional[str] = None
     members_can_invite: Optional[int] = None
+    is_recruiting: Optional[int] = None
+    is_private: Optional[int] = None
+    info_blocks: Optional[list] = None
+    images: Optional[list] = None
 
 
 # ─── Communities endpoints ───────────────────────────────────────────────────
+
+def _parse_json_field(value, default=None):
+    if default is None:
+        default = []
+    if not value:
+        return default
+    if isinstance(value, list):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return default
+
+
+async def _community_dict(cm, db):
+    """Build a full community dict with total_hours and members_discord_ids."""
+    # Get members
+    mem_result = await db.execute(
+        select(CommunityMember).where(CommunityMember.community_id == cm.id)
+    )
+    members = mem_result.scalars().all()
+    members_discord_ids = [m.discord_id for m in members]
+
+    # Calculate total hours from players
+    total_seconds = 0
+    if members_discord_ids:
+        players_result = await db.execute(
+            select(Player).where(Player.discord_id.in_(members_discord_ids))
+        )
+        players = players_result.scalars().all()
+        total_seconds = sum(p.total_seconds for p in players)
+
+    return {
+        "id": cm.id,
+        "name": cm.name,
+        "description": cm.description or "",
+        "tag": cm.tag or "",
+        "icon": cm.icon or "\U0001F3D8\uFE0F",
+        "owner_discord_id": cm.owner_discord_id,
+        "member_count": cm.member_count,
+        "banner_url": cm.banner_url,
+        "discord_url": cm.discord_url,
+        "members_can_invite": cm.members_can_invite,
+        "is_recruiting": cm.is_recruiting,
+        "is_private": cm.is_private,
+        "slug": cm.slug,
+        "info_blocks": _parse_json_field(cm.info_blocks),
+        "images": _parse_json_field(cm.images),
+        "total_hours": total_seconds // 3600,
+        "members_discord_ids": members_discord_ids,
+        "created_at": cm.created_at.isoformat() if cm.created_at else None,
+    }
+
 
 @router.get("/communities")
 async def list_communities(db: AsyncSession = Depends(get_db)):
@@ -251,22 +310,7 @@ async def list_communities(db: AsyncSession = Depends(get_db)):
         select(Community).order_by(Community.member_count.desc())
     )
     comms = result.scalars().all()
-    return [
-        {
-            "id": cm.id,
-            "name": cm.name,
-            "description": cm.description or "",
-            "tag": cm.tag or "",
-            "icon": cm.icon or "🏘️",
-            "owner_discord_id": cm.owner_discord_id,
-            "member_count": cm.member_count,
-            "banner_url": cm.banner_url,
-            "discord_url": cm.discord_url,
-            "members_can_invite": cm.members_can_invite,
-            "created_at": cm.created_at.isoformat() if cm.created_at else None,
-        }
-        for cm in comms
-    ]
+    return [await _community_dict(cm, db) for cm in comms]
 
 
 @router.post("/communities")
@@ -295,18 +339,7 @@ async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get
     db.add(member)
     await db.commit()
     await db.refresh(comm)
-    return {
-        "id": comm.id,
-        "name": comm.name,
-        "description": comm.description,
-        "tag": comm.tag,
-        "icon": comm.icon,
-        "owner_discord_id": comm.owner_discord_id,
-        "member_count": comm.member_count,
-        "banner_url": comm.banner_url,
-        "discord_url": comm.discord_url,
-        "members_can_invite": comm.members_can_invite,
-    }
+    return await _community_dict(comm, db)
 
 
 @router.patch("/communities/{community_id}")
@@ -332,14 +365,50 @@ async def update_community(community_id: int, data: CommunityUpdate, db: AsyncSe
         comm.discord_url = data.discord_url or None
     if data.members_can_invite is not None:
         comm.members_can_invite = data.members_can_invite
+    if data.is_recruiting is not None:
+        comm.is_recruiting = data.is_recruiting
+    if data.is_private is not None:
+        comm.is_private = data.is_private
+    if data.slug is not None:
+        comm.slug = data.slug or None
+    if data.info_blocks is not None:
+        comm.info_blocks = json.dumps(data.info_blocks)
+    if data.images is not None:
+        comm.images = json.dumps(data.images)
     await db.commit()
     await db.refresh(comm)
-    return {
-        "id": comm.id, "name": comm.name, "description": comm.description,
-        "tag": comm.tag, "icon": comm.icon, "owner_discord_id": comm.owner_discord_id,
-        "member_count": comm.member_count, "banner_url": comm.banner_url,
-        "discord_url": comm.discord_url, "members_can_invite": comm.members_can_invite,
-    }
+    return await _community_dict(comm, db)
+
+
+@router.get("/communities/{community_id}/members")
+async def community_members(community_id: int, db: AsyncSession = Depends(get_db)):
+    """Return members of a community with their nicknames and roles."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    if comm_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+
+    mem_result = await db.execute(
+        select(CommunityMember).where(CommunityMember.community_id == community_id)
+    )
+    members = mem_result.scalars().all()
+
+    result = []
+    for m in members:
+        player_result = await db.execute(
+            select(Player).where(Player.discord_id == m.discord_id)
+        )
+        player = player_result.scalar_one_or_none()
+        result.append({
+            "discord_id": m.discord_id,
+            "nickname": player.nickname if player else m.discord_id,
+            "role": m.role,
+            "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+        })
+
+    # Sort: owner first, then deputy, then member
+    role_order = {"owner": 0, "deputy": 1, "member": 2}
+    result.sort(key=lambda x: role_order.get(x["role"], 9))
+    return result
 
 
 @router.post("/communities/{community_id}/join")
@@ -349,6 +418,8 @@ async def join_community(community_id: int, data: CommunityJoin, db: AsyncSessio
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
+    if comm.is_private:
+        raise HTTPException(status_code=403, detail="Община закрыта для вступления")
     existing = await db.execute(
         select(CommunityMember)
         .where(CommunityMember.community_id == community_id)

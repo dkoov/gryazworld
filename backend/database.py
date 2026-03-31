@@ -97,6 +97,11 @@ class Community(Base):
     banner_url = Column(String, nullable=True)
     discord_url = Column(String, nullable=True)
     members_can_invite = Column(Integer, default=0, nullable=False)
+    is_recruiting = Column(Integer, default=0, nullable=False)
+    is_private = Column(Integer, default=0, nullable=False)
+    slug = Column(String, nullable=True)
+    info_blocks = Column(String, default="[]")  # JSON array
+    images = Column(String, default="[]")  # JSON array
     created_at = Column(DateTime, default=datetime.utcnow)
 
     members = relationship("CommunityMember", back_populates="community", cascade="all, delete-orphan")
