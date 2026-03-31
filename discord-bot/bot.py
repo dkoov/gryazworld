@@ -29,6 +29,7 @@ log = logging.getLogger("grworld-bot")
 
 # ─── Bot setup ─────────────────────────────────────────────────────────────────
 intents = discord.Intents.default()
+intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
@@ -143,6 +144,24 @@ async def send_to_channel(embed: discord.Embed):
     await channel.send(embed=embed)
 
 
+async def change_discord_nickname(discord_id: str, nickname: str):
+    """Change user's nickname on the Discord server to their Minecraft nick."""
+    guild = client.get_guild(GUILD_ID)
+    if guild is None:
+        log.warning("Гильдия %s не найдена", GUILD_ID)
+        return
+    try:
+        member = await guild.fetch_member(int(discord_id))
+        await member.edit(nick=nickname)
+        log.info("Никнейм %s изменён на %s", discord_id, nickname)
+    except discord.Forbidden:
+        log.warning("Нет прав менять никнейм %s (возможно, владелец сервера)", discord_id)
+    except discord.NotFound:
+        log.warning("Пользователь %s не найден на сервере Discord", discord_id)
+    except Exception as e:
+        log.error("Ошибка смены никнейма %s: %s", discord_id, e)
+
+
 # ─── Webhook server (aiohttp) ──────────────────────────────────────────────────
 
 async def handle_notify(request: web.Request) -> web.Response:
@@ -156,7 +175,10 @@ async def handle_notify(request: web.Request) -> web.Response:
 
     try:
         if event_type == "nick_linked":
-            log.info("Ник привязан: discord_id=%s, nickname=%s", data.get("discord_id"), data.get("nickname"))
+            discord_id = data.get("discord_id")
+            nickname = data.get("nickname")
+            if discord_id and nickname:
+                asyncio.ensure_future(change_discord_nickname(discord_id, nickname))
             return web.json_response({"status": "ok"})
 
         if event_type == "fine":
