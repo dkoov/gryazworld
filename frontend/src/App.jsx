@@ -19,6 +19,7 @@ export default function App() {
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/communities" element={<CommunitiesPage />} />
         <Route path="/community/:id" element={<CommunityPage />} />
+        <Route path="/c/:slug" element={<CommunityPage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
       </Route>

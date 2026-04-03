@@ -2,11 +2,11 @@ import os
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
-from database import get_db, Player, BankAccount, Fine, Community, CommunityMember
+from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
 
 import json
 import logging
@@ -248,6 +248,30 @@ class CommunityUpdate(BaseModel):
     images: Optional[list] = None
 
 
+class KickRequest(BaseModel):
+    discord_id: str
+    target_discord_id: str
+
+
+class SetRoleRequest(BaseModel):
+    discord_id: str
+    target_discord_id: str
+    role: str
+
+
+class LeaveRequest(BaseModel):
+    discord_id: str
+
+
+class CommunityInviteBody(BaseModel):
+    discord_id: str
+    nickname: str
+
+
+class AcceptInviteBody(BaseModel):
+    nickname: str
+
+
 # ─── Communities endpoints ───────────────────────────────────────────────────
 
 def _parse_json_field(value, default=None):
@@ -434,6 +458,204 @@ async def join_community(community_id: int, data: CommunityJoin, db: AsyncSessio
     return {"status": "ok", "community_id": community_id, "member_count": comm.member_count}
 
 
+@router.get("/communities/owned")
+async def get_owned_community(discord_id: str, db: AsyncSession = Depends(get_db)):
+    """Return community owned by the given discord_id."""
+    result = await db.execute(select(Community).where(Community.owner_discord_id == discord_id))
+    comm = result.scalars().first()
+    if comm is None:
+        raise HTTPException(status_code=404, detail="Своей общины нет")
+    return {"id": comm.id, "name": comm.name}
+
+
+@router.get("/community-by-slug/{slug}")
+async def community_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
+    """Find community by slug for direct links."""
+    result = await db.execute(select(Community).where(Community.slug == slug))
+    comm = result.scalar_one_or_none()
+    if comm is None:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+    return await _community_dict(comm, db)
+
+
+@router.post("/communities/{community_id}/kick")
+async def kick_member(community_id: int, data: KickRequest, db: AsyncSession = Depends(get_db)):
+    """Kick a member. Owner or deputy can kick; deputy cannot kick owner or another deputy."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    comm = comm_result.scalar_one_or_none()
+    if not comm:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+
+    is_owner = comm.owner_discord_id == data.discord_id
+    kicker_result = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == data.discord_id,
+        )
+    )
+    kicker = kicker_result.scalar_one_or_none()
+    is_deputy = kicker and kicker.role == "deputy"
+
+    if not is_owner and not is_deputy:
+        raise HTTPException(status_code=403, detail="Нет прав")
+
+    if comm.owner_discord_id == data.target_discord_id:
+        raise HTTPException(status_code=403, detail="Нельзя кикнуть владельца")
+
+    target_result = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == data.target_discord_id,
+        )
+    )
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Участник не найден")
+
+    if is_deputy and target.role == "deputy":
+        raise HTTPException(status_code=403, detail="Зам не может кикнуть другого зама")
+
+    await db.delete(target)
+    comm.member_count = max(0, (comm.member_count or 1) - 1)
+    await db.commit()
+    return {"detail": "Участник исключён"}
+
+
+@router.post("/communities/{community_id}/set-role")
+async def set_role(community_id: int, data: SetRoleRequest, db: AsyncSession = Depends(get_db)):
+    """Set member role. Only the owner can assign roles."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    comm = comm_result.scalar_one_or_none()
+    if not comm or comm.owner_discord_id != data.discord_id:
+        raise HTTPException(status_code=403, detail="Только владелец может назначать роли")
+
+    target_result = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == data.target_discord_id,
+        )
+    )
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Участник не найден")
+
+    target.role = data.role
+    await db.commit()
+    return {"detail": "Роль обновлена"}
+
+
+@router.post("/communities/{community_id}/leave")
+async def leave_community(community_id: int, data: LeaveRequest, db: AsyncSession = Depends(get_db)):
+    """Leave a community. Owner cannot leave."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    comm = comm_result.scalar_one_or_none()
+    if not comm:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+
+    if comm.owner_discord_id == data.discord_id:
+        raise HTTPException(status_code=400, detail="Владелец не может покинуть общину. Удалите её.")
+
+    member_result = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == data.discord_id,
+        )
+    )
+    member = member_result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Вы не состоите в этой общине")
+
+    await db.delete(member)
+    comm.member_count = max(0, (comm.member_count or 1) - 1)
+    await db.commit()
+    return {"detail": "Вы покинули общину"}
+
+
+@router.post("/communities/{community_id}/invite")
+async def invite_to_community(community_id: int, data: CommunityInviteBody, db: AsyncSession = Depends(get_db)):
+    """Invite a player by nickname. Only the owner can invite."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    comm = comm_result.scalar_one_or_none()
+    if comm is None:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+    if comm.owner_discord_id != data.discord_id:
+        raise HTTPException(status_code=403, detail="Только владелец может приглашать")
+
+    player_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+    )
+    if player_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    invite = CommunityInvite(
+        community_id=community_id,
+        invited_nickname=data.nickname.lower(),
+        invited_by_discord_id=data.discord_id,
+    )
+    db.add(invite)
+    await db.commit()
+    return {"detail": "Приглашение отправлено"}
+
+
+@router.post("/communities/{community_id}/accept-invite")
+async def accept_invite(community_id: int, data: AcceptInviteBody, db: AsyncSession = Depends(get_db)):
+    """Accept a pending invite by nickname."""
+    invite_result = await db.execute(
+        select(CommunityInvite).where(
+            CommunityInvite.community_id == community_id,
+            func.lower(CommunityInvite.invited_nickname) == data.nickname.lower(),
+        )
+    )
+    invite = invite_result.scalar_one_or_none()
+    if invite is None:
+        raise HTTPException(status_code=404, detail="Приглашение не найдено")
+
+    player_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+    )
+    player = player_result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    existing = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == player.discord_id,
+        )
+    )
+    if existing.scalar_one_or_none() is None:
+        member = CommunityMember(community_id=community_id, discord_id=player.discord_id)
+        db.add(member)
+        comm_result = await db.execute(select(Community).where(Community.id == community_id))
+        comm = comm_result.scalar_one_or_none()
+        if comm:
+            comm.member_count += 1
+
+    await db.delete(invite)
+    await db.commit()
+    return {"detail": "Вступление успешно"}
+
+
+@router.get("/communities/{community_id}/invites")
+async def list_invites(community_id: int, discord_id: str, db: AsyncSession = Depends(get_db)):
+    """List pending invites. Only the owner can view."""
+    comm_result = await db.execute(select(Community).where(Community.id == community_id))
+    comm = comm_result.scalar_one_or_none()
+    if comm is None:
+        raise HTTPException(status_code=404, detail="Община не найдена")
+    if comm.owner_discord_id != discord_id:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+    invites_result = await db.execute(
+        select(CommunityInvite).where(CommunityInvite.community_id == community_id)
+    )
+    invites = invites_result.scalars().all()
+    return [
+        {"nickname": i.invited_nickname, "created_at": i.created_at.isoformat() if i.created_at else None}
+        for i in invites
+    ]
+
+
 @router.delete("/communities/{community_id}")
 async def delete_community(community_id: int, data: CommunityDelete, db: AsyncSession = Depends(get_db)):
     """Delete community. Only the owner can delete."""
@@ -443,6 +665,8 @@ async def delete_community(community_id: int, data: CommunityDelete, db: AsyncSe
         raise HTTPException(status_code=404, detail="Община не найдена")
     if comm.owner_discord_id != data.discord_id:
         raise HTTPException(status_code=403, detail="Только создатель может удалить общину")
+    await db.execute(delete(CommunityMember).where(CommunityMember.community_id == community_id))
+    await db.execute(delete(CommunityInvite).where(CommunityInvite.community_id == community_id))
     await db.delete(comm)
     await db.commit()
     return {"status": "deleted", "community_id": community_id}

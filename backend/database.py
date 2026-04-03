@@ -119,6 +119,16 @@ class CommunityMember(Base):
     community = relationship("Community", back_populates="members")
 
 
+class CommunityInvite(Base):
+    __tablename__ = "community_invites"
+
+    id = Column(Integer, primary_key=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"), nullable=False)
+    invited_nickname = Column(String, nullable=False)
+    invited_by_discord_id = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 async def get_db() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
