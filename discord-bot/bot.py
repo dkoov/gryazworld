@@ -8,6 +8,7 @@ import aiohttp
 import discord
 from aiohttp import web
 from discord import app_commands
+from discord.ext import tasks
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -162,6 +163,41 @@ async def change_discord_nickname(discord_id: str, nickname: str):
         log.error("Ошибка смены никнейма %s: %s", discord_id, e)
 
 
+# ─── Background tasks ─────────────────────────────────────────────────────────
+
+@tasks.loop(hours=24)
+async def sync_nicknames():
+    guild = client.get_guild(GUILD_ID)
+    if not guild:
+        log.warning("sync_nicknames: гильдия %s не найдена", GUILD_ID)
+        return
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(f"{BACKEND_URL}/web/all-linked-players") as resp:
+                if resp.status != 200:
+                    log.warning("sync_nicknames: бэкенд вернул %s", resp.status)
+                    return
+                players = await resp.json()
+        except Exception as e:
+            log.error("sync_nicknames: ошибка запроса к бэкенду: %s", e)
+            return
+
+    for p in players:
+        try:
+            member = guild.get_member(int(p["discord_id"]))
+            if member and member.nick != p["nickname"]:
+                await member.edit(nick=p["nickname"])
+                log.info("sync_nicknames: %s → %s", p["discord_id"], p["nickname"])
+        except Exception as e:
+            log.warning("sync_nicknames: ошибка для %s: %s", p.get("discord_id"), e)
+
+
+@sync_nicknames.before_loop
+async def before_sync():
+    await client.wait_until_ready()
+
+
 # ─── Webhook server (aiohttp) ──────────────────────────────────────────────────
 
 async def handle_notify(request: web.Request) -> web.Response:
@@ -306,6 +342,7 @@ async def on_ready():
         log.info("Slash-команды синхронизированы: %d", len(synced))
     except Exception as e:
         log.error("Ошибка синхронизации команд: %s", e)
+    sync_nicknames.start()
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────

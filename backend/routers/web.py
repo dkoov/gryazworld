@@ -44,6 +44,25 @@ async def _notify_discord(payload: dict):
         log.warning("Не удалось отправить уведомление в Discord: %s", e)
 
 
+async def _rename_discord_member(discord_id: str, nickname: str):
+    guild_id = os.getenv("DISCORD_GUILD_ID")
+    bot_token = os.getenv("DISCORD_BOT_TOKEN")
+    if not guild_id or not bot_token:
+        return
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(
+                f"https://discord.com/api/v10/guilds/{guild_id}/members/{discord_id}",
+                headers={"Authorization": f"Bot {bot_token}"},
+                json={"nick": nickname},
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                if resp.status not in (200, 204):
+                    log.warning("Discord rename вернул статус %s", resp.status)
+    except Exception as e:
+        log.warning("Не удалось переименовать участника Discord: %s", e)
+
+
 @router.post("/discord/token")
 async def discord_token(data: TokenRequest):
     """Exchange Discord OAuth2 code for access token and return user info."""
@@ -125,6 +144,7 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     import asyncio
+    asyncio.ensure_future(_rename_discord_member(data.discord_id, player.nickname))
     asyncio.ensure_future(_notify_discord({
         "type": "nick_linked",
         "discord_id": data.discord_id,
@@ -654,6 +674,16 @@ async def list_invites(community_id: int, discord_id: str, db: AsyncSession = De
         {"nickname": i.invited_nickname, "created_at": i.created_at.isoformat() if i.created_at else None}
         for i in invites
     ]
+
+
+@router.get("/all-linked-players")
+async def get_all_linked_players(db: AsyncSession = Depends(get_db)):
+    """Return all players with a linked Discord account."""
+    result = await db.execute(
+        select(Player).where(Player.discord_id != None)
+    )
+    players = result.scalars().all()
+    return [{"discord_id": p.discord_id, "nickname": p.nickname} for p in players]
 
 
 @router.delete("/communities/{community_id}")
