@@ -1,3 +1,4 @@
+import asyncio
 import os
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +14,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-DISCORD_BOT_URL = "http://localhost:5000/discord/notify"
+DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
 
 router = APIRouter(prefix="/web", tags=["web"])
 
@@ -195,7 +196,7 @@ async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
                 "amount": f.amount,
                 "reason": f.reason,
                 "issued_by": f.issued_by,
-                "deadline": f.deadline.isoformat() if f.deadline else None,
+                "deadline": f.deadline.isoformat() + "Z" if f.deadline else None,
                 "created_at": f.created_at.isoformat(),
             }
             for f in active_fines
@@ -203,20 +204,53 @@ async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.post("/pay-fine")
+async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
+    discord_id = data.get("discord_id")
+    fine_id = data.get("fine_id")
+
+    player_result = await db.execute(select(Player).where(Player.discord_id == discord_id))
+    player = player_result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+
+    fine_result = await db.execute(select(Fine).where(Fine.id == fine_id, Fine.player_id == player.id))
+    fine = fine_result.scalar_one_or_none()
+    if not fine:
+        raise HTTPException(status_code=404, detail="Штраф не найден")
+    if fine.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Штраф уже {fine.status}")
+    if account.balance < fine.amount:
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
+
+    account.balance -= fine.amount
+    fine.status = "paid"
+    await db.commit()
+
+    asyncio.ensure_future(_notify_discord({
+        "type": "fine_paid",
+        "nickname": player.nickname,
+        "discord_id": player.discord_id,
+        "fine_id": fine.id,
+        "reason": fine.reason,
+        "amount": fine.amount,
+    }))
+
+    return {"status": "ok", "fine_id": fine.id, "balance": account.balance}
+
+
 @router.get("/server-stats")
-async def server_stats():
+async def server_stats(db: AsyncSession = Depends(get_db)):
     """Return basic server stats (online count)."""
-    online = 0
-    try:
-        import asyncio
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(MC_SERVER_HOST, MC_SERVER_PORT),
-            timeout=3,
-        )
-        writer.close()
-        await writer.wait_closed()
-    except Exception:
-        pass
+    result = await db.execute(
+        select(func.count()).select_from(Player).where(Player.is_online == True)
+    )
+    online = result.scalar() or 0
     return {"online": online, "max": 20, "tps": "20.0"}
 
 
@@ -231,7 +265,7 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
         {
             "nickname": p.nickname,
             "total_seconds": p.total_seconds,
-            "is_online": False,
+            "is_online": p.is_online,
         }
         for p in players
     ]

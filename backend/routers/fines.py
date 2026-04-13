@@ -131,7 +131,7 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
         "amount": fine.amount,
         "reason": fine.reason,
         "issued_by": fine.issued_by,
-        "deadline": fine.deadline.isoformat() if fine.deadline else None,
+        "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
     })
 
     return {

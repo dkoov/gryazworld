@@ -128,6 +128,17 @@ export default function CabinetPage() {
     addAlert('Вы вышли из аккаунта', 'info')
   }
 
+  async function payFine(fineId) {
+    try {
+      await apiFetch('/web/pay-fine', {
+        method: 'POST',
+        body: JSON.stringify({ fine_id: fineId, discord_id: user.id }),
+      })
+      const p = await loadProfile(user.id)
+      setProfile(p)
+    } catch (e) { alert(e.message) }
+  }
+
   function escHtml(s) {
     const div = document.createElement('div')
     div.textContent = s
@@ -236,7 +247,7 @@ export default function CabinetPage() {
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Баланс</div>
-                  <div className="stat-value">{Number(profile.balance).toFixed(1)}</div>
+                  <div className="stat-value">{Math.round(profile.balance)}</div>
                   <div className="stat-sub">алмазов</div>
                 </div>
                 <div className="stat-card">
@@ -256,13 +267,22 @@ export default function CabinetPage() {
                   ) : (
                     profile.active_fines.map(f => (
                       <div key={f.id} className="fine-item">
-                        <div>
+                        <div className="fine-main">
                           <div className="fine-reason">{f.reason}</div>
                           <div className="fine-meta">
-                            Выдал: {f.issued_by} &middot; Срок: {f.deadline ? new Date(f.deadline).toLocaleDateString('ru-RU') : 'Без срока'}
+                            {f.deadline ? (() => {
+                              const diff = new Date(f.deadline) - new Date()
+                              if (diff <= 0) return 'Срок истёк'
+                              const hours = Math.floor(diff / 1000 / 60 / 60)
+                              const minutes = Math.floor((diff / 1000 / 60) % 60)
+                              return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
+                            })() : 'Без срока'}
                           </div>
                         </div>
-                        <div className="fine-amount">{f.amount} &#x1F48E;</div>
+                        <div className="fine-right">
+                          <div className="fine-amount">{f.amount} алмазов</div>
+                          <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
+                        </div>
                       </div>
                     ))
                   )}
