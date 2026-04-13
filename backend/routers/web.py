@@ -359,7 +359,7 @@ async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get
     )
     db.add(comm)
     await db.flush()
-    member = CommunityMember(community_id=comm.id, discord_id=data.discord_id)
+    member = CommunityMember(community_id=comm.id, discord_id=data.discord_id, role='owner')
     db.add(member)
     await db.commit()
     await db.refresh(comm)

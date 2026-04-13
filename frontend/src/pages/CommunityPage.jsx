@@ -32,6 +32,10 @@ export default function CommunityPage() {
   // Context menu
   const [menuState, setMenuState] = useState(null)
 
+  // Info block inline edit
+  const [editingBlock, setEditingBlock] = useState(false)
+  const [editBlockContent, setEditBlockContent] = useState('')
+
   const loadData = useCallback(async () => {
     try {
       let c
@@ -42,6 +46,10 @@ export default function CommunityPage() {
         c = list.find(x => x.id === Number(id))
       }
       if (c) {
+        if (!slug && c.slug) {
+          navigate(`/c/${c.slug}`, { replace: true })
+          return
+        }
         setComm(c)
         const m = await apiFetch(`/web/communities/${c.id}/members`)
         setMembers(m)
@@ -68,6 +76,8 @@ export default function CommunityPage() {
   }
 
   const isOwner = user && user.id === comm.owner_discord_id
+  console.log('isOwner:', isOwner, 'user.id:', user?.id, 'owner_discord_id:', comm.owner_discord_id)
+  console.log('members:', members.map(m => ({nick: m.nickname, role: m.role, id: m.discord_id})))
   const currentMember = members.find(m => m.discord_id === user?.id)
   const currentRole = currentMember?.role || 'member'
   const isMember = !!currentMember
@@ -181,6 +191,18 @@ export default function CommunityPage() {
         method: 'PATCH',
         body: JSON.stringify({ discord_id: user.id, info_blocks: updated }),
       })
+      await loadData()
+    } catch (e) { alert(e.message) }
+  }
+
+  async function editInfoBlock(newContent) {
+    const updated = [{ title: '', content: newContent.trim() }]
+    try {
+      await apiFetch(`/web/communities/${comm.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ discord_id: user.id, info_blocks: updated }),
+      })
+      setEditingBlock(false)
       await loadData()
     } catch (e) { alert(e.message) }
   }
@@ -351,10 +373,30 @@ export default function CommunityPage() {
             <div className="cp-info-blocks">
               {comm.info_blocks.map((block, i) => (
                 <div key={i} className="cp-info-block">
-                  {isOwner && (
-                    <button className="cp-info-block-delete" onClick={() => removeInfoBlock(i)} title="Удалить блок">🗑</button>
+                  {editingBlock ? (
+                    <div className="cp-info-block-edit">
+                      <textarea
+                        value={editBlockContent}
+                        onChange={e => setEditBlockContent(e.target.value)}
+                        rows={4}
+                        autoFocus
+                      />
+                      <div className="cp-info-block-edit-actions">
+                        <button className="cp-panel-btn" onClick={() => editInfoBlock(editBlockContent)}>Сохранить</button>
+                        <button className="cp-panel-btn" onClick={() => setEditingBlock(false)}>Отмена</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p>{block.content}</p>
+                      {isOwner && (
+                        <div className="cp-info-block-actions">
+                          <button className="cp-info-block-edit-btn" onClick={() => { setEditBlockContent(block.content); setEditingBlock(true) }} title="Редактировать">✏️</button>
+                          <button className="cp-info-block-delete" onClick={() => removeInfoBlock(i)} title="Удалить">🗑</button>
+                        </div>
+                      )}
+                    </>
                   )}
-                  <p>{block.content}</p>
                 </div>
               ))}
             </div>
@@ -430,11 +472,12 @@ export default function CommunityPage() {
                       alt=""
                       onError={e => { e.target.src = 'https://mc-heads.net/avatar/Steve/32' }}
                     />
+                    {roleIcon && <span className="cp-role-icon">{roleIcon}</span>}
                     <span
                       className="cp-member-name"
                       style={{ fontWeight: m.role !== 'member' ? 600 : 400, color: roleColor }}
                     >
-                      {roleIcon} {m.nickname}
+                      {m.nickname}
                     </span>
                     {m.discord_id === user?.id && m.role !== 'owner' && (
                       <span className="cp-leave-x" onClick={e => { e.stopPropagation(); leaveCommunity() }}>✕</span>

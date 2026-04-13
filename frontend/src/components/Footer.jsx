@@ -10,6 +10,7 @@ export default function Footer() {
         <Link to="/wiki">Wiki</Link>
         <Link to="/stats">Статистика</Link>
         <Link to="/communities">Общины</Link>
+        <Link to="/oferta">Оферта</Link>
       </div>
       <div className="footer-copy">&copy; 2025 GryazWorld</div>
     </footer>

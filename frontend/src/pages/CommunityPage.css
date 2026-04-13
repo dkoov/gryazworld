@@ -176,29 +176,45 @@
 }
 
 .cp-info-block {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
   position: relative;
 }
 .cp-info-block p {
   margin: 0;
-  font-size: 14px;
-  color: #fff;
-  line-height: 1.8;
+  padding-right: 50px;
+  word-break: break-word;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
 }
-
-.cp-info-block-delete {
+.cp-info-block-actions {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+.cp-info-block-delete {
   background: none;
   border: none;
   cursor: pointer;
-  color: #e05c5c;
+  font-size: 14px;
+  opacity: 0.7;
+}
+.cp-info-block-delete:hover { opacity: 1; }
+.cp-info-block-edit-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.7; }
+.cp-info-block-edit-btn:hover { opacity: 1; }
+.cp-info-block-edit textarea { width: 100%; background: #111; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 8px; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+.cp-info-block-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.cp-role-icon {
   font-size: 16px;
+  margin-right: 2px;
 }
 
 .cp-add-block-btn {
@@ -337,6 +353,8 @@
   margin-bottom: 10px;
   outline: none;
   box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cp-member-search:focus { border-color: var(--accent); }
 .cp-member-search::placeholder { color: var(--muted); }
@@ -352,6 +370,7 @@
   gap: 10px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
 }
 .cp-member-item.clickable { cursor: pointer; }
 .cp-member-item.clickable:hover { background: var(--surface2); margin: 0 -4px; padding: 6px 4px; border-radius: 6px; }
@@ -370,6 +389,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 120px;
 }
 
 .cp-leave-x {

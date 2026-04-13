@@ -8,6 +8,7 @@ import CommunitiesPage from './pages/CommunitiesPage'
 import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
 import CabinetPage from './pages/CabinetPage'
+import OfertaPage from './pages/OfertaPage'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/c/:slug" element={<CommunityPage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
+        <Route path="/oferta" element={<OfertaPage />} />
       </Route>
     </Routes>
   )
