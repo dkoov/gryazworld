@@ -20,7 +20,7 @@ commands:
     permission: serverpanel.admin
   bank:
     description: Open bank menu
-    usage: /bank [balance|transfer <player> <amount>|payfine <id>]
+    usage: /bank [balance|transfer <player> <amount>|pay <player> <amount>|fines]
     permission: serverpanel.player
   setatm:
     description: Set current block as ATM

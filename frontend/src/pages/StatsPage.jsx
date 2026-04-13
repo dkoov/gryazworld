@@ -81,8 +81,16 @@ export default function StatsPage() {
   )
 }
 
+function formatTime(total_seconds) {
+  const s = total_seconds || 0
+  if (s < 3600) {
+    const mins = Math.floor(s / 60)
+    return `${mins} мин.`
+  }
+  return `${(s / 3600).toFixed(1)} ч.`
+}
+
 function PlayerCard({ player }) {
-  const hours = Math.floor((player.total_seconds || 0) / 3600)
   const skinUrl = `https://mc-heads.net/avatar/${player.nickname}/64`
 
   return (
@@ -99,7 +107,7 @@ function PlayerCard({ player }) {
           {player.nickname}
         </div>
         <div className="player-hours">
-          Наиграл: <strong>{hours} ч.</strong>
+          Наиграл: <strong>{formatTime(player.total_seconds)}</strong>
         </div>
       </div>
     </div>

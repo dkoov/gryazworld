@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime,
+    Column, Integer, String, Float, DateTime, Boolean,
     ForeignKey, Enum as SAEnum, text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -29,6 +29,7 @@ class Player(Base):
     discord_id = Column(String, nullable=True)
     total_seconds = Column(Integer, default=0, nullable=False)
     warns = Column(Integer, default=0, nullable=False)
+    is_online = Column(Boolean, default=False, nullable=False)
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
@@ -126,6 +127,26 @@ class CommunityInvite(Base):
     community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"), nullable=False)
     invited_nickname = Column(String, nullable=False)
     invited_by_discord_id = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PlayerIP(Base):
+    __tablename__ = "player_ips"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"))
+    ip_address = Column(String, nullable=False)
+    confirmed = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PendingAuth(Base):
+    __tablename__ = "pending_auths"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"))
+    ip_address = Column(String, nullable=False)
+    token = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

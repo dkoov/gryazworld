@@ -50,7 +50,10 @@ public class AtmSession {
             arr.forEach(el -> {
                 JsonObject obj = el.getAsJsonObject();
                 String status = obj.has("status") ? obj.get("status").getAsString() : "pending";
-                this.activeFines.add(new FineEntry(obj.get("id").getAsInt(), obj.get("amount").getAsInt(), obj.get("reason").getAsString(), obj.get("deadline").getAsString(), status));
+                if (!status.equals("pending")) return;
+                String deadline = obj.has("deadline") && !obj.get("deadline").isJsonNull()
+                    ? obj.get("deadline").getAsString() : null;
+                this.activeFines.add(new FineEntry(obj.get("id").getAsInt(), obj.get("amount").getAsInt(), obj.get("reason").getAsString(), deadline, status));
             });
         }
     }
@@ -291,19 +294,18 @@ public class AtmSession {
     }
 
     private String getTimeLeft(String deadline) {
+        if (deadline == null) return "§7Без срока";
         try {
-            java.time.LocalDateTime deadlineTime = java.time.LocalDateTime.parse(
-                deadline.replace(" ", "T").substring(0, 19)
-            );
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            if (now.isAfter(deadlineTime)) return "§cПросрочен";
+            String dlStr = deadline.endsWith("Z") ? deadline : deadline + "Z";
+            java.time.Instant dl = java.time.Instant.parse(dlStr);
+            long diff = dl.getEpochSecond() - java.time.Instant.now().getEpochSecond();
+            if (diff <= 0) return "§cПросрочен";
 
-            java.time.Duration diff = java.time.Duration.between(now, deadlineTime);
-            long hours = diff.toHours();
-            long minutes = diff.toMinutesPart();
+            long hours = diff / 3600;
+            long minutes = (diff % 3600) / 60;
 
             if (hours >= 24) {
-                long days = diff.toDays();
+                long days = hours / 24;
                 return "§e" + days + " дн. " + (hours % 24) + " ч.";
             } else if (hours > 0) {
                 return "§e" + hours + " ч. " + minutes + " мин.";

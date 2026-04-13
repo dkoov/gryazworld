@@ -113,6 +113,10 @@ public class ApiClient {
         return this.get("/mc/fines/" + uuid);
     }
 
+    public ApiResponse authStatus(String token) {
+        return this.get("/mc/player/auth-status?token=" + token);
+    }
+
     public ApiResponse getDiscordId(String nickname) {
         return this.get("/mc/player/discord-id?nickname=" + nickname);
     }

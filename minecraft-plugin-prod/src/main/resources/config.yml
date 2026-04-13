@@ -1,0 +1,12 @@
+api:
+  url: "http://localhost:8000"
+  secret: "CHANGE_ME"
+
+ban-api:
+  port: 8080
+
+fines:
+  check-interval: 60
+
+bank:
+  enabled: true

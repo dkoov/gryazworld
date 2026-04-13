@@ -43,6 +43,10 @@ implements CommandExecutor {
             this.doTransfer(player, args2[1], args2[2]);
             return true;
         }
+        if (args2[0].equalsIgnoreCase("pay") && args2.length >= 3) {
+            this.doTransfer(player, args2[1], args2[2]);
+            return true;
+        }
         if (args2[0].equalsIgnoreCase("fines")) {
             this.showFines(player);
             return true;
@@ -50,6 +54,7 @@ implements CommandExecutor {
         player.sendMessage(this.plugin.prefix() + "\u00a77\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435:");
         player.sendMessage("\u00a7f/bank balance \u00a77- \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u0431\u0430\u043b\u0430\u043d\u0441");
         player.sendMessage("\u00a7f/bank transfer <\u0438\u0433\u0440\u043e\u043a> <\u0441\u0443\u043c\u043c\u0430> \u00a77- \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0430\u043b\u043c\u0430\u0437\u044b");
+        player.sendMessage("\u00a7f/bank pay <\u0438\u0433\u0440\u043e\u043a> <\u0441\u0443\u043c\u043c\u0430> \u00a77- \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0430\u043b\u043c\u0430\u0437\u044b");
         player.sendMessage("\u00a7f/bank fines \u00a77- \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u0448\u0442\u0440\u0430\u0444\u044b");
         return true;
     }
@@ -126,8 +131,25 @@ implements CommandExecutor {
                     return;
                 }
                 player.sendMessage(this.plugin.prefix() + "\u00a7c\u00a7l\u0412\u0430\u0448\u0438 \u0448\u0442\u0440\u0430\u0444\u044b:");
-                pending.forEach(obj -> player.sendMessage("\u00a7c#" + obj.get("id").getAsInt() + " \u00a7f" + obj.get("amount").getAsInt() + " \u0430\u043b\u043c. \u00a77- " + obj.get("reason").getAsString() + " \u00a7e(\u0434\u043e " + obj.get("deadline").getAsString() + ")"));
-                player.sendMessage("\u00a77\u041e\u043f\u043b\u0430\u0442\u0438\u0442\u044c \u043c\u043e\u0436\u043d\u043e \u0447\u0435\u0440\u0435\u0437 \u0431\u0430\u043d\u043a\u043e\u043c\u0430\u0442 \u0438\u043b\u0438 \u00a7f/bank payfine <id>");
+                pending.forEach(obj -> {
+                    String deadline = obj.has("deadline") && !obj.get("deadline").isJsonNull() ? obj.get("deadline").getAsString() : null;
+                    String timeLeft = "\u0411\u0435\u0437 \u0441\u0440\u043e\u043a\u0430";
+                    if (deadline != null) {
+                        try {
+                            String dlStr = deadline.endsWith("Z") ? deadline : deadline + "Z";
+                            java.time.Instant dl = java.time.Instant.parse(dlStr);
+                            long diff = dl.getEpochSecond() - java.time.Instant.now().getEpochSecond();
+                            if (diff <= 0) timeLeft = "\u0421\u0440\u043e\u043a \u0438\u0441\u0442\u0451\u043a";
+                            else {
+                                long hours = diff / 3600;
+                                long minutes = (diff % 3600) / 60;
+                                timeLeft = hours > 0 ? hours + " \u0447. " + minutes + " \u043c\u0438\u043d." : minutes + " \u043c\u0438\u043d.";
+                            }
+                        } catch (Exception e) { timeLeft = deadline; }
+                    }
+                    player.sendMessage("\u00a7c#" + obj.get("id").getAsInt() + " \u00a7f" + obj.get("amount").getAsInt() + " \u0430\u043b\u043c. \u00a77- " + obj.get("reason").getAsString() + " \u00a7e(\u043e\u0441\u0442\u0430\u043b\u043e\u0441\u044c: " + timeLeft + ")");
+                });
+                player.sendMessage("\u00a77\u041e\u043f\u043b\u0430\u0442\u0438\u0442\u044c \u043c\u043e\u0436\u043d\u043e \u0447\u0435\u0440\u0435\u0437 \u0431\u0430\u043d\u043a\u043e\u043c\u0430\u0442 \u0438\u043b\u0438 \u00a7f\u043d\u0430 \u0441\u0430\u0439\u0442\u0435 gryazworld.ru");
             });
         });
     }

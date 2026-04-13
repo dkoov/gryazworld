@@ -44,7 +44,7 @@ public class FineCommand implements CommandExecutor {
             Player player = (Player) sender;
 
             Bukkit.getScheduler().runTaskAsynchronously((Plugin) plugin, () -> {
-                ApiClient.ApiResponse resp = plugin.getApiClient().get("/mc/fines/list?nickname=" + targetNick);
+                ApiClient.ApiResponse resp = plugin.getApiClient().get("/mc/fines/by-nick/" + targetNick);
                 Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
                     if (!resp.isSuccess()) {
                         player.sendMessage("§cОшибка получения штрафов");

@@ -133,6 +133,47 @@ def _ban_embed(data: dict) -> discord.Embed:
     return embed
 
 
+async def send_auth_request(discord_id: str, nickname: str, ip: str, token: str):
+    try:
+        user = await client.fetch_user(int(discord_id))
+        embed = discord.Embed(
+            title="Новый вход на сервер",
+            description=f"Игрок **{nickname}** пытается войти с нового IP-адреса.",
+            color=0xff9900,
+            timestamp=datetime.utcnow(),
+        )
+        embed.add_field(name="IP", value=ip, inline=True)
+        embed.set_footer(text="Если это не вы — нажмите Отклонить")
+
+        view = discord.ui.View(timeout=120)
+        confirm_btn = discord.ui.Button(label="Разрешить", style=discord.ButtonStyle.success, custom_id=f"auth_confirm_{token}")
+        deny_btn = discord.ui.Button(label="Отклонить", style=discord.ButtonStyle.danger, custom_id=f"auth_deny_{token}")
+
+        async def confirm_callback(interaction: discord.Interaction):
+            await interaction.response.edit_message(content="Вход разрешён.", embed=None, view=None)
+            async with aiohttp.ClientSession() as session:
+                await session.post(f"{BACKEND_URL}/mc/player/confirm-auth",
+                                   json={"token": token, "confirmed": True},
+                                   headers={"X-Plugin-Secret": API_SECRET})
+
+        async def deny_callback(interaction: discord.Interaction):
+            await interaction.response.edit_message(content="Вход отклонён.", embed=None, view=None)
+            async with aiohttp.ClientSession() as session:
+                await session.post(f"{BACKEND_URL}/mc/player/confirm-auth",
+                                   json={"token": token, "confirmed": False},
+                                   headers={"X-Plugin-Secret": API_SECRET})
+
+        confirm_btn.callback = confirm_callback
+        deny_btn.callback = deny_callback
+        view.add_item(confirm_btn)
+        view.add_item(deny_btn)
+
+        await user.send(embed=embed, view=view)
+        log.info("auth_request отправлен пользователю %s", discord_id)
+    except Exception as e:
+        log.error("Ошибка отправки auth_request: %s", e)
+
+
 async def send_to_channel(embed: discord.Embed, content: str | None = None):
     channel = client.get_channel(FINES_CHANNEL_ID)
     if channel is None:
@@ -231,6 +272,14 @@ async def handle_notify(request: web.Request) -> web.Response:
             embed = _ban_embed(data)
         elif event_type == "fine_paid":
             embed = _fine_paid_embed(data)
+        elif event_type == "auth_request":
+            discord_id = data.get("discord_id")
+            nickname = data.get("nickname")
+            ip = data.get("ip")
+            token = data.get("token")
+            if discord_id:
+                asyncio.ensure_future(send_auth_request(discord_id, nickname, ip, token))
+            return web.json_response({"status": "ok"})
         else:
             return web.json_response({"error": "unknown type"}, status=400)
 

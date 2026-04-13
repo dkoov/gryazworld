@@ -16,6 +16,8 @@ import dev.serverpanel.plugin.listeners.AtmListener;
 import dev.serverpanel.plugin.listeners.PlayerSessionListener;
 import dev.serverpanel.plugin.managers.AtmManager;
 import dev.serverpanel.plugin.managers.FineCheckTask;
+import java.util.HashSet;
+import java.util.Set;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -26,6 +28,8 @@ public class ServerPanelPlugin extends JavaPlugin {
     private ApiClient apiClient;
     private AtmManager atmManager;
     private BanHttpServer banHttpServer;
+    private final Set<String> pendingFreezeUUIDs = new HashSet<>();
+    private final Set<String> frozenPlayers = new HashSet<>();
 
     public void onEnable() {
         instance = this;
@@ -37,15 +41,18 @@ public class ServerPanelPlugin extends JavaPlugin {
         this.getCommand("fine").setExecutor((CommandExecutor)new FineCommand(this));
         this.getCommand("warn").setExecutor((CommandExecutor)new WarnCommand(this));
         this.getCommand("unwarn").setExecutor((CommandExecutor)new UnwarnCommand(this));
-        this.getCommand("bank").setExecutor((CommandExecutor)new BankCommand(this));
-        this.getCommand("setatm").setExecutor((CommandExecutor)new SetAtmCommand(this));
-        this.getCommand("unsetatm").setExecutor((CommandExecutor)new UnsetAtmCommand(this.atmManager));
-        this.getCommand("adminbank").setExecutor((CommandExecutor)new AdminBankCommand(this));
         this.getCommand("invite").setExecutor((CommandExecutor)new InviteCommand(this));
         this.getCommand("acceptinvite").setExecutor((CommandExecutor)new AcceptInviteCommand(this.apiClient));
         this.getCommand("declineinvite").setExecutor((CommandExecutor)new DeclineInviteCommand(this.apiClient));
         this.getServer().getPluginManager().registerEvents((Listener)new PlayerSessionListener(this), (Plugin)this);
-        this.getServer().getPluginManager().registerEvents((Listener)new AtmListener(this), (Plugin)this);
+        boolean bankEnabled = this.getConfig().getBoolean("bank.enabled", true);
+        if (bankEnabled) {
+            this.getCommand("bank").setExecutor((CommandExecutor)new BankCommand(this));
+            this.getCommand("setatm").setExecutor((CommandExecutor)new SetAtmCommand(this));
+            this.getCommand("unsetatm").setExecutor((CommandExecutor)new UnsetAtmCommand(this.atmManager));
+            this.getCommand("adminbank").setExecutor((CommandExecutor)new AdminBankCommand(this));
+            this.getServer().getPluginManager().registerEvents((Listener)new AtmListener(this), (Plugin)this);
+        }
         int interval = this.getConfig().getInt("fines.check-interval", 60) * 20;
         new FineCheckTask(this).runTaskTimerAsynchronously((Plugin)this, interval, interval);
         int banPort = this.getConfig().getInt("ban-api.port", 8080);
@@ -77,6 +84,14 @@ public class ServerPanelPlugin extends JavaPlugin {
 
     public AtmManager getAtmManager() {
         return this.atmManager;
+    }
+
+    public Set<String> getPendingFreezeUUIDs() {
+        return this.pendingFreezeUUIDs;
+    }
+
+    public Set<String> getFrozenPlayers() {
+        return this.frozenPlayers;
     }
 
     public String prefix() {

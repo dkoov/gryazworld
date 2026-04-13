@@ -11,7 +11,7 @@ from database import get_db, Player, BankAccount, Transaction, Fine
 
 log = logging.getLogger(__name__)
 
-DISCORD_BOT_URL = "http://localhost:5000/discord/notify"
+DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
 
 
 async def _notify_discord(payload: dict):
