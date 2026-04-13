@@ -133,7 +133,7 @@ def _ban_embed(data: dict) -> discord.Embed:
     return embed
 
 
-async def send_to_channel(embed: discord.Embed):
+async def send_to_channel(embed: discord.Embed, content: str | None = None):
     channel = client.get_channel(FINES_CHANNEL_ID)
     if channel is None:
         log.warning("Канал %s не найден — пробую fetch", FINES_CHANNEL_ID)
@@ -142,7 +142,7 @@ async def send_to_channel(embed: discord.Embed):
         except Exception as e:
             log.error("Не удалось получить канал: %s", e)
             return
-    await channel.send(embed=embed)
+    await channel.send(content=content, embed=embed)
 
 
 async def change_discord_nickname(discord_id: str, nickname: str):
@@ -234,7 +234,8 @@ async def handle_notify(request: web.Request) -> web.Response:
         else:
             return web.json_response({"error": "unknown type"}, status=400)
 
-        asyncio.ensure_future(send_to_channel(embed))
+        content = f"<@{data['discord_id']}>" if data.get("discord_id") else None
+        asyncio.ensure_future(send_to_channel(embed, content=content))
     except Exception as e:
         log.error("Ошибка при отправке embed: %s", e)
         return web.json_response({"error": str(e)}, status=500)

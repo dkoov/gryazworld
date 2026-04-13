@@ -13,7 +13,7 @@ from database import get_db, Player, Fine, Warn
 
 log = logging.getLogger(__name__)
 
-DISCORD_BOT_URL = "http://localhost:5000/discord/notify"
+DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
 
 
 async def _notify_discord(payload: dict):
@@ -127,6 +127,7 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
         "type": "fine",
         "fine_id": fine.id,
         "player": player.nickname,
+        "discord_id": player.discord_id,
         "amount": fine.amount,
         "reason": fine.reason,
         "issued_by": fine.issued_by,
@@ -164,6 +165,7 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
             "type": "fine_overdue",
             "fine_id": fine.id,
             "player": player.nickname,
+            "discord_id": player.discord_id,
             "amount": fine.amount,
             "reason": fine.reason,
         })
@@ -235,6 +237,7 @@ async def issue_warn(data: IssueWarnRequest, db: AsyncSession = Depends(get_db))
         "type": "warn",
         "warn_id": warn.id,
         "player": player.nickname,
+        "discord_id": player.discord_id,
         "total_warns": player.warns,
         "reason": warn.reason,
         "issued_by": warn.issued_by,
@@ -244,6 +247,7 @@ async def issue_warn(data: IssueWarnRequest, db: AsyncSession = Depends(get_db))
         await _notify_discord({
             "type": "ban",
             "player": player.nickname,
+            "discord_id": player.discord_id,
         })
 
     return {
@@ -289,6 +293,7 @@ async def remove_warn(data: RemoveWarnRequest, db: AsyncSession = Depends(get_db
         "type": "warn_remove",
         "uuid": player.uuid,
         "player": player.nickname,
+        "discord_id": player.discord_id,
         "total_warns": player.warns,
     })
 
@@ -296,6 +301,7 @@ async def remove_warn(data: RemoveWarnRequest, db: AsyncSession = Depends(get_db
         await _notify_discord({
             "type": "unban",
             "player": player.nickname,
+            "discord_id": player.discord_id,
         })
 
     return {
