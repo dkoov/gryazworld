@@ -50,7 +50,7 @@ public class PlayerSessionListener implements Listener {
         }
 
         // Проверка IP
-        String body = "{\"uuid\":\"" + uuid + "\",\"ip\":\"" + ip + "\"}";
+        String body = "{\"uuid\":\"" + uuid + "\",\"ip\":\"" + ip + "\",\"nickname\":\"" + nickname + "\"}";
         ApiClient.ApiResponse ipResp = plugin.getApiClient().post("/mc/player/check-ip", body);
         if (ipResp.isSuccess() && ipResp.data != null) {
             boolean allowed = ipResp.data.has("allowed") && ipResp.data.get("allowed").getAsBoolean();
@@ -123,6 +123,29 @@ public class PlayerSessionListener implements Listener {
                     || event.getFrom().getBlockZ() != event.getTo().getBlockZ()) {
                 event.setCancelled(true);
             }
+        }
+    }
+
+    @EventHandler
+    public void onCommand(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+        if (plugin.getFrozenPlayers().contains(event.getPlayer().getUniqueId().toString())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(plugin.prefix() + "§cПодтвердите вход в Discord чтобы использовать команды!");
+        }
+    }
+
+    @EventHandler
+    public void onInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (plugin.getFrozenPlayers().contains(event.getPlayer().getUniqueId().toString())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onChat(org.bukkit.event.player.AsyncPlayerChatEvent event) {
+        if (plugin.getFrozenPlayers().contains(event.getPlayer().getUniqueId().toString())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(plugin.prefix() + "§cПодтвердите вход в Discord!");
         }
     }
 

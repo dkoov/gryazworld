@@ -44,24 +44,33 @@ class PlayerQuitRequest(BaseModel):
 
 @router.post("/join", dependencies=[Depends(verify_plugin_secret)])
 async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db)):
+    # Сначала ищем по UUID
     result = await db.execute(select(Player).where(Player.uuid == data.uuid))
     player = result.scalar_one_or_none()
 
     if player is None:
-        player = Player(uuid=data.uuid, nickname=data.nickname)
-        player.is_online = True
-        db.add(player)
-        await db.flush()
+        # Ищем по нику (игрок мог быть создан через сайт с web-uuid)
+        nick_result = await db.execute(
+            select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+        )
+        player = nick_result.scalar_one_or_none()
 
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
-        await db.commit()
-        return {"status": "created", "uuid": data.uuid, "nickname": data.nickname}
-    else:
+    if player is not None:
+        # Обновляем UUID и статус
+        player.uuid = data.uuid
         player.nickname = data.nickname
         player.is_online = True
         await db.commit()
         return {"status": "updated", "uuid": data.uuid, "nickname": data.nickname}
+    else:
+        # Создаём нового игрока
+        player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True)
+        db.add(player)
+        await db.flush()
+        account = BankAccount(player_id=player.id, balance=0.0)
+        db.add(account)
+        await db.commit()
+        return {"status": "created", "uuid": data.uuid, "nickname": data.nickname}
 
 
 @router.post("/quit", dependencies=[Depends(verify_plugin_secret)])
@@ -90,6 +99,16 @@ async def check_ip(data: dict, db: AsyncSession = Depends(get_db)):
 
     player_result = await db.execute(select(Player).where(Player.uuid == uuid))
     player = player_result.scalar_one_or_none()
+
+    # Если не нашли по UUID — пробуем по нику (web-зарегистрированные игроки)
+    if not player:
+        nickname = data.get("nickname")
+        if nickname:
+            nick_result = await db.execute(
+                select(Player).where(func.lower(Player.nickname) == nickname.lower())
+            )
+            player = nick_result.scalar_one_or_none()
+
     if not player:
         return {"allowed": False, "reason": "not_registered"}
 
