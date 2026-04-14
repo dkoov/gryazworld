@@ -67,8 +67,10 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True)
         db.add(player)
         await db.flush()
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
+        existing_account = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+        if not existing_account.scalar_one_or_none():
+            account = BankAccount(player_id=player.id, balance=0.0)
+            db.add(account)
         await db.commit()
         return {"status": "created", "uuid": data.uuid, "nickname": data.nickname}
 

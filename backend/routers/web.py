@@ -137,8 +137,10 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
         )
         db.add(player)
         await db.flush()
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
+        existing_account = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+        if not existing_account.scalar_one_or_none():
+            account = BankAccount(player_id=player.id, balance=0.0)
+            db.add(account)
     else:
         player.discord_id = data.discord_id
 
