@@ -32,17 +32,19 @@ public class ApiClient {
         return this.plugin;
     }
 
-    public ApiResponse playerJoin(String uuid, String nickname) {
+    public ApiResponse playerJoin(String uuid, String nickname, String server) {
         JsonObject body = new JsonObject();
         body.addProperty("uuid", uuid);
         body.addProperty("nickname", nickname);
+        body.addProperty("server", server);
         return this.post("/mc/player/join", body);
     }
 
-    public ApiResponse playerQuit(String uuid, long sessionSeconds) {
+    public ApiResponse playerQuit(String uuid, long sessionSeconds, String server) {
         JsonObject body = new JsonObject();
         body.addProperty("uuid", uuid);
         body.addProperty("session_seconds", sessionSeconds);
+        body.addProperty("server", server);
         return this.post("/mc/player/quit", body);
     }
 

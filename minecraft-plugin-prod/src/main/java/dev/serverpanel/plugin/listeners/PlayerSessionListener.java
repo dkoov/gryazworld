@@ -85,8 +85,9 @@ public class PlayerSessionListener implements Listener {
             }
         }
 
+        String serverName = plugin.getConfig().getString("server-name", "unknown");
         this.plugin.getServer().getScheduler().runTaskAsynchronously((Plugin) this.plugin, () -> {
-            ApiClient.ApiResponse response = this.plugin.getApiClient().playerJoin(uuidStr, nickname);
+            ApiClient.ApiResponse response = this.plugin.getApiClient().playerJoin(uuidStr, nickname, serverName);
             if (!response.isSuccess()) {
                 this.plugin.getLogger().warning("Failed to register join for " + nickname + ": " + response.getMessage());
             }
@@ -157,8 +158,9 @@ public class PlayerSessionListener implements Listener {
         pendingTokens.remove(uuidStr);
         Long joinedAt = this.joinTimes.remove(uuid);
         long sessionSeconds = joinedAt != null ? (System.currentTimeMillis() - joinedAt) / 1000 : 0;
+        String serverName = plugin.getConfig().getString("server-name", "unknown");
         this.plugin.getServer().getScheduler().runTaskAsynchronously((Plugin) this.plugin, () -> {
-            ApiClient.ApiResponse response = this.plugin.getApiClient().playerQuit(uuidStr, sessionSeconds);
+            ApiClient.ApiResponse response = this.plugin.getApiClient().playerQuit(uuidStr, sessionSeconds, serverName);
             if (!response.isSuccess()) {
                 this.plugin.getLogger().warning("Failed to register quit for " + event.getPlayer().getName());
             }

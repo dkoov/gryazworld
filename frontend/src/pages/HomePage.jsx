@@ -6,9 +6,13 @@ import './HomePage.css'
 export default function HomePage() {
   const navigate = useNavigate()
   const [online, setOnline] = useState(0)
+  const [servers, setServers] = useState({})
 
   useEffect(() => {
-    apiFetch('/web/server-stats').then(d => setOnline(d.online)).catch(() => {})
+    apiFetch('/web/server-stats').then(d => {
+      setOnline(d.online)
+      setServers(d.servers || {})
+    }).catch(() => {})
   }, [])
 
   return (
@@ -30,7 +34,15 @@ export default function HomePage() {
             <a href="#about" className="btn btn-outline">О сервере</a>
           </div>
           <div className="hero-stats">
-            <div className="hstat"><span className="hstat-v">{online}</span><span className="hstat-l">Онлайн</span></div>
+            <div className="hstat">
+              <span className="hstat-v">{online}</span>
+              <span className="hstat-l">Онлайн</span>
+              {Object.keys(servers).length > 0 && (
+                <span className="hstat-sub">
+                  {Object.entries(servers).map(([name, s]) => `${name}: ${s.online}`).join(' \u00b7 ')}
+                </span>
+              )}
+            </div>
             <div className="hstat-div" />
             <div className="hstat"><span className="hstat-v">Ваниль</span><span className="hstat-l">Без доната</span></div>
             <div className="hstat-div" />

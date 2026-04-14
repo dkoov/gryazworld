@@ -114,6 +114,7 @@
 .hstat-v { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 20px; color: var(--text); }
 .hstat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
 .hstat-div { width: 1px; background: var(--border); align-self: stretch; }
+.hstat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* Card grid */
 .card-grid {

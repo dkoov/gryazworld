@@ -246,12 +246,22 @@ async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
 
 @router.get("/server-stats")
 async def server_stats(db: AsyncSession = Depends(get_db)):
-    """Return basic server stats (online count)."""
+    """Return server stats with per-server breakdown."""
     result = await db.execute(
-        select(func.count()).select_from(Player).where(Player.is_online == True)
+        select(Player.server, Player.nickname)
+        .where(Player.is_online == True, Player.server != None)
     )
-    online = result.scalar() or 0
-    return {"online": online, "max": 20, "tps": "20.0"}
+    rows = result.all()
+
+    servers = {}
+    for server, nickname in rows:
+        if server not in servers:
+            servers[server] = {"online": 0, "players": []}
+        servers[server]["online"] += 1
+        servers[server]["players"].append(nickname)
+
+    total_online = sum(s["online"] for s in servers.values())
+    return {"online": total_online, "servers": servers}
 
 
 @router.get("/stats")
@@ -266,6 +276,7 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
             "nickname": p.nickname,
             "total_seconds": p.total_seconds,
             "is_online": p.is_online,
+            "server": p.server,
         }
         for p in players
     ]

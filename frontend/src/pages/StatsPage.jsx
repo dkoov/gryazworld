@@ -5,6 +5,7 @@ import './StatsPage.css'
 export default function StatsPage() {
   const [players, setPlayers] = useState([])
   const [tab, setTab] = useState('all')
+  const [serverTab, setServerTab] = useState('all')
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -18,8 +19,11 @@ export default function StatsPage() {
     return () => clearInterval(id)
   }, [load])
 
+  const serverNames = [...new Set(players.map(p => p.server).filter(Boolean))]
+
   const filtered = players
     .filter(p => tab === 'online' ? p.is_online : true)
+    .filter(p => serverTab === 'all' || p.server === serverTab)
     .filter(p => p.nickname.toLowerCase().includes(search.toLowerCase()))
 
   function copyIp() {
@@ -66,6 +70,23 @@ export default function StatsPage() {
         />
       </div>
 
+      {serverNames.length > 0 && (
+        <div className="server-tabs">
+          <button className={serverTab === 'all' ? 'active' : ''} onClick={() => setServerTab('all')}>
+            Все серверы
+          </button>
+          {serverNames.map(name => (
+            <button
+              key={name}
+              className={serverTab === name ? 'active' : ''}
+              onClick={() => setServerTab(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="players-grid">
         {filtered.length === 0 ? (
           <div className="no-players">
@@ -105,6 +126,9 @@ function PlayerCard({ player }) {
         <div className="player-name">
           {player.is_online && <span className="online-dot" />}
           {player.nickname}
+          {player.is_online && player.server && (
+            <span className="player-server">{player.server}</span>
+          )}
         </div>
         <div className="player-hours">
           Наиграл: <strong>{formatTime(player.total_seconds)}</strong>

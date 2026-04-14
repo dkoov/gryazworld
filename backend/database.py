@@ -30,6 +30,7 @@ class Player(Base):
     total_seconds = Column(Integer, default=0, nullable=False)
     warns = Column(Integer, default=0, nullable=False)
     is_online = Column(Boolean, default=False, nullable=False)
+    server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")

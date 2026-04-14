@@ -35,11 +35,13 @@ router = APIRouter(prefix="/mc/player", tags=["player"])
 class PlayerJoinRequest(BaseModel):
     uuid: str
     nickname: str
+    server: str = "unknown"
 
 
 class PlayerQuitRequest(BaseModel):
     uuid: str
     session_seconds: int
+    server: str = "unknown"
 
 
 @router.post("/join", dependencies=[Depends(verify_plugin_secret)])
@@ -60,11 +62,12 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         player.uuid = data.uuid
         player.nickname = data.nickname
         player.is_online = True
+        player.server = data.server
         await db.commit()
         return {"status": "updated", "uuid": data.uuid, "nickname": data.nickname}
     else:
         # Создаём нового игрока
-        player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True)
+        player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True, server=data.server)
         db.add(player)
         await db.flush()
         account = BankAccount(player_id=player.id, balance=0.0)
@@ -83,6 +86,7 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
 
     player.total_seconds += data.session_seconds
     player.is_online = False
+    player.server = None
     await db.commit()
 
     return {

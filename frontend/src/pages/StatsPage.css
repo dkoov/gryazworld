@@ -87,6 +87,28 @@
   color: var(--text);
 }
 
+.server-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.server-tabs button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'IBM Plex Mono', monospace;
+  transition: all 0.2s;
+}
+.server-tabs button.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
 .stats-search {
   width: 100%;
   padding: 10px 14px;
@@ -137,6 +159,13 @@
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.player-server {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 2px;
 }
 
 .online-dot {
