@@ -85,8 +85,12 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=404, detail="Player not found")
 
     player.total_seconds += data.session_seconds
-    player.is_online = False
-    player.server = None
+    # Не затираем статус, если quit пришёл от сервера, с которого игрок уже ушёл
+    # (гонка при переходе gamegraz <-> farmserv: quit от старого сервера
+    # может прийти после join на новом).
+    if player.server is None or player.server == data.server:
+        player.is_online = False
+        player.server = None
     await db.commit()
 
     return {

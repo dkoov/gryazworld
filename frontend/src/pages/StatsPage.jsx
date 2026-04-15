@@ -4,6 +4,7 @@ import './StatsPage.css'
 
 export default function StatsPage() {
   const [players, setPlayers] = useState([])
+  const [serverStats, setServerStats] = useState({ online: 0, servers: {} })
   const [tab, setTab] = useState('all')
   const [serverTab, setServerTab] = useState('all')
   const [search, setSearch] = useState('')
@@ -11,6 +12,7 @@ export default function StatsPage() {
 
   const load = useCallback(() => {
     apiFetch('/web/stats').then(setPlayers).catch(() => {})
+    apiFetch('/web/server-stats').then(setServerStats).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -48,6 +50,27 @@ export default function StatsPage() {
             <button className={`ip-copy ${copied ? 'copied' : ''}`} onClick={copyIp}>
               {copied ? '\u2713 Скопировано' : 'Копировать'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="server-cards">
+        <div className="server-cell">
+          <div className="server-cell-name">Всего онлайн</div>
+          <div className="server-cell-online">
+            <span className="online-dot" />{serverStats.online ?? 0}
+          </div>
+        </div>
+        <div className="server-cell">
+          <div className="server-cell-name">Мир построек</div>
+          <div className="server-cell-online">
+            <span className="online-dot" />{serverStats.servers?.gamegraz?.online ?? 0}
+          </div>
+        </div>
+        <div className="server-cell">
+          <div className="server-cell-name">Мир ферм</div>
+          <div className="server-cell-online">
+            <span className="online-dot" />{serverStats.servers?.farmserv?.online ?? 0}
           </div>
         </div>
       </div>

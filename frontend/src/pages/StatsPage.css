@@ -87,6 +87,42 @@
   color: var(--text);
 }
 
+.server-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.server-cell {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 8px;
+}
+.server-cell-name {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.server-cell-online {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--text);
+}
+@media (max-width: 640px) {
+  .server-cards { grid-template-columns: 1fr; }
+}
+
 .server-tabs {
   display: flex;
   gap: 6px;

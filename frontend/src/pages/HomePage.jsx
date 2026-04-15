@@ -37,16 +37,17 @@ export default function HomePage() {
             <div className="hstat">
               <span className="hstat-v">{online}</span>
               <span className="hstat-l">Онлайн</span>
-              {Object.keys(servers).length > 0 && (
-                <span className="hstat-sub">
-                  {Object.entries(servers).map(([name, s]) => `${name}: ${s.online}`).join(' \u00b7 ')}
-                </span>
-              )}
             </div>
             <div className="hstat-div" />
-            <div className="hstat"><span className="hstat-v">Ваниль</span><span className="hstat-l">Без доната</span></div>
+            <div className="hstat">
+              <span className="hstat-v">{servers.gamegraz?.online ?? 0}</span>
+              <span className="hstat-l">Мир построек</span>
+            </div>
             <div className="hstat-div" />
-            <div className="hstat"><span className="hstat-v">Java</span><span className="hstat-l">Edition</span></div>
+            <div className="hstat">
+              <span className="hstat-v">{servers.farmserv?.online ?? 0}</span>
+              <span className="hstat-l">Мир ферм</span>
+            </div>
           </div>
         </div>
       </div>
