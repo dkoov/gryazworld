@@ -9,6 +9,7 @@ export default function Nav() {
   const [user, setUser] = useState(getDiscordUser())
   const [online, setOnline] = useState(0)
   const [mcNick, setMcNick] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     const handler = () => setUser(getDiscordUser())
@@ -42,11 +43,13 @@ export default function Nav() {
   }
 
   return (
+    <>
     <nav className="nav">
       <div className="nav-logo" onClick={() => navigate('/')}>
         Gryaz<span>World</span>
       </div>
 
+      {/* Десктоп ссылки */}
       <ul className="nav-links">
         <li><NavLink to="/">Главная</NavLink></li>
         <li><NavLink to="/access">Проходка</NavLink></li>
@@ -56,6 +59,7 @@ export default function Nav() {
         <li><NavLink to="/map">Карта</NavLink></li>
       </ul>
 
+      {/* Десктоп правая часть */}
       <div className="nav-right">
         <div className="status-pill">
           <span className="status-dot" />
@@ -77,6 +81,45 @@ export default function Nav() {
           </button>
         )}
       </div>
+
+      {/* Мобильная кнопка бургер */}
+      <button className="nav-burger" onClick={() => setMenuOpen(o => !o)}>
+        <span /><span /><span />
+      </button>
+
     </nav>
+
+      {/* Мобильное меню — вне <nav> чтобы не наследовать stacking context */}
+      {menuOpen && (
+        <div className="nav-mobile" onClick={() => setMenuOpen(false)}>
+          <div className="nav-mobile-top">
+            {!user && (
+              <button className="btn btn-discord" onClick={() => navigate('/cabinet')}>
+                <DiscordIcon size={18} />
+                Авторизоваться
+              </button>
+            )}
+          </div>
+          <ul className="nav-mobile-links">
+            {user && (
+              <li>
+                <NavLink to="/cabinet" className="nav-mobile-cabinet">
+                  Личный кабинет
+                </NavLink>
+              </li>
+            )}
+            <li><NavLink to="/">Главная</NavLink></li>
+            <li><NavLink to="/access">Проходка</NavLink></li>
+            <li><NavLink to="/wiki">Wiki</NavLink></li>
+            <li><NavLink to="/stats">Статистика</NavLink></li>
+            <li><NavLink to="/communities">Общины</NavLink></li>
+            <li><NavLink to="/map">Карта</NavLink></li>
+          </ul>
+          {user && (
+            <button className="btn btn-ghost nav-mobile-logout" onClick={logout}>Выйти</button>
+          )}
+        </div>
+      )}
+    </>
   )
 }
