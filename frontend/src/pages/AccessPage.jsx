@@ -12,11 +12,10 @@ export default function AccessPage() {
         <strong>Важно:</strong> для покупки необходимо войти через Discord и указать ник в Minecraft. После оплаты доступ выдаётся автоматически.
       </div>
 
-      <div className="pricing-grid">
-        <PriceCard name="Месячная проходка" price="199" period="на 30 дней" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition']} />
-        <PriceCard name="Сезонная проходка" price="499" period="на весь сезон (9–12 мес.)" featured badge="Выгодно" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Приоритетная поддержка']} />
-        <PriceCard name="Разбан" price="399" period="единоразово" features={['Снятие бана с аккаунта', 'Восстановление доступа']} />
-        <PriceCard name="Размут" price="99" period="единоразово" features={['Снятие мута с аккаунта', 'Восстановление чата']} />
+      <div className="pricing-grid pricing-grid-3">
+        <PriceCard name="Месячная проходка" price="249" period="на 30 дней" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition']} />
+        <PriceCard name="Проходка на 3 месяца" price="499" period="на 90 дней" featured badge="Выгодно" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Экономия против месячной']} />
+        <PriceCard name="Сезонная проходка" price="699" period="на весь сезон (9–12 мес.)" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Приоритетная поддержка']} />
       </div>
 
       <div style={{ marginTop: 60 }}>
