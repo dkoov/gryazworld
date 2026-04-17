@@ -50,6 +50,7 @@ export default function Nav() {
       <ul className="nav-links">
         <li><NavLink to="/">Главная</NavLink></li>
         <li><NavLink to="/access">Проходка</NavLink></li>
+        <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
         <li><NavLink to="/communities">Общины</NavLink></li>
