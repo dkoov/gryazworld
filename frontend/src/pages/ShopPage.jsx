@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { createPayment, getDiscordUser } from '../api'
 import './AccessPage.css'
 
 export default function ShopPage() {
@@ -13,31 +16,50 @@ export default function ShopPage() {
 
       <div className="pricing-grid pricing-grid-3">
         <PriceCard
+          sku="unban"
           name="Разбан"
           price="1000"
           period="единоразово"
           features={['Снятие бана с аккаунта', 'Восстановление доступа к серверу']}
         />
         <PriceCard
+          sku="unmute"
           name="Размут"
           price="300"
           period="единоразово"
           features={['Снятие мута с аккаунта', 'Восстановление доступа к чату']}
         />
         <PriceCard
-          name="Подписка Plus"
-          price="300"
-          period="в месяц"
-          featured
-          badge="Новинка"
-          features={[]}
+          sku="unwarn"
+          name="Разварн"
+          price="50"
+          period="единоразово"
+          features={['Снятие варна с аккаунта']}
         />
       </div>
     </section>
   )
 }
 
-function PriceCard({ name, price, period, features, featured, badge }) {
+function PriceCard({ sku, name, price, period, features, featured, badge }) {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+
+  async function handleBuy() {
+    if (!getDiscordUser()) {
+      navigate('/cabinet')
+      return
+    }
+    setLoading(true)
+    try {
+      const { confirmation_url } = await createPayment([{ sku, qty: 1 }])
+      window.location.href = confirmation_url
+    } catch (e) {
+      alert(e.message || 'Не удалось создать платёж')
+      setLoading(false)
+    }
+  }
+
   return (
     <div className={`pcard ${featured ? 'featured' : ''}`}>
       <div className="pcard-badge-area">
@@ -49,8 +71,12 @@ function PriceCard({ name, price, period, features, featured, badge }) {
       <ul className="pfeats">
         {features.map((f, i) => <li key={i}>{f}</li>)}
       </ul>
-      <button className={`btn ${featured ? 'btn-primary' : 'btn-outline'}`}>
-        Купить
+      <button
+        className={`btn ${featured ? 'btn-primary' : 'btn-outline'}`}
+        onClick={handleBuy}
+        disabled={loading}
+      >
+        {loading ? 'Переход…' : 'Купить'}
       </button>
     </div>
   )

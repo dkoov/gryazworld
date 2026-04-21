@@ -42,3 +42,12 @@ export function getAvatarUrl(user) {
 
 export const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || ''
 export const DISCORD_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://gryazworld.ru/cabinet'
+
+export async function createPayment(items) {
+  const user = getDiscordUser()
+  if (!user) throw new Error('Нужно войти через Discord')
+  return apiFetch('/web/payments/create', {
+    method: 'POST',
+    body: JSON.stringify({ discord_id: user.id, items }),
+  })
+}

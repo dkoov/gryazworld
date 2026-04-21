@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { createPayment, getDiscordUser } from '../api'
 import './AccessPage.css'
 
 export default function AccessPage() {
@@ -13,9 +15,9 @@ export default function AccessPage() {
       </div>
 
       <div className="pricing-grid pricing-grid-3">
-        <PriceCard name="Месячная проходка" price="249" period="на 30 дней" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition']} />
-        <PriceCard name="Проходка на 3 месяца" price="499" period="на 90 дней" featured badge="Выгодно" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Экономия против месячной']} />
-        <PriceCard name="Сезонная проходка" price="699" period="на весь сезон (9–12 мес.)" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Приоритетная поддержка']} />
+        <PriceCard sku="access_monthly" name="Месячная проходка" price="249" period="на 30 дней" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition']} />
+        <PriceCard sku="access_quarter" name="Проходка на 3 месяца" price="499" period="на 90 дней" featured badge="Выгодно" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Экономия против месячной']} />
+        <PriceCard sku="access_seasonal" name="Сезонная проходка" price="699" period="на весь сезон (9–12 мес.)" features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition', 'Приоритетная поддержка']} />
       </div>
 
       <div style={{ marginTop: 60 }}>
@@ -32,7 +34,25 @@ export default function AccessPage() {
   )
 }
 
-function PriceCard({ name, price, period, features, featured, badge }) {
+function PriceCard({ sku, name, price, period, features, featured, badge }) {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+
+  async function handleBuy() {
+    if (!getDiscordUser()) {
+      navigate('/cabinet')
+      return
+    }
+    setLoading(true)
+    try {
+      const { confirmation_url } = await createPayment([{ sku, qty: 1 }])
+      window.location.href = confirmation_url
+    } catch (e) {
+      alert(e.message || 'Не удалось создать платёж')
+      setLoading(false)
+    }
+  }
+
   return (
     <div className={`pcard ${featured ? 'featured' : ''}`}>
       <div className="pcard-badge-area">
@@ -44,8 +64,12 @@ function PriceCard({ name, price, period, features, featured, badge }) {
       <ul className="pfeats">
         {features.map((f, i) => <li key={i}>{f}</li>)}
       </ul>
-      <button className={`btn ${featured ? 'btn-primary' : 'btn-outline'}`}>
-        Купить
+      <button
+        className={`btn ${featured ? 'btn-primary' : 'btn-outline'}`}
+        onClick={handleBuy}
+        disabled={loading}
+      >
+        {loading ? 'Переход…' : 'Купить'}
       </button>
     </div>
   )

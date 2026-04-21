@@ -10,6 +10,7 @@ import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
 import CabinetPage from './pages/CabinetPage'
 import OfertaPage from './pages/OfertaPage'
+import PaymentReturnPage from './pages/PaymentReturnPage'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
         <Route path="/oferta" element={<OfertaPage />} />
+        <Route path="/payment/return" element={<PaymentReturnPage />} />
       </Route>
     </Routes>
   )
