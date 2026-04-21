@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Boolean,
+    Column, Integer, String, Float, DateTime, Boolean, Text,
     ForeignKey, Enum as SAEnum, text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -149,6 +149,30 @@ class PendingAuth(Base):
     ip_address = Column(String, nullable=False)
     token = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(String, primary_key=True)  # uuid
+    discord_id = Column(String, nullable=False, index=True)
+    minecraft_nick = Column(String, nullable=False)
+    items = Column(Text, nullable=False)  # JSON: [{sku, name, price, qty}]
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="RUB", nullable=False)
+    status = Column(String, default="pending", nullable=False)  # pending|paid|failed|canceled|refunded
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True)  # payment_id из YooKassa
+    order_id = Column(String, ForeignKey("orders.id"), nullable=False, index=True)
+    status = Column(String, nullable=False)
+    raw = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 async def get_db() -> AsyncSession:
