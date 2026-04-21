@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from database import init_db
-from routers import player, bank, fines, web
+from routers import player, bank, fines, web, payments
 from routers.fines import warn_router
 
 
@@ -33,6 +33,7 @@ app.include_router(bank.router)
 app.include_router(fines.router)
 app.include_router(warn_router)
 app.include_router(web.router)
+app.include_router(payments.router)
 
 
 @app.get("/health")
