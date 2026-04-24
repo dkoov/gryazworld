@@ -1,0 +1,21 @@
+# SimpleProxyChat — конфиг
+# Чат между серверами через Velocity
+
+discord:
+  enabled: false
+  token: "YOUR_BOT_TOKEN"
+  channel-id: "YOUR_CHANNEL_ID"
+
+chat-format: "&8[&6%server%&8] &7%player%&f: %message%"
+
+switch-message:
+  enabled: true
+  format: "&8[&eПереход&8] &7%player% &fперешёл на &6%server%"
+
+join-message:
+  enabled: true
+  format: "&8[&a+&8] &7%player% &fзашёл на сервер"
+
+leave-message:
+  enabled: true
+  format: "&8[&c-&8] &7%player% &fвышел с сервера"

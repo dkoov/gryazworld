@@ -1,0 +1,15 @@
+# GSit — конфиг
+# Позволяет игрокам сидеть, лежать и ползать
+
+sit:
+  enabled: true
+  right-click-sit: true   # ПКМ по ступеньке/слябу — сесть
+
+lay:
+  enabled: true
+
+crawl:
+  enabled: true
+
+# Запрет сидеть в определённых мирах
+disabled-worlds: []

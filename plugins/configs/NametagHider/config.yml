@@ -1,0 +1,12 @@
+# NametagHider — конфиг
+# Скрывает ники игроков за стенами / на определённых серверах
+
+hide-nametags: true
+
+# Скрывать только за непрозрачными блоками
+hide-behind-blocks: true
+
+# Показывать ник при прицеливании
+show-on-target: true
+
+disabled-worlds: []

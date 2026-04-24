@@ -1,0 +1,15 @@
+# TAB — конфиг плагина
+# https://github.com/NEZNAMY/TAB
+
+# Настройки здесь — шаблон, актуальный конфиг берётся с сервера
+header-footer:
+  enabled: true
+  header:
+    - "&8&m        &r &6&lGRYAZWORLD &8&m        "
+  footer:
+    - "&7&oplay.gryazworld.ru"
+
+groups:
+  default:
+    tabprefix: "&7"
+    tagprefix: "&7"
