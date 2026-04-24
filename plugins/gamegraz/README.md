@@ -27,6 +27,13 @@
 | 17 | **LuckPerms** | [luckperms.net](https://luckperms.net) | ставить первым |
 | 18 | **PlaceholderAPI** | [hangar](https://hangar.papermc.io/HelpMe/PlaceholderAPI) | ставить первым |
 
+## Установленные плагины
+
+| Плагин | Версия | Статус |
+|--------|--------|--------|
+| LuckPerms | 5.5.42 | Установлен |
+| PlaceholderAPI | 2.12.2 | Установлен |
+
 ## Custom (GryazPlugin)
 
 - Крафт невидимых блоков света
