@@ -1,15 +1,14 @@
-# GSit — конфиг
-# Позволяет игрокам сидеть, лежать и ползать
+# GSit — GryazWorld
+# ПКМ по ступеньке/ковру/полублоку = сесть
 
+enabled: true
 sit:
-  enabled: true
-  right-click-sit: true   # ПКМ по ступеньке/слябу — сесть
-
+  rightClickSit: true
+  allowedBlocks:
+    - STAIR
+    - CARPET
+    - SLAB
 lay:
   enabled: true
-
 crawl:
   enabled: true
-
-# Запрет сидеть в определённых мирах
-disabled-worlds: []

@@ -4,41 +4,60 @@
 
 1. Внести изменения в ветку `Плагины`
 2. Закоммитить и запушить на GitHub
-3. Подключиться к ВПС: `ssh root@65.109.82.139`
-4. Скопировать файлы в нужный контейнер (см. таблицу ниже)
+3. Подключиться к ВПС и задеплоить
 
-## Пути контейнеров на ВПС
+---
 
-| Сервер   | Контейнер  | Путь плагинов                                   |
-|----------|-----------|--------------------------------------------------|
-| gamegraz | 73ec1a4d  | `/var/lib/pterodactyl/volumes/73ec1a4d.../plugins/` |
-| farmserv | 53571f93  | `/var/lib/pterodactyl/volumes/53571f93.../plugins/` |
-| velocity | 718abfd1  | `/var/lib/pterodactyl/volumes/718abfd1.../plugins/` |
-
-> Точный путь уточнить командой:
-> ```bash
-> find /var/lib/pterodactyl/volumes -maxdepth 1 -name "73ec1a4d*"
-> ```
-
-## Копирование конфига на сервер
+## Подключение к ВПС
 
 ```bash
-# Пример: обновить конфиг TAB на gamegraz
-CONTAINER=$(find /var/lib/pterodactyl/volumes -maxdepth 1 -name "73ec1a4d*" -type d)
-cp plugins/configs/TAB/config.yml "$CONTAINER/plugins/TAB/config.yml"
+ssh root@65.109.82.139
 ```
 
-## Перезапуск сервера
-
-Через панель Pterodactyl или командой:
+## Получить изменения из ветки Плагины
 
 ```bash
-# Отправить команду в консоль контейнера через pterodactyl CLI / wings
-# Либо перезапустить через веб-панель
+cd /opt/gryazworld
+git fetch origin
+git checkout Плагины
+git pull origin Плагины
 ```
+
+---
+
+## Скопировать .jar в контейнеры
+
+```bash
+# gamegraz
+docker cp plugins/gamegraz/PluginName.jar 73ec1a4d:/data/plugins/
+
+# farmserv
+docker cp plugins/farmserv/PluginName.jar 53571f93:/data/plugins/
+
+# Velocity
+docker cp plugins/velocity/PluginName.jar 718abfd1:/server/plugins/
+```
+
+## Скопировать конфиг (пример TAB)
+
+```bash
+docker cp plugins/configs/TAB/config.yml 73ec1a4d:/data/plugins/TAB/config.yml
+```
+
+---
+
+## Перезапустить серверы
+
+```bash
+docker restart 73ec1a4d
+docker restart 53571f93
+docker restart 718abfd1
+```
+
+---
 
 ## Важно
 
 - Файлы в репозитории и на ВПС **должны совпадать**
-- После изменения конфига сервер нужно **перезагрузить** (`/reload confirm` или рестарт)
 - `.jar`-файлы плагинов **не хранятся в репозитории** — только конфиги
+- После изменения конфига сервер нужно **перезагрузить**

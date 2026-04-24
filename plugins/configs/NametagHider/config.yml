@@ -1,12 +1,10 @@
-# NametagHider — конфиг
-# Скрывает ники игроков за стенами / на определённых серверах
+# NametagHider — GryazWorld
+# Скрывает ники над головами
+# ПКМ по игроку = показать ник на секунду
 
-hide-nametags: true
-
-# Скрывать только за непрозрачными блоками
-hide-behind-blocks: true
-
-# Показывать ник при прицеливании
-show-on-target: true
-
-disabled-worlds: []
+enabled: true
+rightClickView: true
+nicknameFormat: '§f-§6[§r%nickname%§6]§f-§r'
+scoreboardTeam:
+  name: 'GryazHider'
+  displayName: 'GryazWorld nametag hider'

@@ -4,4 +4,16 @@
 - **Контейнер:** `53571f93`
 - **Порт:** `25567`
 
-Папка для плагинов и конфигов фарм-сервера GryazWorld.
+## Плагины
+
+| # | Плагин | Ссылка | Примечание |
+|---|--------|--------|------------|
+| 1 | TAB (NEZNAMY) | [hangar](https://hangar.papermc.io/NEZNAMY/TAB) | также на Velocity |
+| 2 | CoreProtect | [hangar](https://hangar.papermc.io/CORE/CoreProtect) | также на gamegraz |
+| 3 | SkinsRestorer | [modrinth](https://modrinth.com/plugin/skinsrestorer) | также на Velocity |
+| 4 | SimpleProxyChat | [modrinth](https://modrinth.com/plugin/simpleproxychat) | helper.jar с Velocity |
+| 5 | NetworkChat | [modrinth](https://modrinth.com/plugin/networkchat) | также на Velocity |
+| 6 | SimpleHarvest | [modrinth](https://modrinth.com/plugin/simpleharvest) | также на gamegraz |
+| 7 | Plasmo Voice | [modrinth](https://modrinth.com/plugin/plasmo-voice) | также на gamegraz |
+| 8 | **LuckPerms** | [luckperms.net](https://luckperms.net) | ставить первым |
+| 9 | **PlaceholderAPI** | [hangar](https://hangar.papermc.io/HelpMe/PlaceholderAPI) | ставить первым |

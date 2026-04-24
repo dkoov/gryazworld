@@ -1,15 +1,24 @@
-# TAB — конфиг плагина
-# https://github.com/NEZNAMY/TAB
+# TAB Plugin — GryazWorld
+# Устанавливается на: Velocity + gamegraz + farmserv
 
-# Настройки здесь — шаблон, актуальный конфиг берётся с сервера
 header-footer:
-  enabled: true
   header:
-    - "&8&m        &r &6&lGRYAZWORLD &8&m        "
+    - "<gradient:#ff6b6b:#ffd93d><bold>GryazWorld</bold></gradient>"
+    - "<gray>Игроков онлайн: <yellow>%online%"
   footer:
-    - "&7&oplay.gryazworld.ru"
+    - "<gray>gryz.world"
 
 groups:
+  admin:
+    prefix: "<red>[Admin] "
+    nametagprefix: "<red>[A] "
+  moder:
+    prefix: "<gold>[Moder] "
+  police:
+    prefix: "<blue>[Полиция] "
+  banker:
+    prefix: "<green>[Банкир] "
+  keeper:
+    prefix: "<aqua>[Хранитель] "
   default:
-    tabprefix: "&7"
-    tagprefix: "&7"
+    prefix: ""

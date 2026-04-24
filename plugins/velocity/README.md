@@ -4,4 +4,12 @@
 - **Контейнер:** `718abfd1`
 - **Порт:** `25565`
 
-Папка для конфигов и плагинов Velocity-прокси GryazWorld.
+## Плагины
+
+| # | Плагин | Ссылка | Примечание |
+|---|--------|--------|------------|
+| 1 | TAB (NEZNAMY) | [hangar](https://hangar.papermc.io/NEZNAMY/TAB) | также на бэкендах |
+| 2 | SkinsRestorer | [modrinth](https://modrinth.com/plugin/skinsrestorer) | также на бэкендах |
+| 3 | SimpleProxyChat | [modrinth](https://modrinth.com/plugin/simpleproxychat) | основной на Velocity, helper.jar на бэкенды |
+| 4 | NetworkChat | [modrinth](https://modrinth.com/plugin/networkchat) | также на бэкендах |
+| 5 | **LuckPerms** | [luckperms.net](https://luckperms.net) | ставить первым |
