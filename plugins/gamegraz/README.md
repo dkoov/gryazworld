@@ -35,6 +35,7 @@
 | PlaceholderAPI | 2.12.2 | Установлен |
 | TAB | 5.0.7 | Установлен (конфиг GryazWorld применён) |
 | SkinsRestorer | 15.12.0 | Установлен (Proxy Mode) |
+| CoreProtect | 23.1 | Установлен (SQLite, все логи включены) |
 
 ## Custom (GryazPlugin)
 
