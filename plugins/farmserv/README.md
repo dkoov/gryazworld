@@ -27,3 +27,4 @@
 | TAB | 5.0.7 | Установлен (конфиг GryazWorld применён) |
 | SkinsRestorer | 15.12.0 | Установлен (Proxy Mode) |
 | CoreProtect | 23.1 | Установлен (SQLite, все логи включены) |
+| SimpleProxyChatHelper | 0.0.4 | Установлен (PlaceholderAPI hook активен) |
