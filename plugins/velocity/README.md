@@ -19,3 +19,8 @@
 | Плагин | Версия | Статус |
 |--------|--------|--------|
 | LuckPerms | 5.5.42 | Установлен |
+| TAB | 5.0.7 | Установлен |
+
+## Заметки
+
+- TAB на Velocity требует [VelocityScoreboardAPI](https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/) для работы скорбордов/команд. Без него TAB работает, но скорборды недоступны.
