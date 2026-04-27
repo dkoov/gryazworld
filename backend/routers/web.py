@@ -7,6 +7,7 @@ from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
+from auth import CurrentUser, current_user, issue_session_token
 from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
 
 import json
@@ -31,8 +32,11 @@ class TokenRequest(BaseModel):
 
 
 class LinkRequest(BaseModel):
-    discord_id: str
     minecraft_nick: str
+
+
+class PayFineRequest(BaseModel):
+    fine_id: int
 
 
 async def _notify_discord(payload: dict):
@@ -95,24 +99,34 @@ async def discord_token(data: TokenRequest):
 
         user = await user_resp.json()
 
+    display_name = user.get("global_name") or user["username"]
+    token = issue_session_token(discord_id=user["id"], nickname=display_name)
+
     return {
         "id": user["id"],
         "username": user["username"],
         "avatar": user.get("avatar"),
-        "global_name": user.get("global_name") or user["username"],
+        "global_name": display_name,
+        "token": token,
     }
 
 
 @router.post("/link")
-async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
-    """Link Discord ID to a Minecraft nickname."""
+async def link_account(
+    data: LinkRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Link the current Discord session to a Minecraft nickname."""
+    discord_id = user.discord_id
+
     # Check if this nick is already taken by another discord user
     result = await db.execute(
         select(Player).where(func.lower(Player.nickname) == data.minecraft_nick.lower())
     )
     player = result.scalar_one_or_none()
 
-    if player is not None and player.discord_id is not None and player.discord_id != data.discord_id:
+    if player is not None and player.discord_id is not None and player.discord_id != discord_id:
         raise HTTPException(
             status_code=409,
             detail="Ник уже зарегистрирован",
@@ -120,7 +134,7 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
 
     # Check if this discord_id is already linked to a different nick
     existing = await db.execute(
-        select(Player).where(Player.discord_id == data.discord_id)
+        select(Player).where(Player.discord_id == discord_id)
     )
     other = existing.scalar_one_or_none()
     if other is not None and (player is None or other.id != player.id):
@@ -131,35 +145,37 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
 
     if player is None:
         player = Player(
-            uuid=f"web-{data.discord_id}",
+            uuid=f"web-{discord_id}",
             nickname=data.minecraft_nick,
-            discord_id=data.discord_id,
+            discord_id=discord_id,
         )
         db.add(player)
         await db.flush()
         account = BankAccount(player_id=player.id, balance=0.0)
         db.add(account)
     else:
-        player.discord_id = data.discord_id
+        player.discord_id = discord_id
 
     await db.commit()
 
-    import asyncio
-    asyncio.ensure_future(_rename_discord_member(data.discord_id, player.nickname))
+    asyncio.ensure_future(_rename_discord_member(discord_id, player.nickname))
     asyncio.ensure_future(_notify_discord({
         "type": "nick_linked",
-        "discord_id": data.discord_id,
+        "discord_id": discord_id,
         "nickname": player.nickname,
     }))
 
-    return {"status": "ok", "nickname": player.nickname, "discord_id": data.discord_id}
+    return {"status": "ok", "nickname": player.nickname, "discord_id": discord_id}
 
 
-@router.get("/profile/{discord_id}")
-async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
-    """Return player profile by Discord ID."""
+@router.get("/me")
+async def get_me(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current player's profile (resolved from session)."""
     result = await db.execute(
-        select(Player).where(Player.discord_id == discord_id)
+        select(Player).where(Player.discord_id == user.discord_id)
     )
     player = result.scalar_one_or_none()
 
@@ -205,11 +221,12 @@ async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/pay-fine")
-async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
-    discord_id = data.get("discord_id")
-    fine_id = data.get("fine_id")
-
-    player_result = await db.execute(select(Player).where(Player.discord_id == discord_id))
+async def web_pay_fine(
+    data: PayFineRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    player_result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
     player = player_result.scalar_one_or_none()
     if not player:
         raise HTTPException(status_code=404, detail="Игрок не найден")
@@ -219,7 +236,7 @@ async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
     if not account:
         raise HTTPException(status_code=404, detail="Счёт не найден")
 
-    fine_result = await db.execute(select(Fine).where(Fine.id == fine_id, Fine.player_id == player.id))
+    fine_result = await db.execute(select(Fine).where(Fine.id == data.fine_id, Fine.player_id == player.id))
     fine = fine_result.scalar_one_or_none()
     if not fine:
         raise HTTPException(status_code=404, detail="Штраф не найден")
