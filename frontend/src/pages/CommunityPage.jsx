@@ -88,10 +88,7 @@ export default function CommunityPage() {
   async function joinCommunity() {
     if (!user) return navigate('/cabinet')
     try {
-      await apiFetch(`/web/communities/${comm.id}/join`, {
-        method: 'POST',
-        body: JSON.stringify({ discord_id: user.id }),
-      })
+      await apiFetch(`/web/communities/${comm.id}/join`, { method: 'POST' })
       await loadData()
     } catch (e) {
       if (e.message.includes('приватная') || e.message.includes('закрыта')) {
@@ -105,10 +102,7 @@ export default function CommunityPage() {
   async function leaveCommunity() {
     if (!confirm('Покинуть общину?')) return
     try {
-      await apiFetch(`/web/communities/${comm.id}/leave`, {
-        method: 'POST',
-        body: JSON.stringify({ discord_id: user.id }),
-      })
+      await apiFetch(`/web/communities/${comm.id}/leave`, { method: 'POST' })
       await loadData()
     } catch (e) { alert(e.message) }
   }
@@ -117,10 +111,7 @@ export default function CommunityPage() {
     if (!confirm('Удалить общину навсегда? Это действие необратимо!')) return
     if (!confirm('Вы уверены? Все участники будут исключены.')) return
     try {
-      await apiFetch(`/web/communities/${comm.id}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ discord_id: user.id }),
-      })
+      await apiFetch(`/web/communities/${comm.id}`, { method: 'DELETE' })
       navigate('/communities')
     } catch (e) { alert(e.message) }
   }
@@ -130,7 +121,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, is_recruiting: newVal }),
+        body: JSON.stringify({ is_recruiting: newVal }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -141,7 +132,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, is_private: newVal }),
+        body: JSON.stringify({ is_private: newVal }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -152,7 +143,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}/kick`, {
         method: 'POST',
-        body: JSON.stringify({ discord_id: user.id, target_discord_id: targetDiscordId }),
+        body: JSON.stringify({ target_discord_id: targetDiscordId }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -162,7 +153,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}/set-role`, {
         method: 'POST',
-        body: JSON.stringify({ discord_id: user.id, target_discord_id: targetDiscordId, role }),
+        body: JSON.stringify({ target_discord_id: targetDiscordId, role }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -177,7 +168,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, info_blocks: updated }),
+        body: JSON.stringify({ info_blocks: updated }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -189,7 +180,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, info_blocks: updated }),
+        body: JSON.stringify({ info_blocks: updated }),
       })
       await loadData()
     } catch (e) { alert(e.message) }
@@ -200,7 +191,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, info_blocks: updated }),
+        body: JSON.stringify({ info_blocks: updated }),
       })
       setEditingBlock(false)
       await loadData()
@@ -224,7 +215,7 @@ export default function CommunityPage() {
     try {
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, ...editForm }),
+        body: JSON.stringify({ ...editForm }),
       })
       setEditOpen(false)
       await loadData()
@@ -281,7 +272,7 @@ export default function CommunityPage() {
       const allImages = [...existingImages, ...uploadedUrls]
       await apiFetch(`/web/communities/${comm.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ discord_id: user.id, images: allImages }),
+        body: JSON.stringify({ images: allImages }),
       })
       setImagesOpen(false)
       await loadData()

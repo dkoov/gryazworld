@@ -44,7 +44,7 @@ export default function CommunitiesPage() {
     try {
       await apiFetch('/web/communities', {
         method: 'POST',
-        body: JSON.stringify({ name: newName.trim(), discord_id: user.id }),
+        body: JSON.stringify({ name: newName.trim() }),
       })
       setCreateOpen(false)
       setNewName('')
@@ -57,10 +57,7 @@ export default function CommunitiesPage() {
   async function joinCommunity(id) {
     if (!user) return navigate('/cabinet')
     try {
-      await apiFetch(`/web/communities/${id}/join`, {
-        method: 'POST',
-        body: JSON.stringify({ discord_id: user.id }),
-      })
+      await apiFetch(`/web/communities/${id}/join`, { method: 'POST' })
       loadCommunities()
     } catch (e) {
       alert(e.message)

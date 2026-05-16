@@ -1,9 +1,24 @@
 import { useEffect, useState } from 'react'
-import { apiFetch, getDiscordUser, setDiscordUser, clearDiscordUser, getAvatarUrl, DISCORD_CLIENT_ID, DISCORD_REDIRECT_URI } from '../api'
+import { useNavigate } from 'react-router-dom'
+import {
+  apiFetch,
+  getDiscordUser,
+  setDiscordUser,
+  clearDiscordUser,
+  getAvatarUrl,
+  setSessionToken,
+  clearSessionToken,
+  parseOauthState,
+  verifyOauthNonce,
+  consumePendingReturn,
+  clearOauthInFlight,
+  redirectToDiscordOauth,
+} from '../api'
 import DiscordIcon from '../components/DiscordIcon'
 import './CabinetPage.css'
 
 export default function CabinetPage() {
+  const navigate = useNavigate()
   const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -19,63 +34,87 @@ export default function CabinetPage() {
   }
 
   async function exchangeCode(code) {
-    const res = await apiFetch('/web/discord/token', {
+    return apiFetch('/web/discord/token', {
       method: 'POST',
       body: JSON.stringify({ code }),
     })
-    return res
   }
 
-  async function loadProfile(discordId) {
-    return apiFetch(`/web/profile/${discordId}`)
+  async function loadProfile() {
+    return apiFetch('/web/me')
   }
 
   useEffect(() => {
     async function init() {
       const params = new URLSearchParams(window.location.search)
       const code = params.get('code')
-      const state = params.get('state')
+      const stateParam = params.get('state')
 
       if (code) {
         window.history.replaceState({}, '', window.location.pathname)
 
-        const savedState = sessionStorage.getItem('oauth_state')
-        if (savedState && state !== savedState) {
+        const parsed = parseOauthState(stateParam)
+        if (!parsed || !verifyOauthNonce(parsed.n)) {
+          clearOauthInFlight()
           addAlert('Ошибка безопасности: state не совпадает')
           setScreen('login')
           return
         }
-        sessionStorage.removeItem('oauth_state')
 
         setScreen('loading')
         try {
-          const u = await exchangeCode(code)
+          const res = await exchangeCode(code)
+          setSessionToken(res.token)
+          // user-объект для UI (avatar, global_name) — без чувствительных полей.
+          const u = {
+            id: res.id,
+            username: res.username,
+            avatar: res.avatar,
+            global_name: res.global_name,
+          }
           setDiscordUser(u)
           setUser(u)
+          clearOauthInFlight()
           window.dispatchEvent(new Event('auth-change'))
 
-          const p = await loadProfile(u.id)
+          const p = await loadProfile()
           setProfile(p)
           setScreen(p.linked ? 'profile' : 'link')
+
+          const returnTo = parsed.r
+          if (returnTo && returnTo !== '/cabinet' && returnTo.startsWith('/')) {
+            navigate(returnTo, { replace: true })
+          }
         } catch (e) {
+          clearOauthInFlight()
           addAlert(e.message)
           setScreen('login')
         }
         return
       }
 
+      // Если apiFetch ранее словил 401 на другой странице — нас сюда редиректнули
+      // с pending_return_to. Запускаем OAuth и просим Discord вернуть на исходный URL.
+      const pendingReturn = consumePendingReturn()
       const stored = getDiscordUser()
+
       if (stored) {
         setScreen('loading')
         try {
           setUser(stored)
-          const p = await loadProfile(stored.id)
+          const p = await loadProfile()
           setProfile(p)
           setScreen(p.linked ? 'profile' : 'link')
         } catch (e) {
+          // 401 уже обработан в apiFetch (он сам редиректит). Сюда падают только не-401 ошибки.
           addAlert(e.message)
           setScreen('login')
         }
+        return
+      }
+
+      if (pendingReturn) {
+        redirectToDiscordOauth(pendingReturn)
         return
       }
 
@@ -83,18 +122,12 @@ export default function CabinetPage() {
     }
 
     init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function loginWithDiscord() {
-    const state = crypto.randomUUID()
-    sessionStorage.setItem('oauth_state', state)
-    const url = new URL('https://discord.com/api/oauth2/authorize')
-    url.searchParams.set('client_id', DISCORD_CLIENT_ID)
-    url.searchParams.set('redirect_uri', DISCORD_REDIRECT_URI)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('scope', 'identify')
-    url.searchParams.set('state', state)
-    window.location.href = url.toString()
+    const returnTo = window.location.pathname + window.location.search
+    redirectToDiscordOauth(returnTo === '/cabinet' ? '/cabinet' : returnTo)
   }
 
   async function linkAccount() {
@@ -105,10 +138,10 @@ export default function CabinetPage() {
     try {
       await apiFetch('/web/link', {
         method: 'POST',
-        body: JSON.stringify({ discord_id: user.id, minecraft_nick: linkNick.trim() }),
+        body: JSON.stringify({ minecraft_nick: linkNick.trim() }),
       })
       addAlert('Аккаунт успешно привязан!', 'success')
-      const p = await loadProfile(user.id)
+      const p = await loadProfile()
       setProfile(p)
       setScreen('profile')
       window.dispatchEvent(new Event('auth-change'))
@@ -120,6 +153,7 @@ export default function CabinetPage() {
   }
 
   function logout() {
+    clearSessionToken()
     clearDiscordUser()
     setUser(null)
     setProfile(null)
@@ -132,9 +166,9 @@ export default function CabinetPage() {
     try {
       await apiFetch('/web/pay-fine', {
         method: 'POST',
-        body: JSON.stringify({ fine_id: fineId, discord_id: user.id }),
+        body: JSON.stringify({ fine_id: fineId }),
       })
-      const p = await loadProfile(user.id)
+      const p = await loadProfile()
       setProfile(p)
     } catch (e) { alert(e.message) }
   }

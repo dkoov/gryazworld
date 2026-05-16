@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { getDiscordUser, clearDiscordUser, getAvatarUrl, apiFetch } from '../api'
+import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
 import './Nav.css'
 
@@ -19,7 +19,7 @@ export default function Nav() {
 
   useEffect(() => {
     if (!user) return
-    apiFetch(`/web/profile/${user.id}`)
+    apiFetch('/web/me')
       .then(p => { if (p.nickname) setMcNick(p.nickname) })
       .catch(() => {})
   }, [user])
@@ -36,6 +36,7 @@ export default function Nav() {
   }, [])
 
   function logout() {
+    clearSessionToken()
     clearDiscordUser()
     setUser(null)
     setMcNick(null)
