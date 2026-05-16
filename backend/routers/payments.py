@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Payment as YooPayment
 
+from auth import CurrentUser, current_user
 from database import Order, Payment, Player, get_db
 from products import get_product
 from yookassa_client import (
@@ -38,22 +39,22 @@ class OrderItem(BaseModel):
 
 
 class CreatePaymentRequest(BaseModel):
-    # TODO(auth): сейчас discord_id берём из тела (как в остальном проекте —
-    # /web/pay-fine и т.д.). Нужна серверная валидация Discord-сессии —
-    # системная задача для отдельного PR.
-    discord_id: str
     items: List[OrderItem]
 
 
 # ─── Создание платежа ────────────────────────────────────────────────────────
 
 @router.post("/payments/create")
-async def create_payment(data: CreatePaymentRequest, db: AsyncSession = Depends(get_db)):
+async def create_payment(
+    data: CreatePaymentRequest,
+    db: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
     if not data.items:
         raise HTTPException(status_code=400, detail="Список товаров пуст")
 
     player_result = await db.execute(
-        select(Player).where(Player.discord_id == data.discord_id)
+        select(Player).where(Player.discord_id == user.discord_id)
     )
     player = player_result.scalar_one_or_none()
     if player is None or not player.nickname:
@@ -76,7 +77,7 @@ async def create_payment(data: CreatePaymentRequest, db: AsyncSession = Depends(
 
     order = Order(
         id=str(uuid.uuid4()),
-        discord_id=data.discord_id,
+        discord_id=user.discord_id,
         minecraft_nick=player.nickname,
         items=json.dumps(order_items, ensure_ascii=False),
         amount=amount,
@@ -92,6 +93,8 @@ async def create_payment(data: CreatePaymentRequest, db: AsyncSession = Depends(
                 "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
                 "confirmation": {
                     "type": "redirect",
+                    # TODO(privacy): order_id в query утекает в Referer на стороне YooKassa.
+                    # Перенести идентификатор в opaque-токен или серверный lookup по сессии.
                     "return_url": f"{RETURN_URL_BASE}?order={order.id}",
                 },
                 "capture": True,
@@ -127,10 +130,15 @@ async def create_payment(data: CreatePaymentRequest, db: AsyncSession = Depends(
 # ─── Статус заказа ───────────────────────────────────────────────────────────
 
 @router.get("/orders/{order_id}")
-async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
+async def get_order(
+    order_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
     result = await db.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
-    if order is None:
+    # 404 (а не 403) при чужом заказе — чтобы не палить существование order_id.
+    if order is None or order.discord_id != user.discord_id:
         raise HTTPException(status_code=404, detail="Заказ не найден")
     return {
         "id": order.id,
