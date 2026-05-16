@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -13,6 +14,8 @@ PLUGIN_SECRET = os.getenv("PLUGIN_SECRET", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")
 JWT_ALG = "HS256"
 JWT_TTL = timedelta(days=7)
+
+DISCORD_ID_RE = re.compile(r"^\d{5,30}$")
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -61,3 +64,40 @@ async def current_user(
     if not sub:
         raise HTTPException(status_code=401, detail="invalid_token")
     return CurrentUser(discord_id=str(sub), nickname=payload.get("nick"))
+
+
+def resolve_actor_discord_id(
+    authorization: Optional[str],
+    x_plugin_secret: Optional[str],
+    body_discord_id: Optional[str],
+) -> str:
+    """Return actor's discord_id for endpoints reachable from both web and plugin.
+
+    - Bearer JWT  → discord_id from token sub (body_discord_id ignored).
+    - X-Plugin-Secret → body_discord_id, validated by DISCORD_ID_RE
+      (даже при валидном PLUGIN_SECRET не доверяем содержимому тела автоматически).
+    - Иначе → 401.
+    """
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        if not token or not SESSION_SECRET:
+            raise HTTPException(status_code=401, detail="not_authenticated")
+        try:
+            payload = jwt.decode(token, SESSION_SECRET, algorithms=[JWT_ALG])
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="token_expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="invalid_token")
+        sub = str(payload.get("sub") or "")
+        if not sub:
+            raise HTTPException(status_code=401, detail="invalid_token")
+        return sub
+
+    if x_plugin_secret is not None:
+        if not PLUGIN_SECRET or x_plugin_secret != PLUGIN_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid plugin secret")
+        if not body_discord_id or not DISCORD_ID_RE.fullmatch(body_discord_id):
+            raise HTTPException(status_code=400, detail="Некорректный discord_id")
+        return body_discord_id
+
+    raise HTTPException(status_code=401, detail="not_authenticated")

@@ -1,8 +1,6 @@
 import asyncio
 import os
-import re
 import aiohttp
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func, delete
@@ -10,19 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from auth import (
-    JWT_ALG,
+    DISCORD_ID_RE,
     PLUGIN_SECRET,
-    SESSION_SECRET,
     CurrentUser,
     current_user,
     issue_session_token,
+    resolve_actor_discord_id,
 )
 from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
 
 import json
 import logging
-
-DISCORD_ID_RE = re.compile(r"^\d{5,30}$")
 
 
 def validate_discord_id(value: str, field: str = "discord_id") -> str:
@@ -348,6 +344,13 @@ class SetRoleRequest(BaseModel):
 
 class CommunityInviteBody(BaseModel):
     nickname: str
+    # Только для plugin-пути (X-Plugin-Secret). Web-путь использует сессию и игнорирует это поле.
+    discord_id: Optional[str] = None
+
+
+class AcceptInviteBody(BaseModel):
+    # Только для plugin-пути. Web-путь использует сессию.
+    nickname: Optional[str] = None
 
 
 # ─── Communities endpoints ───────────────────────────────────────────────────
@@ -564,28 +567,7 @@ async def get_owned_community(
     - Web: Authorization: Bearer <jwt> — discord_id берётся из сессии, query игнорируется.
     - Plugin: X-Plugin-Secret header + ?discord_id=<id> в query.
     """
-    resolved_id: Optional[str] = None
-    if authorization and authorization.lower().startswith("bearer "):
-        token = authorization.split(" ", 1)[1].strip()
-        if not token or not SESSION_SECRET:
-            raise HTTPException(status_code=401, detail="not_authenticated")
-        try:
-            payload = jwt.decode(token, SESSION_SECRET, algorithms=[JWT_ALG])
-            resolved_id = str(payload.get("sub") or "")
-        except jwt.PyJWTError:
-            raise HTTPException(status_code=401, detail="invalid_token")
-    elif x_plugin_secret is not None:
-        if not PLUGIN_SECRET or x_plugin_secret != PLUGIN_SECRET:
-            raise HTTPException(status_code=403, detail="Invalid plugin secret")
-        if not discord_id:
-            raise HTTPException(status_code=400, detail="discord_id обязателен")
-        resolved_id = validate_discord_id(discord_id)
-    else:
-        raise HTTPException(status_code=401, detail="not_authenticated")
-
-    if not resolved_id:
-        raise HTTPException(status_code=401, detail="not_authenticated")
-
+    resolved_id = resolve_actor_discord_id(authorization, x_plugin_secret, discord_id)
     result = await db.execute(select(Community).where(Community.owner_discord_id == resolved_id))
     comm = result.scalars().first()
     if comm is None:
@@ -720,15 +702,21 @@ async def leave_community(
 async def invite_to_community(
     community_id: int,
     data: CommunityInviteBody,
-    user: CurrentUser = Depends(current_user),
     db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
 ):
-    """Invite a player by nickname. Only the owner can invite."""
+    """Invite a player by nickname. Only the community owner can invite.
+
+    Dual-auth: Bearer JWT (web) или X-Plugin-Secret + body.discord_id (plugin).
+    """
+    actor_id = resolve_actor_discord_id(authorization, x_plugin_secret, data.discord_id)
+
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != user.discord_id:
+    if comm.owner_discord_id != actor_id:
         raise HTTPException(status_code=403, detail="Только владелец может приглашать")
 
     player_result = await db.execute(
@@ -740,7 +728,7 @@ async def invite_to_community(
     invite = CommunityInvite(
         community_id=community_id,
         invited_nickname=data.nickname.lower(),
-        invited_by_discord_id=user.discord_id,
+        invited_by_discord_id=actor_id,
     )
     db.add(invite)
     await db.commit()
@@ -750,21 +738,52 @@ async def invite_to_community(
 @router.post("/communities/{community_id}/accept-invite")
 async def accept_invite(
     community_id: int,
-    user: CurrentUser = Depends(current_user),
+    data: AcceptInviteBody = AcceptInviteBody(),
     db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
 ):
-    """Accept a pending invite addressed to the current user's linked nickname."""
-    player_result = await db.execute(
-        select(Player).where(Player.discord_id == user.discord_id)
-    )
-    player = player_result.scalar_one_or_none()
-    if player is None or not player.nickname:
-        raise HTTPException(status_code=400, detail="Discord не привязан к Minecraft-нику")
+    """Accept a pending invite addressed to the actor's linked nickname.
+
+    Dual-auth:
+    - Bearer JWT (web) → actor_discord_id из сессии, ник берётся из Player по discord_id.
+    - X-Plugin-Secret + body.nickname (plugin) → actor определяется по нику в БД
+      (Minecraft-аутентификация плагина гарантирует, что вызов идёт от этого игрока).
+    """
+    actor_discord_id: Optional[str] = None
+    actor_nickname: Optional[str] = None
+
+    if authorization and authorization.lower().startswith("bearer "):
+        # JWT path — переиспользуем resolve_actor_discord_id, тело игнорируем.
+        actor_discord_id = resolve_actor_discord_id(authorization, None, None)
+        player_result = await db.execute(
+            select(Player).where(Player.discord_id == actor_discord_id)
+        )
+        player = player_result.scalar_one_or_none()
+        if player is None or not player.nickname:
+            raise HTTPException(status_code=400, detail="Discord не привязан к Minecraft-нику")
+        actor_nickname = player.nickname
+    elif x_plugin_secret is not None:
+        # Plugin path — проверяем секрет и ищем actor-а по нику.
+        if not PLUGIN_SECRET or x_plugin_secret != PLUGIN_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid plugin secret")
+        if not data.nickname:
+            raise HTTPException(status_code=400, detail="nickname обязателен")
+        player_result = await db.execute(
+            select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+        )
+        player = player_result.scalar_one_or_none()
+        if player is None or not player.discord_id:
+            raise HTTPException(status_code=404, detail="Игрок не найден")
+        actor_discord_id = player.discord_id
+        actor_nickname = player.nickname
+    else:
+        raise HTTPException(status_code=401, detail="not_authenticated")
 
     invite_result = await db.execute(
         select(CommunityInvite).where(
             CommunityInvite.community_id == community_id,
-            func.lower(CommunityInvite.invited_nickname) == player.nickname.lower(),
+            func.lower(CommunityInvite.invited_nickname) == actor_nickname.lower(),
         )
     )
     invite = invite_result.scalar_one_or_none()
@@ -774,11 +793,11 @@ async def accept_invite(
     existing = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == user.discord_id,
+            CommunityMember.discord_id == actor_discord_id,
         )
     )
     if existing.scalar_one_or_none() is None:
-        member = CommunityMember(community_id=community_id, discord_id=user.discord_id)
+        member = CommunityMember(community_id=community_id, discord_id=actor_discord_id)
         db.add(member)
         comm_result = await db.execute(select(Community).where(Community.id == community_id))
         comm = comm_result.scalar_one_or_none()
