@@ -46,34 +46,37 @@ class PlayerQuitRequest(BaseModel):
 
 @router.post("/join", dependencies=[Depends(verify_plugin_secret)])
 async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db)):
-    # Сначала ищем по UUID
     result = await db.execute(select(Player).where(Player.uuid == data.uuid))
     player = result.scalar_one_or_none()
 
     if player is None:
-        # Ищем по нику (игрок мог быть создан через сайт с web-uuid)
         nick_result = await db.execute(
             select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
         )
         player = nick_result.scalar_one_or_none()
 
     if player is not None:
-        # Обновляем UUID и статус
         player.uuid = data.uuid
         player.nickname = data.nickname
         player.is_online = True
         player.server = data.server
         await db.commit()
-        return {"status": "updated", "uuid": data.uuid, "nickname": data.nickname}
+        status = "updated"
     else:
-        # Создаём нового игрока
         player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True, server=data.server)
         db.add(player)
         await db.flush()
         account = BankAccount(player_id=player.id, balance=0.0)
         db.add(account)
         await db.commit()
-        return {"status": "created", "uuid": data.uuid, "nickname": data.nickname}
+        status = "created"
+
+    asyncio.ensure_future(_notify_discord({
+        "type": "join",
+        "nickname": data.nickname,
+        "server": data.server,
+    }))
+    return {"status": status, "uuid": data.uuid, "nickname": data.nickname}
 
 
 @router.post("/quit", dependencies=[Depends(verify_plugin_secret)])
@@ -84,20 +87,59 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
+    nickname = player.nickname
     player.total_seconds += data.session_seconds
-    # Не затираем статус, если quit пришёл от сервера, с которого игрок уже ушёл
-    # (гонка при переходе gamegraz <-> farmserv: quit от старого сервера
-    # может прийти после join на новом).
     if player.server is None or player.server == data.server:
         player.is_online = False
         player.server = None
     await db.commit()
 
+    asyncio.ensure_future(_notify_discord({
+        "type": "quit",
+        "nickname": nickname,
+        "server": data.server,
+    }))
     return {
         "status": "ok",
         "uuid": data.uuid,
         "total_seconds": player.total_seconds
     }
+
+
+class PlayerDeathRequest(BaseModel):
+    uuid: str
+    nickname: str
+    death_message: str
+    server: str = "unknown"
+
+
+class PlayerChatRequest(BaseModel):
+    uuid: str
+    nickname: str
+    message: str
+    server: str = "unknown"
+
+
+@router.post("/death", dependencies=[Depends(verify_plugin_secret)])
+async def player_death(data: PlayerDeathRequest):
+    asyncio.ensure_future(_notify_discord({
+        "type": "death",
+        "nickname": data.nickname,
+        "death_message": data.death_message,
+        "server": data.server,
+    }))
+    return {"status": "ok"}
+
+
+@router.post("/chat", dependencies=[Depends(verify_plugin_secret)])
+async def player_chat(data: PlayerChatRequest):
+    asyncio.ensure_future(_notify_discord({
+        "type": "chat",
+        "nickname": data.nickname,
+        "message": data.message,
+        "server": data.server,
+    }))
+    return {"status": "ok"}
 
 
 @router.post("/check-ip", dependencies=[Depends(verify_plugin_secret)])
