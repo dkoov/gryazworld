@@ -17,9 +17,12 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 FINES_CHANNEL_ID = int(os.getenv("FINES_CHANNEL_ID", "0"))
+EVENTS_CHANNEL_ID = int(os.getenv("EVENTS_CHANNEL_ID", "0"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 API_SECRET = os.getenv("API_SECRET", "")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "5000"))
+
+AVATAR_URL = "https://mc-heads.net/avatar/{}/64"
 
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -131,6 +134,58 @@ def _ban_embed(data: dict) -> discord.Embed:
     embed.add_field(name="Игрок", value=nickname, inline=True)
     embed.add_field(name="Причина", value="3 варна", inline=True)
     return embed
+
+
+# ─── Game event embeds (compact Frogbot style) ────────────────────────────────
+
+def _join_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    server = data.get("server", "")
+    desc = f"Присоединился к игре"
+    if server and server != "unknown":
+        desc += f" **[{server}]**"
+    embed = discord.Embed(color=0x43B581, description=desc)
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    return embed
+
+
+def _quit_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    server = data.get("server", "")
+    desc = "Покинул игру"
+    if server and server != "unknown":
+        desc += f" **[{server}]**"
+    embed = discord.Embed(color=0xE74C3C, description=desc)
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    return embed
+
+
+def _death_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    death_message = data.get("death_message", "Умер")
+    embed = discord.Embed(color=0xE67E22, description=f"💀 {death_message}")
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    return embed
+
+
+def _chat_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    message = data.get("message", "")
+    embed = discord.Embed(color=0x95A5A6, description=message)
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    return embed
+
+
+async def send_to_events_channel(embed: discord.Embed):
+    channel_id = EVENTS_CHANNEL_ID if EVENTS_CHANNEL_ID else FINES_CHANNEL_ID
+    channel = client.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await client.fetch_channel(channel_id)
+        except Exception as e:
+            log.error("Не удалось получить канал событий: %s", e)
+            return
+    await channel.send(embed=embed)
 
 
 async def send_auth_request(discord_id: str, nickname: str, ip: str, token: str):
@@ -256,6 +311,18 @@ async def handle_notify(request: web.Request) -> web.Response:
             nickname = data.get("nickname")
             if discord_id and nickname:
                 asyncio.ensure_future(change_discord_nickname(discord_id, nickname))
+            return web.json_response({"status": "ok"})
+
+        if event_type in ("join", "quit", "death", "chat"):
+            if event_type == "join":
+                embed = _join_embed(data)
+            elif event_type == "quit":
+                embed = _quit_embed(data)
+            elif event_type == "death":
+                embed = _death_embed(data)
+            else:
+                embed = _chat_embed(data)
+            asyncio.ensure_future(send_to_events_channel(embed))
             return web.json_response({"status": "ok"})
 
         if event_type == "fine":

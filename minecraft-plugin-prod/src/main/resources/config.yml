@@ -1,14 +1,11 @@
-api:
-  url: "http://localhost:8000"
-  secret: "CHANGE_ME"
+# Имя этого сервера (используется при регистрации порталов)
+server-name: "survival"
 
-server-name: "gamegraz"
+# URL FastAPI-сервера
+api-url: "http://155.212.210.252:8000"
 
-ban-api:
-  port: 8080
+# Сервер назначения по умолчанию (BungeeCord-имя)
+target-server: "lobby"
 
-fines:
-  check-interval: 60
-
-bank:
-  enabled: true
+# Секрет для аутентификации запросов к backend (X-Plugin-Secret)
+plugin-secret: ""
