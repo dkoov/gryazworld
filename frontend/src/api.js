@@ -149,7 +149,7 @@ export function getAvatarUrl(user) {
 }
 
 export const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || ''
-export const DISCORD_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://gryazworld.ru/cabinet'
+export const DISCORD_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://ichorix.cc/cabinet'
 
 export async function createPayment(items) {
   if (!getSessionToken()) throw new Error('Нужно войти через Discord')

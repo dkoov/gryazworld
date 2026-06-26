@@ -520,7 +520,7 @@ export default function CommunityPage() {
         <div className="inp-group">
           <label>Ссылка на общину</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ color: 'var(--muted)', fontSize: 13, whiteSpace: 'nowrap' }}>gryazworld.ru/c/</span>
+            <span style={{ color: 'var(--muted)', fontSize: 13, whiteSpace: 'nowrap' }}>ichorix.cc/c/</span>
             <input
               type="text"
               value={editForm.slug || ''}
