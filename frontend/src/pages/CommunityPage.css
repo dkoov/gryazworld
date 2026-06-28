@@ -512,7 +512,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
 }
-.cp-image-item.new { border-color: rgba(200, 168, 75, 0.27); }
+.cp-image-item.new { border-color: rgba(126, 77, 217, 0.27); }
 
 .cp-image-item img {
   width: 56px;

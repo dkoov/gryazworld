@@ -4,7 +4,7 @@ import './Footer.css'
 export default function Footer() {
   return (
     <footer className="footer">
-      <div className="footer-logo">Gryaz<span>World</span></div>
+      <div className="footer-logo">Ich<span>orix</span></div>
       <div className="footer-links">
         <Link to="/access">Проходка</Link>
         <Link to="/wiki">Wiki</Link>
@@ -12,7 +12,7 @@ export default function Footer() {
         <Link to="/communities">Общины</Link>
         <Link to="/oferta">Оферта</Link>
       </div>
-      <div className="footer-copy">&copy; 2025 GryazWorld</div>
+      <div className="footer-copy">&copy; 2025 Ichorix</div>
     </footer>
   )
 }

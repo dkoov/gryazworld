@@ -41,10 +41,10 @@ export default function StatsPage() {
 
       <div className="stats-hero">
         <div className="server-avatar">
-          <img src="/favicon.jpg" alt="GryazWorld" />
+          <img src="/favicon.jpg" alt="Ichorix" />
         </div>
         <div className="server-info">
-          <h2>GryazWorld</h2>
+          <h2>Ichorix</h2>
           <div className="ip-box">
             <span className="ip-text">play.ichorix.cc</span>
             <button className={`ip-copy ${copied ? 'copied' : ''}`} onClick={copyIp}>

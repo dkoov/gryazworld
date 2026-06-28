@@ -47,7 +47,7 @@ export default function Nav() {
     <>
     <nav className="nav">
       <div className="nav-logo" onClick={() => navigate('/')}>
-        Gryaz<span>World</span>
+        Ich<span>orix</span>
       </div>
 
       {/* Десктоп ссылки */}

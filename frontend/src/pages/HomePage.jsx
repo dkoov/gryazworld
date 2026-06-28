@@ -56,7 +56,7 @@ export default function HomePage() {
       <section className="section section-alt" id="about">
         <div className="section-label">О сервере</div>
         <div className="section-title">Честная игра.<br />Живое сообщество.</div>
-        <p className="section-sub">GryazWorld — приватный ванильный сервер, где каждый начинает с нуля. Никаких привилегий за деньги.</p>
+        <p className="section-sub">Ichorix — приватный ванильный сервер, где каждый начинает с нуля. Никаких привилегий за деньги.</p>
         <div className="card-grid">
           <Card icon="grid" title="Чистая ваниль" desc="Никаких лишних плагинов. Классический Minecraft таким, каким он должен быть." />
           <Card icon="users" title="Живое сообщество" desc="Discord с активными игроками, совместные стройки, торговля и события." />

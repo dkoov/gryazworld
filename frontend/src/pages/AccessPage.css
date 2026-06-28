@@ -1,6 +1,6 @@
 .notice {
-  background: rgba(200,168,75,0.07);
-  border: 1px solid rgba(200,168,75,0.2);
+  background: rgba(126,77,217,0.07);
+  border: 1px solid rgba(126,77,217,0.2);
   border-left: 3px solid var(--accent);
   padding: 14px 18px;
   font-size: 12px;
@@ -44,11 +44,11 @@
 .pcard.featured {
   background: linear-gradient(160deg, #18181d 0%, #1a1a22 100%);
   border-color: var(--accent2);
-  box-shadow: 0 0 0 1px rgba(200,168,75,0.12), 0 8px 40px rgba(200,168,75,0.08);
+  box-shadow: 0 0 0 1px rgba(126,77,217,0.12), 0 8px 40px rgba(126,77,217,0.08);
 }
 .pcard.featured:hover {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(200,168,75,0.25), 0 20px 60px rgba(200,168,75,0.15);
+  box-shadow: 0 0 0 1px rgba(126,77,217,0.25), 0 20px 60px rgba(126,77,217,0.15);
 }
 
 .pcard-badge-area { height: 28px; display: flex; align-items: center; margin-bottom: 16px; }

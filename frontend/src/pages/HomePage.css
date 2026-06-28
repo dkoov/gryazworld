@@ -63,8 +63,8 @@
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  background: rgba(200,168,75,0.1);
-  border: 1px solid rgba(200,168,75,0.25);
+  background: rgba(126,77,217,0.1);
+  border: 1px solid rgba(126,77,217,0.25);
   color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.12em;
