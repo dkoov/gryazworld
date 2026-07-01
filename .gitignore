@@ -11,3 +11,9 @@ __pycache__/
 .venv/
 .idea/
 .omc/
+
+# Discord bots - runtime data
+discord-bot-main/data/*.json
+discord-bot-auth/node_modules/
+discord-bot-main/node_modules/
+
