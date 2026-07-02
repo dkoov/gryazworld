@@ -9,7 +9,9 @@ export default function Footer() {
         <Link to="/access">Проходка</Link>
         <Link to="/wiki">Wiki</Link>
         <Link to="/stats">Статистика</Link>
+        {/* HIDDEN: до решения команды
         <Link to="/communities">Общины</Link>
+        */}
         <Link to="/oferta">Оферта</Link>
       </div>
       <div className="footer-copy">&copy; 2025 Ichorix</div>
