@@ -123,16 +123,17 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
     await db.commit()
     await db.refresh(fine)
 
-    await _notify_discord({
-        "type": "fine",
-        "fine_id": fine.id,
-        "player": player.nickname,
-        "discord_id": player.discord_id,
-        "amount": fine.amount,
-        "reason": fine.reason,
-        "issued_by": fine.issued_by,
-        "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
-    })
+    if player.discord_id:
+        await _notify_discord({
+            "type": "fine",
+            "fine_id": fine.id,
+            "player": player.nickname,
+            "discord_id": player.discord_id,
+            "amount": fine.amount,
+            "reason": fine.reason,
+            "issued_by": fine.issued_by,
+            "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
+        })
 
     return {
         "status": "ok",
@@ -161,14 +162,15 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
         if player is None:
             continue
 
-        await _notify_discord({
-            "type": "fine_overdue",
-            "fine_id": fine.id,
-            "player": player.nickname,
-            "discord_id": player.discord_id,
-            "amount": fine.amount,
-            "reason": fine.reason,
-        })
+        if player.discord_id:
+            await _notify_discord({
+                "type": "fine_overdue",
+                "fine_id": fine.id,
+                "player": player.nickname,
+                "discord_id": player.discord_id,
+                "amount": fine.amount,
+                "reason": fine.reason,
+            })
 
         processed.append({
             "fine_id": fine.id,
@@ -233,22 +235,23 @@ async def issue_warn(data: IssueWarnRequest, db: AsyncSession = Depends(get_db))
     await db.commit()
     await db.refresh(warn)
 
-    await _notify_discord({
-        "type": "warn",
-        "warn_id": warn.id,
-        "player": player.nickname,
-        "discord_id": player.discord_id,
-        "total_warns": player.warns,
-        "reason": warn.reason,
-        "issued_by": warn.issued_by,
-    })
-
-    if player.warns >= 3:
+    if player.discord_id:
         await _notify_discord({
-            "type": "ban",
+            "type": "warn",
+            "warn_id": warn.id,
             "player": player.nickname,
             "discord_id": player.discord_id,
+            "total_warns": player.warns,
+            "reason": warn.reason,
+            "issued_by": warn.issued_by,
         })
+
+        if player.warns >= 3:
+            await _notify_discord({
+                "type": "ban",
+                "player": player.nickname,
+                "discord_id": player.discord_id,
+            })
 
     return {
         "status": "ok",
@@ -289,20 +292,21 @@ async def remove_warn(data: RemoveWarnRequest, db: AsyncSession = Depends(get_db
     player.warns = max(0, player.warns - data.amount)
     await db.commit()
 
-    await _notify_discord({
-        "type": "warn_remove",
-        "uuid": player.uuid,
-        "player": player.nickname,
-        "discord_id": player.discord_id,
-        "total_warns": player.warns,
-    })
-
-    if was_banned and player.warns < 3:
+    if player.discord_id:
         await _notify_discord({
-            "type": "unban",
+            "type": "warn_remove",
+            "uuid": player.uuid,
             "player": player.nickname,
             "discord_id": player.discord_id,
+            "total_warns": player.warns,
         })
+
+        if was_banned and player.warns < 3:
+            await _notify_discord({
+                "type": "unban",
+                "player": player.nickname,
+                "discord_id": player.discord_id,
+            })
 
     return {
         "status": "ok",

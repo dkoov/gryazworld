@@ -127,6 +127,10 @@ public class ApiClient {
         return this.get("/web/communities/owned?discord_id=" + discordId);
     }
 
+    public ApiResponse getInvitableCommunity(String discordId) {
+        return this.get("/web/communities/invitable?discord_id=" + discordId);
+    }
+
     public ApiResponse inviteToComm(int communityId, String discordId, String targetNickname) {
         JsonObject body = new JsonObject();
         body.addProperty("discord_id", discordId);

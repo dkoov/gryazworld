@@ -368,6 +368,41 @@ def _parse_json_field(value, default=None):
         return default
 
 
+def _can_invite(comm: Community, member: Optional[CommunityMember]) -> bool:
+    """Owner can always invite; deputy can invite only if the community allows it."""
+    if member is None:
+        return False
+    if member.role == "owner":
+        return True
+    return member.role == "deputy" and bool(comm.members_can_invite)
+
+
+async def _get_membership(db: AsyncSession, community_id: int, discord_id: str) -> Optional[CommunityMember]:
+    result = await db.execute(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community_id,
+            CommunityMember.discord_id == discord_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def _get_invite_target(db: AsyncSession, nickname: str) -> Player:
+    """Resolve the player being invited. Must be linked to a site (Discord) account —
+    an invite to an unlinked nickname would be invisible on both the site and Discord
+    and impossible to answer, i.e. a dead row in community_invites.
+    """
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if not target.discord_id:
+        raise HTTPException(status_code=400, detail="Игрок не привязан к сайту")
+    return target
+
+
 async def _community_dict(cm, db):
     """Build a full community dict with total_hours and members_discord_ids."""
     # Get members
@@ -575,6 +610,36 @@ async def get_owned_community(
     return {"id": comm.id, "name": comm.name}
 
 
+@router.get("/communities/invitable")
+async def get_invitable_community(
+    discord_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
+):
+    """Return the community the actor can invite into: owner always, deputy only if
+    community.members_can_invite is set. Same dual-auth as /communities/owned.
+    """
+    resolved_id = resolve_actor_discord_id(authorization, x_plugin_secret, discord_id)
+    mem_result = await db.execute(select(CommunityMember).where(CommunityMember.discord_id == resolved_id))
+    memberships = mem_result.scalars().all()
+
+    invitable = []
+    for m in memberships:
+        comm_result = await db.execute(select(Community).where(Community.id == m.community_id))
+        comm = comm_result.scalar_one_or_none()
+        if comm is not None and _can_invite(comm, m):
+            invitable.append(comm)
+
+    if not invitable:
+        raise HTTPException(status_code=404, detail="Нет общины, в которую вы можете приглашать")
+    if len(invitable) > 1:
+        raise HTTPException(status_code=409, detail="Вы можете приглашать в несколько общин — используйте сайт")
+
+    comm = invitable[0]
+    return {"id": comm.id, "name": comm.name}
+
+
 @router.get("/community-by-slug/{slug}")
 async def community_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     """Find community by slug for direct links."""
@@ -716,14 +781,25 @@ async def invite_to_community(
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != actor_id:
-        raise HTTPException(status_code=403, detail="Только владелец может приглашать")
 
-    player_result = await db.execute(
-        select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+    member = await _get_membership(db, community_id, actor_id)
+    if not _can_invite(comm, member):
+        raise HTTPException(status_code=403, detail="Нет прав приглашать в эту общину")
+
+    target = await _get_invite_target(db, data.nickname)
+
+    existing_member = await _get_membership(db, community_id, target.discord_id)
+    if existing_member is not None:
+        raise HTTPException(status_code=400, detail="Игрок уже состоит в этой общине")
+
+    existing_invite = await db.execute(
+        select(CommunityInvite).where(
+            CommunityInvite.community_id == community_id,
+            func.lower(CommunityInvite.invited_nickname) == data.nickname.lower(),
+        )
     )
-    if player_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if existing_invite.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=400, detail="Приглашение уже отправлено")
 
     invite = CommunityInvite(
         community_id=community_id,
@@ -732,6 +808,18 @@ async def invite_to_community(
     )
     db.add(invite)
     await db.commit()
+
+    inviter_result = await db.execute(select(Player).where(Player.discord_id == actor_id))
+    inviter = inviter_result.scalar_one_or_none()
+    asyncio.ensure_future(_notify_discord({
+        "type": "community_invite",
+        "discord_id": target.discord_id,
+        "nickname": target.nickname,
+        "community_id": community_id,
+        "community_name": comm.name,
+        "invited_by": inviter.nickname if inviter else None,
+    }))
+
     return {"detail": "Приглашение отправлено"}
 
 
@@ -807,6 +895,53 @@ async def accept_invite(
     await db.delete(invite)
     await db.commit()
     return {"detail": "Вступление успешно"}
+
+
+@router.post("/communities/{community_id}/decline-invite")
+async def decline_invite(
+    community_id: int,
+    data: AcceptInviteBody = AcceptInviteBody(),
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
+):
+    """Decline a pending invite addressed to the actor's linked nickname.
+
+    Dual-auth: same rules as accept-invite (JWT web session or X-Plugin-Secret + body.nickname).
+    """
+    actor_nickname: Optional[str] = None
+
+    if authorization and authorization.lower().startswith("bearer "):
+        actor_discord_id = resolve_actor_discord_id(authorization, None, None)
+        player_result = await db.execute(
+            select(Player).where(Player.discord_id == actor_discord_id)
+        )
+        player = player_result.scalar_one_or_none()
+        if player is None or not player.nickname:
+            raise HTTPException(status_code=400, detail="Discord не привязан к Minecraft-нику")
+        actor_nickname = player.nickname
+    elif x_plugin_secret is not None:
+        if not PLUGIN_SECRET or x_plugin_secret != PLUGIN_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid plugin secret")
+        if not data.nickname:
+            raise HTTPException(status_code=400, detail="nickname обязателен")
+        actor_nickname = data.nickname
+    else:
+        raise HTTPException(status_code=401, detail="not_authenticated")
+
+    invite_result = await db.execute(
+        select(CommunityInvite).where(
+            CommunityInvite.community_id == community_id,
+            func.lower(CommunityInvite.invited_nickname) == actor_nickname.lower(),
+        )
+    )
+    invite = invite_result.scalar_one_or_none()
+    if invite is None:
+        raise HTTPException(status_code=404, detail="Приглашение не найдено")
+
+    await db.delete(invite)
+    await db.commit()
+    return {"detail": "Приглашение отклонено"}
 
 
 @router.get("/communities/{community_id}/invites")

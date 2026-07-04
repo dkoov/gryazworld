@@ -229,6 +229,60 @@ async def send_auth_request(discord_id: str, nickname: str, ip: str, token: str)
         log.error("Ошибка отправки auth_request: %s", e)
 
 
+async def send_community_invite_dm(discord_id: str, nickname: str, community_id: int, community_name: str, invited_by: str | None):
+    try:
+        user = await client.fetch_user(int(discord_id))
+        embed = discord.Embed(
+            title="Приглашение в общину",
+            description=f"Вас приглашают в общину **{community_name}**.",
+            color=0x9b59b6,
+            timestamp=datetime.utcnow(),
+        )
+        if invited_by:
+            embed.add_field(name="Пригласил", value=invited_by, inline=True)
+        embed.set_footer(text="Ответ засчитывается для вашего Minecraft-ника " + nickname)
+
+        view = discord.ui.View(timeout=None)
+        accept_btn = discord.ui.Button(label="Принять", style=discord.ButtonStyle.success, custom_id=f"comm_invite_accept_{community_id}_{nickname}")
+        decline_btn = discord.ui.Button(label="Отклонить", style=discord.ButtonStyle.danger, custom_id=f"comm_invite_decline_{community_id}_{nickname}")
+
+        async def accept_callback(interaction: discord.Interaction):
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{BACKEND_URL}/web/communities/{community_id}/accept-invite",
+                    json={"nickname": nickname},
+                    headers={"X-Plugin-Secret": API_SECRET},
+                ) as resp:
+                    data = await resp.json()
+            if resp.status == 200:
+                await interaction.response.edit_message(content=f"Вы вступили в общину **{community_name}**!", embed=None, view=None)
+            else:
+                await interaction.response.edit_message(content=f"Ошибка: {data.get('detail', 'неизвестная ошибка')}", embed=None, view=None)
+
+        async def decline_callback(interaction: discord.Interaction):
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{BACKEND_URL}/web/communities/{community_id}/decline-invite",
+                    json={"nickname": nickname},
+                    headers={"X-Plugin-Secret": API_SECRET},
+                ) as resp:
+                    data = await resp.json()
+            if resp.status == 200:
+                await interaction.response.edit_message(content="Вы отклонили приглашение.", embed=None, view=None)
+            else:
+                await interaction.response.edit_message(content=f"Ошибка: {data.get('detail', 'неизвестная ошибка')}", embed=None, view=None)
+
+        accept_btn.callback = accept_callback
+        decline_btn.callback = decline_callback
+        view.add_item(accept_btn)
+        view.add_item(decline_btn)
+
+        await user.send(embed=embed, view=view)
+        log.info("community_invite отправлен пользователю %s (община %s)", discord_id, community_name)
+    except Exception as e:
+        log.error("Ошибка отправки community_invite: %s", e)
+
+
 async def send_to_channel(embed: discord.Embed, content: str | None = None):
     channel = client.get_channel(FINES_CHANNEL_ID)
     if channel is None:
@@ -346,6 +400,15 @@ async def handle_notify(request: web.Request) -> web.Response:
             token = data.get("token")
             if discord_id:
                 asyncio.ensure_future(send_auth_request(discord_id, nickname, ip, token))
+            return web.json_response({"status": "ok"})
+        elif event_type == "community_invite":
+            discord_id = data.get("discord_id")
+            nickname = data.get("nickname")
+            community_id = data.get("community_id")
+            community_name = data.get("community_name")
+            invited_by = data.get("invited_by")
+            if discord_id and nickname and community_id:
+                asyncio.ensure_future(send_community_invite_dm(discord_id, nickname, community_id, community_name, invited_by))
             return web.json_response({"status": "ok"})
         else:
             return web.json_response({"error": "unknown type"}, status=400)

@@ -170,13 +170,14 @@ async def pay_fine(data: PayFineRequest, db: AsyncSession = Depends(get_db)):
     db.add(tx)
     await db.commit()
 
-    await _notify_discord({
-        "type": "fine_paid",
-        "nickname": player.nickname,
-        "discord_id": player.discord_id if hasattr(player, "discord_id") else None,
-        "fine_id": fine.id,
-        "reason": fine.reason,
-        "amount": fine.amount,
-    })
+    if player.discord_id:
+        await _notify_discord({
+            "type": "fine_paid",
+            "nickname": player.nickname,
+            "discord_id": player.discord_id,
+            "fine_id": fine.id,
+            "reason": fine.reason,
+            "amount": fine.amount,
+        })
 
     return {"status": "ok", "fine_id": fine.id, "balance": account.balance}

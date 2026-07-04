@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, Community, CommunityMember
 
 import os
 DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
@@ -144,6 +144,11 @@ async def player_chat(data: PlayerChatRequest):
 
 @router.post("/check-ip", dependencies=[Depends(verify_plugin_secret)])
 async def check_ip(data: dict, db: AsyncSession = Depends(get_db)):
+    # Рассчитан на уже привязанных игроков: PlayerSessionListener.onPlayerLogin (Java-плагин)
+    # сначала зовёт /mc/player/discord-id и кикает игрока (KICK_WHITELIST), если discord_id
+    # не найден, и только потом — этот эндпоинт. Если когда-нибудь появится другой вызывающий
+    # без такой проверки, PendingAuth для игрока без discord_id никогда не подтвердится
+    # (бот не шлёт auth_request без discord_id) — добавь проверку явно, если это станет актуально.
     uuid = data.get("uuid")
     ip = data.get("ip")
 
@@ -242,3 +247,56 @@ async def get_discord_id(nickname: str, db: AsyncSession = Depends(get_db)):
     if not player.discord_id:
         raise HTTPException(status_code=404, detail="Discord не привязан")
     return {"discord_id": player.discord_id}
+
+
+@router.get("/{uuid}/community", dependencies=[Depends(verify_plugin_secret)])
+async def player_community(uuid: str, db: AsyncSession = Depends(get_db)):
+    """Community info for a player, for the /community info (/община инфо) command."""
+    player_result = await db.execute(select(Player).where(Player.uuid == uuid))
+    player = player_result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "player_not_found", "message": "Игрок не найден"},
+        )
+
+    if not player.discord_id:
+        return {"in_community": False}
+
+    mem_result = await db.execute(
+        select(CommunityMember).where(CommunityMember.discord_id == player.discord_id)
+    )
+    memberships = mem_result.scalars().all()
+    if not memberships:
+        return {"in_community": False}
+
+    communities = []
+    for m in memberships:
+        comm_result = await db.execute(select(Community).where(Community.id == m.community_id))
+        comm = comm_result.scalar_one_or_none()
+        if comm is None:
+            continue
+
+        members_result = await db.execute(
+            select(CommunityMember).where(CommunityMember.community_id == comm.id)
+        )
+        comm_members = members_result.scalars().all()
+
+        member_list = []
+        for cm in comm_members:
+            p_result = await db.execute(select(Player).where(Player.discord_id == cm.discord_id))
+            p = p_result.scalar_one_or_none()
+            member_list.append({
+                "nickname": p.nickname if p else cm.discord_id,
+                "role": cm.role,
+            })
+
+        communities.append({
+            "id": comm.id,
+            "name": comm.name,
+            "description": comm.description or "",
+            "role": m.role,
+            "members": member_list,
+        })
+
+    return {"in_community": True, "communities": communities}

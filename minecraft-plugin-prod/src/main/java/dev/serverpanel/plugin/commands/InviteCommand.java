@@ -42,11 +42,11 @@ public class InviteCommand implements CommandExecutor {
             }
             String discordId = discordResp.getString("discord_id");
 
-            // Step 2: get community owned by this player
-            ApiClient.ApiResponse commResp = this.plugin.getApiClient().getOwnedCommunity(discordId);
+            // Step 2: find a community this player can invite into (owner, or deputy with invite rights)
+            ApiClient.ApiResponse commResp = this.plugin.getApiClient().getInvitableCommunity(discordId);
             if (!commResp.isSuccess()) {
                 this.plugin.getServer().getScheduler().runTask((Plugin) this.plugin, () ->
-                    player.sendMessage(this.plugin.prefix() + "\u00a7c\u0423 \u0432\u0430\u0441 \u043d\u0435\u0442 \u0441\u0432\u043e\u0435\u0439 \u043e\u0431\u0449\u0438\u043d\u044b.")
+                    player.sendMessage(this.plugin.prefix() + "\u00a7c" + commResp.getMessage())
                 );
                 return;
             }

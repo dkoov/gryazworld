@@ -57,6 +57,10 @@
                         <exclude>okio/**</exclude>
                         <exclude>org/**</exclude>
                         <exclude>module-info.java</exclude>
+                        <!-- ru.gryazworld.portal is unfinished/unwired (no PortalManager/PortalListener/
+                             PortalCommand, no main-class entry in plugin.yml) - excluded so it doesn't
+                             block the build; not touching its source. -->
+                        <exclude>ru/gryazworld/portal/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>
