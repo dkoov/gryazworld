@@ -26,6 +26,20 @@ export default function CabinetPage() {
   const [linkNick, setLinkNick] = useState('')
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState('')
+  const [heatmap, setHeatmap] = useState([])
+
+  // TODO: подтягивать реальные данные активности с бэка (эндпоинт пока не готов)
+  useEffect(() => {
+    const weeks = []
+    for (let w = 0; w < 52; w++) {
+      const days = []
+      for (let d = 0; d < 7; d++) {
+        days.push(Math.floor(Math.random() * 5)) // 0..4
+      }
+      weeks.push(days)
+    }
+    setHeatmap(weeks)
+  }, [])
 
   function addAlert(msg, type = 'error') {
     const id = Date.now()
@@ -265,6 +279,32 @@ export default function CabinetPage() {
 
           <div className="divider" />
 
+          {/* Ichorix header: 3D skin + role/subscription badges */}
+          <div className="cab-header">
+            <div className="cab-skin-box">
+              <img
+                className="cab-skin-img"
+                src={`https://mc-heads.net/body/${(profile && profile.nickname) ? encodeURIComponent(profile.nickname) : 'Steve'}/right`}
+                alt="Minecraft skin"
+              />
+            </div>
+            <div className="cab-header-info">
+              <div className="cab-header-name">
+                {(profile && profile.nickname) || user.username}
+              </div>
+              <div className="cab-badges">
+                <span className="cab-badge cab-badge-role">Игрок</span>
+                <span className="cab-badge cab-badge-sub">IchoPlus: Не куплен</span>
+              </div>
+              <div className="cab-header-discord">
+                <DiscordIcon size={16} color="#5865F2" />
+                <span>Discord ID: {user.id}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="divider" />
+
           {/* Stats block */}
           {profile && profile.linked && (
             <div className="block-stats">
@@ -324,6 +364,42 @@ export default function CabinetPage() {
               </div>
             </div>
           )}
+
+          <div className="divider" />
+
+          {/* Activity heatmap */}
+          <div className="cab-heatmap-block">
+            <div className="cab-section-title">Активность за год</div>
+            <div className="cab-heatmap-scroll">
+              <div className="cab-heatmap">
+                <div className="cab-heatmap-months">
+                  {['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'].map(m => (
+                    <span key={m} className="cab-heatmap-month">{m}</span>
+                  ))}
+                </div>
+                <div className="cab-heatmap-body">
+                  <div className="cab-heatmap-days">
+                    <span></span>
+                    <span>Пн</span>
+                    <span></span>
+                    <span>Ср</span>
+                    <span></span>
+                    <span>Пт</span>
+                    <span></span>
+                  </div>
+                  <div className="cab-heatmap-grid">
+                    {heatmap.map((week, wi) => (
+                      <div key={wi} className="cab-heatmap-week">
+                        {week.map((lvl, di) => (
+                          <div key={di} className={`cab-heatmap-cell cab-lvl-${lvl}`} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="divider" />
 
