@@ -18,24 +18,56 @@ export default function ShopPage() {
         <PriceCard
           sku="unban"
           name="Разбан"
-          price="1000"
+          price="599"
           period="единоразово"
           features={['Снятие бана с аккаунта', 'Восстановление доступа к серверу']}
         />
         <PriceCard
           sku="unmute"
           name="Размут"
-          price="300"
+          price="199"
           period="единоразово"
           features={['Снятие мута с аккаунта', 'Восстановление доступа к чату']}
         />
         <PriceCard
           sku="unwarn"
           name="Разварн"
-          price="50"
+          price="49"
           period="единоразово"
           features={['Снятие варна с аккаунта']}
         />
+      </div>
+
+      <div style={{ marginTop: 60 }}>
+        <div className="section-label">Подписка</div>
+        <div className="section-title">Подписка IchoPlus</div>
+        <p className="section-sub">Дополнительные возможности и статус для активных игроков.</p>
+
+        <div className="pricing-grid pricing-grid-3">
+          <PriceCard
+            sku="ichoplus_1m"
+            name="IchoPlus 1 месяц"
+            price="159"
+            period="на 30 дней"
+            features={['Роль IchoPlus в Discord', 'Цветной ник в чате', 'Расширенные команды']}
+          />
+          <PriceCard
+            sku="ichoplus_2m"
+            name="IchoPlus 2 месяца"
+            price="399"
+            period="на 60 дней"
+            features={['Роль IchoPlus в Discord', 'Цветной ник в чате', 'Расширенные команды', 'Экономия 15% против месячной']}
+          />
+          <PriceCard
+            sku="ichoplus_3m"
+            name="IchoPlus 3 месяца"
+            price="699"
+            period="на 90 дней"
+            featured
+            badge="Выгодно"
+            features={['Роль IchoPlus в Discord', 'Цветной ник в чате', 'Расширенные команды', 'Экономия 30% против месячной']}
+          />
+        </div>
       </div>
     </section>
   )

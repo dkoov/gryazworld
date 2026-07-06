@@ -429,8 +429,8 @@ function CtaSection() {
               transition={{ duration: 0.4, delay: 0.18, ease: EASE }}
               className="home-cta-desc"
             >
-              Подай заявку или купи проходку - и уже сегодня окажись на сервере
-              вместе с живым комьюнити игроков.
+              Изучи механики сервера в вики или сразу подай заявку — модерация
+              рассмотрит за 24 часа.
             </motion.p>
           </div>
 
@@ -441,8 +441,8 @@ function CtaSection() {
             transition={{ duration: 0.4, delay: 0.26, ease: EASE }}
             className="home-cta-actions"
           >
-            <NavLink to="/access" className="home-btn home-btn-primary home-btn-md">
-              Подать заявку
+            <NavLink to="/wiki" className="home-btn home-btn-primary home-btn-md">
+              Читать вики
             </NavLink>
             <NavLink to="/access" className="home-btn home-btn-outline home-btn-md">
               Купить проходку
@@ -601,13 +601,12 @@ function FaqSection() {
           <div className="home-faq-cta-text">
             <span className="home-faq-cta-title">Остались вопросы?</span>
             <span className="home-faq-cta-sub">
-              Вы всегда можете обратиться к нам в Discord, мы ответим на ваш вопрос!
+              Купи проходку — доступ выдаётся автоматически. Всё остальное расскажем на сервере.
             </span>
           </div>
 
-          {/* TODO: уточнить у команды правильный URL (возможно Discord-инвайт) */}
-          <NavLink to="/access" className="home-btn home-btn-outline home-btn-md">
-            Написать в Discord
+          <NavLink to="/access" className="home-btn home-btn-primary home-btn-md">
+            Купить проходку
           </NavLink>
         </motion.div>
       </div>

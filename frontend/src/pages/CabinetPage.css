@@ -362,12 +362,13 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.cab-skin-img {
+.cab-skin-frame {
   width: 240px;
   height: 480px;
-  object-fit: contain;
-  image-rendering: pixelated;
+  max-width: 100%;
+  border: 0;
   display: block;
+  background: transparent;
 }
 .cab-header-info {
   display: flex;
@@ -477,12 +478,9 @@
     gap: 20px;
   }
   .cab-skin-box {
-    width: 190px;
+    width: 100%;
+    max-width: 280px;
     padding: 12px;
-  }
-  .cab-skin-img {
-    width: 150px;
-    height: 300px;
   }
   .cab-header-name { font-size: 1.9rem; }
   .cab-badges { justify-content: center; }

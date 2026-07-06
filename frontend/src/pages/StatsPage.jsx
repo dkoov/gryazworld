@@ -41,7 +41,7 @@ export default function StatsPage() {
 
       <div className="stats-hero">
         <div className="server-avatar">
-          <img src="/favicon.jpg" alt="Ichorix" />
+          <img src="/favicon.svg" alt="Ichorix" />
         </div>
         <div className="server-info">
           <h2>Ichorix</h2>

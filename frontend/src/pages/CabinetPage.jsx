@@ -282,10 +282,12 @@ export default function CabinetPage() {
           {/* Ichorix header: 3D skin + role/subscription badges */}
           <div className="cab-header">
             <div className="cab-skin-box">
-              <img
-                className="cab-skin-img"
-                src={`https://mc-heads.net/body/${(profile && profile.nickname) ? encodeURIComponent(profile.nickname) : 'Steve'}/right`}
-                alt="Minecraft skin"
+              <iframe
+                className="cab-skin-frame"
+                title="Minecraft skin"
+                src={`https://vzge.me/embed/full/${(profile && profile.nickname) ? encodeURIComponent(profile.nickname) : 'Steve'}`}
+                frameBorder="0"
+                style={{ width: 240, height: 480, background: 'transparent' }}
               />
             </div>
             <div className="cab-header-info">
