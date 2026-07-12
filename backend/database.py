@@ -32,6 +32,7 @@ class Player(Base):
     is_online = Column(Boolean, default=False, nullable=False)
     has_access = Column(Boolean, default=False, nullable=False)
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
+    whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
@@ -187,6 +188,39 @@ class Payment(Base):
     status = Column(String, nullable=False)
     raw = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ── Auth / bans (used by routers/internal.py) — восстановлено по схеме БД ──────
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id = Column(Integer, primary_key=True)
+    minecraft_name = Column(String, nullable=False)
+    ip = Column(String, nullable=False)
+    session_id = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class DiscordAuthRequest(Base):
+    __tablename__ = "discord_auth_requests"
+
+    id = Column(Integer, primary_key=True)
+    pending_id = Column(String, nullable=False)
+    minecraft_name = Column(String, nullable=False)
+    discord_user_id = Column(String, nullable=False)
+    ip_address = Column(String, nullable=False)
+    timeout_sec = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IpBan(Base):
+    __tablename__ = "ip_bans"
+
+    id = Column(Integer, primary_key=True)
+    ip = Column(String, nullable=False)
+    minecraft_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 async def get_db() -> AsyncSession:
