@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -5,12 +7,19 @@ from contextlib import asynccontextmanager
 from database import init_db
 from routers import player, bank, fines, web, payments, portals, internal
 from routers.fines import warn_router
+from cron import check_expired_subscriptions
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    task = asyncio.create_task(check_expired_subscriptions())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(title="GryazWorld Server Panel", lifespan=lifespan)
