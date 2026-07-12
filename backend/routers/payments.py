@@ -3,16 +3,18 @@ import json
 import logging
 import os
 import uuid
+from datetime import datetime, timedelta
 from typing import List
 
+import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Payment as YooPayment
 
 from auth import CurrentUser, current_user
-from database import Order, Payment, Player, get_db
+from database import Order, Payment, Player, Subscription, get_db
 from products import get_product
 from yookassa_client import (
     client_ip_from_xff,
@@ -29,6 +31,37 @@ configure()
 router = APIRouter(prefix="/web", tags=["payments"])
 
 RETURN_URL_BASE = os.getenv("YOOKASSA_RETURN_URL", "https://gryazworld.ru/payment/return")
+
+DISCORD_BOT_URL = os.getenv("DISCORD_BOT_URL", "")
+
+
+async def _notify_discord(payload: dict) -> None:
+    if not DISCORD_BOT_URL:
+        return
+    try:
+        async with aiohttp.ClientSession() as session:
+            await session.post(
+                DISCORD_BOT_URL,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+    except Exception as e:
+        log.warning("Discord notification failed: %s", e)
+
+
+async def _unban_player(nickname: str) -> None:
+    try:
+        async with aiohttp.ClientSession() as session:
+            await session.post(
+                f"http://{os.getenv('MC_SERVER_HOST', 'localhost')}:{os.getenv('MC_BAN_PORT', '8080')}/api/unban",
+                json={
+                    "secret": os.getenv("PLUGIN_SECRET", ""),
+                    "nickname": nickname,
+                },
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+    except Exception as e:
+        log.warning("Unban HTTP failed: %s", e)
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -153,15 +186,66 @@ async def get_order(
 
 # ─── Выдача товара ───────────────────────────────────────────────────────────
 
-async def deliver_goods(order: Order) -> None:
-    """Выдача купленного товара игроку.
+async def deliver_goods(order: Order, db: AsyncSession) -> None:
+    """Выдача купленного товара игроку."""
+    items = json.loads(order.items)
 
-    TODO: интеграция с minecraft-plugin через HTTP-эндпоинт плагина.
-    Пока только логируем.
-    """
-    log.info(
-        "deliver_goods TODO: order=%s nick=%s items=%s amount=%s",
-        order.id, order.minecraft_nick, order.items, order.amount,
+    # Найти или создать Player.
+    player_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == order.minecraft_nick.lower())
+    )
+    player = player_result.scalar_one_or_none()
+    if player is None:
+        player = Player(
+            uuid=None,
+            nickname=order.minecraft_nick,
+            discord_id=order.discord_id,
+            has_access=False,
+        )
+        db.add(player)
+        await db.flush()
+
+    for item in items:
+        sku = item["sku"]
+        if sku == "access_seasonal":
+            player.has_access = True
+        elif sku == "unban":
+            player.warns = max(0, player.warns - 3)
+            await _unban_player(order.minecraft_nick)
+        elif sku == "unwarn":
+            qty = item.get("qty", 1)
+            was_banned = player.warns >= 3
+            player.warns = max(0, player.warns - qty)
+            if was_banned and player.warns < 3:
+                await _unban_player(order.minecraft_nick)
+        elif sku == "unmute":
+            log.info("TODO: unmute not implemented in plugin")
+        elif sku.startswith("ichoplus_"):
+            days = 30 if "1m" in sku else 60 if "2m" in sku else 90
+            sub_result = await db.execute(
+                select(Subscription)
+                .where(Subscription.player_id == player.id, Subscription.sku == sku)
+                .order_by(Subscription.expires_at.desc())
+            )
+            current = sub_result.scalar_one_or_none()
+            base = max(datetime.utcnow(), current.expires_at) if current else datetime.utcnow()
+            db.add(
+                Subscription(
+                    player_id=player.id,
+                    sku=sku,
+                    expires_at=base + timedelta(days=days),
+                )
+            )
+
+    await db.commit()
+    await _notify_discord(
+        {
+            "type": "purchase",
+            "player": order.minecraft_nick,
+            "discord_id": order.discord_id,
+            "items": items,
+            "amount": order.amount,
+        }
     )
 
 
@@ -235,7 +319,7 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             return {"status": "ok", "already_paid": True}
         order.status = "paid"
         await db.commit()
-        await deliver_goods(order)
+        await deliver_goods(order, db)
     elif event == "payment.canceled":
         if order.status not in ("paid", "refunded"):
             order.status = "canceled"

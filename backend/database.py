@@ -24,17 +24,31 @@ class Player(Base):
     __tablename__ = "players"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(String, unique=True, nullable=False, index=True)
+    uuid = Column(String, unique=True, nullable=True, index=True)
     nickname = Column(String, nullable=False)
     discord_id = Column(String, nullable=True)
     total_seconds = Column(Integer, default=0, nullable=False)
     warns = Column(Integer, default=0, nullable=False)
     is_online = Column(Boolean, default=False, nullable=False)
+    has_access = Column(Boolean, default=False, nullable=False)
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
     warn_records = relationship("Warn", foreign_keys="Warn.player_id", back_populates="player")
+    subscriptions = relationship("Subscription", back_populates="player")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    sku = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    player = relationship("Player", back_populates="subscriptions")
 
 
 class BankAccount(Base):

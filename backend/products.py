@@ -4,12 +4,13 @@
 """
 
 PRODUCTS = {
-    "unban":           {"name": "Разбан",            "price": 1000.0, "category": "shop"},
-    "unmute":          {"name": "Размут",            "price": 300.0,  "category": "shop"},
-    "unwarn":          {"name": "Разварн",           "price": 50.0,   "category": "shop"},
-    "access_monthly":  {"name": "Месячная проходка", "price": 249.0,  "category": "access"},
-    "access_quarter":  {"name": "Проходка 3 мес",    "price": 499.0,  "category": "access"},
-    "access_seasonal": {"name": "Сезонная проходка", "price": 699.0,  "category": "access"},
+    "unban":           {"name": "Разбан",          "price": 599.0,  "category": "shop"},
+    "unmute":          {"name": "Размут",          "price": 199.0,  "category": "shop"},
+    "unwarn":          {"name": "Разварн",         "price": 49.0,   "category": "shop"},
+    "access_seasonal": {"name": "Сезонная проходка", "price": 329.0,  "category": "access"},
+    "ichoplus_1m":     {"name": "IchoPlus 1 мес",  "price": 159.0,  "category": "subscription"},
+    "ichoplus_2m":     {"name": "IchoPlus 2 мес",  "price": 399.0,  "category": "subscription"},
+    "ichoplus_3m":     {"name": "IchoPlus 3 мес",  "price": 699.0,  "category": "subscription"},
 }
 
 
