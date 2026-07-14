@@ -1,6 +1,11 @@
 import asyncio
+import html
+import json
+import logging
 import os
+
 import aiohttp
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func, delete
@@ -11,15 +16,73 @@ from auth import (
     DISCORD_ID_RE,
     PLUGIN_SECRET,
     CurrentUser,
+    JWT_ALG,
+    SESSION_SECRET,
     current_user,
     issue_session_token,
     resolve_actor_discord_id,
 )
 from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
 
-import json
-import logging
 
+# ─── Sanitization helpers ───────────────────────────────────────────────────
+
+_ALLOWED_INFO_TAGS = ["b", "i", "u", "s", "br", "p", "a"]
+_ALLOWED_INFO_ATTRS = {"a": ["href"]}
+
+
+def _clean_info_html(value: str) -> str:
+    try:
+        import bleach
+        return bleach.clean(
+            value,
+            tags=_ALLOWED_INFO_TAGS,
+            attributes=_ALLOWED_INFO_ATTRS,
+            strip=True,
+        )
+    except Exception:
+        # Fallback если bleach не установлен.
+        return html.escape(value, quote=True)
+
+
+def _sanitize_info_blocks(blocks):
+    if not isinstance(blocks, list):
+        return blocks
+    for block in blocks:
+        if isinstance(block, dict):
+            if isinstance(block.get("content"), str):
+                block["content"] = _clean_info_html(block["content"])
+            if isinstance(block.get("title"), str):
+                block["title"] = _clean_info_html(block["title"])
+    return blocks
+
+
+def _escape_text(value: Optional[str]) -> str:
+    if value is None:
+        return ""
+    return html.escape(value, quote=True)
+
+
+async def _optional_current_user(
+    authorization: Optional[str] = Header(default=None),
+) -> Optional[CurrentUser]:
+    """Возвращает текущего пользователя из Bearer JWT или None."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1].strip()
+    if not SESSION_SECRET:
+        return None
+    try:
+        payload = jwt.decode(token, SESSION_SECRET, algorithms=[JWT_ALG])
+    except Exception:
+        return None
+    sub = payload.get("sub")
+    if not sub:
+        return None
+    return CurrentUser(discord_id=str(sub), nickname=payload.get("nick"))
+
+
+# ─── Endpoints ───────────────────────────────────────────────────────────────
 
 def validate_discord_id(value: str, field: str = "discord_id") -> str:
     if not isinstance(value, str) or not DISCORD_ID_RE.fullmatch(value):
@@ -388,9 +451,9 @@ async def _community_dict(cm, db):
 
     return {
         "id": cm.id,
-        "name": cm.name,
-        "description": cm.description or "",
-        "tag": cm.tag or "",
+        "name": _escape_text(cm.name),
+        "description": _escape_text(cm.description),
+        "tag": _escape_text(cm.tag),
         "icon": cm.icon or "\U0001F3D8\uFE0F",
         "owner_discord_id": cm.owner_discord_id,
         "member_count": cm.member_count,
@@ -400,7 +463,7 @@ async def _community_dict(cm, db):
         "is_recruiting": cm.is_recruiting,
         "is_private": cm.is_private,
         "slug": cm.slug,
-        "info_blocks": _parse_json_field(cm.info_blocks),
+        "info_blocks": _sanitize_info_blocks(_parse_json_field(cm.info_blocks)),
         "images": _parse_json_field(cm.images),
         "total_hours": total_seconds // 3600,
         "members_discord_ids": members_discord_ids,
@@ -487,7 +550,7 @@ async def update_community(
     if data.slug is not None:
         comm.slug = data.slug or None
     if data.info_blocks is not None:
-        comm.info_blocks = json.dumps(data.info_blocks)
+        comm.info_blocks = json.dumps(_sanitize_info_blocks(data.info_blocks))
     if data.images is not None:
         comm.images = json.dumps(data.images)
     await db.commit()
@@ -496,11 +559,29 @@ async def update_community(
 
 
 @router.get("/communities/{community_id}/members")
-async def community_members(community_id: int, db: AsyncSession = Depends(get_db)):
+async def community_members(
+    community_id: int,
+    user: Optional[CurrentUser] = Depends(_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Return members of a community with their nicknames and roles."""
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
-    if comm_result.scalar_one_or_none() is None:
+    comm = comm_result.scalar_one_or_none()
+    if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
+
+    if comm.is_private:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Требуется авторизация")
+        if user.discord_id != comm.owner_discord_id:
+            member_result = await db.execute(
+                select(CommunityMember).where(
+                    CommunityMember.community_id == community_id,
+                    CommunityMember.discord_id == user.discord_id,
+                )
+            )
+            if member_result.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail="Доступ запрещён")
 
     mem_result = await db.execute(
         select(CommunityMember).where(CommunityMember.community_id == community_id)
@@ -834,13 +915,22 @@ async def list_invites(
 
 
 @router.get("/all-linked-players")
-async def get_all_linked_players(db: AsyncSession = Depends(get_db)):
-    """Return all players with a linked Discord account."""
+async def get_all_linked_players(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all players with a linked Discord account.
+
+    Требуется авторизация; отдаём только nickname и uuid, без discord_id/ip.
+    """
     result = await db.execute(
-        select(Player).where(Player.discord_id != None)
+        select(Player.uuid, Player.nickname).where(Player.discord_id != None)
     )
-    players = result.scalars().all()
-    return [{"discord_id": p.discord_id, "nickname": p.nickname} for p in players]
+    rows = result.all()
+    return [
+        {"uuid": str(row.uuid) if row.uuid else None, "nickname": row.nickname}
+        for row in rows
+    ]
 
 
 @router.delete("/communities/{community_id}")
