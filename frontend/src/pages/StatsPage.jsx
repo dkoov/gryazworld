@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { apiFetch } from '../api'
 import './StatsPage.css'
 
@@ -138,7 +139,7 @@ function PlayerCard({ player }) {
   const skinUrl = `https://mc-heads.net/avatar/${player.nickname}/64`
 
   return (
-    <div className="player-card">
+    <Link to={`/player/${encodeURIComponent(player.nickname)}`} className="player-card">
       <img
         src={skinUrl}
         alt={player.nickname}
@@ -157,6 +158,6 @@ function PlayerCard({ player }) {
           Наиграл: <strong>{formatTime(player.total_seconds)}</strong>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
