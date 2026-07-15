@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { getDiscordUser, clearDiscordUser, getAvatarUrl, apiFetch } from '../api'
+import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
 import './Nav.css'
 
@@ -19,7 +19,7 @@ export default function Nav() {
 
   useEffect(() => {
     if (!user) return
-    apiFetch(`/web/profile/${user.id}`)
+    apiFetch('/web/me')
       .then(p => { if (p.nickname) setMcNick(p.nickname) })
       .catch(() => {})
   }, [user])
@@ -36,6 +36,7 @@ export default function Nav() {
   }, [])
 
   function logout() {
+    clearSessionToken()
     clearDiscordUser()
     setUser(null)
     setMcNick(null)
@@ -46,7 +47,7 @@ export default function Nav() {
     <>
     <nav className="nav">
       <div className="nav-logo" onClick={() => navigate('/')}>
-        Gryaz<span>World</span>
+        Ich<span>orix</span>
       </div>
 
       {/* Десктоп ссылки */}
@@ -56,7 +57,9 @@ export default function Nav() {
         <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
+        {/* HIDDEN: до решения команды
         <li><NavLink to="/communities">Общины</NavLink></li>
+        */}
         <li><NavLink to="/map">Карта</NavLink></li>
       </ul>
 
@@ -114,7 +117,9 @@ export default function Nav() {
             <li><NavLink to="/shop">Магазин</NavLink></li>
             <li><NavLink to="/wiki">Wiki</NavLink></li>
             <li><NavLink to="/stats">Статистика</NavLink></li>
+            {/* HIDDEN: до решения команды
             <li><NavLink to="/communities">Общины</NavLink></li>
+            */}
             <li><NavLink to="/map">Карта</NavLink></li>
           </ul>
           {user && (

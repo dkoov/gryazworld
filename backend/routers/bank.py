@@ -121,6 +121,9 @@ class WithdrawRequest(BaseModel):
 
 @router.post("/withdraw", dependencies=[Depends(verify_plugin_secret)])
 async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
     player = await db.execute(select(Player).where(Player.nickname == data.nickname))
     player = player.scalar_one_or_none()
     if not player:

@@ -1,24 +1,37 @@
+import { useState } from 'react'
 import './MapPage.css'
 
+const MAPS = [
+  { id: 'gamegraz', label: 'Мир построек', src: '/map/gamegraz/' },
+  { id: 'farmgame', label: 'Мир ферм',     src: '/map/farmgame/' },
+]
+
 export default function MapPage() {
+  const [active, setActive] = useState('gamegraz')
+  const [v] = useState(() => Date.now())
+  const current = MAPS.find(m => m.id === active)
+
   return (
-    <section className="section">
-      <div className="section-label">Карта</div>
-      <div className="section-title">Карта мира</div>
-      <p className="section-sub">Интерактивная карта сервера в реальном времени.</p>
-
-      <div className="map-notice">
-        <strong>Для разработчика:</strong> карта генерируется плагином <strong>Dynmap</strong> или <strong>BlueMap</strong> на Minecraft-сервере. После установки замените блок ниже на iframe с адресом плагина.
+    <div className="map-page">
+      <div className="map-tabs">
+        {MAPS.map(m => (
+          <button
+            key={m.id}
+            className={`map-tab-btn${active === m.id ? ' active' : ''}`}
+            onClick={() => setActive(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
 
-      {/* Replace with: <iframe src="http://YOUR_IP:8123" className="map-iframe" title="Server Map" /> */}
-      <div className="map-frame">
-        <div className="map-icon">&#x1F5FA;</div>
-        <p>
-          Карта появится после установки плагина<br />
-          <strong>Dynmap</strong> или <strong>BlueMap</strong> на Minecraft-сервер
-        </p>
-      </div>
-    </section>
+      <iframe
+        key={current.src}
+        src={`${current.src}?v=${v}`}
+        title={current.label}
+        className="map-iframe-full"
+        allowFullScreen
+      />
+    </div>
   )
 }

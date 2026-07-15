@@ -1,150 +1,87 @@
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { categories, articles } from './wikiData'
 import './WikiPage.css'
 
-const articles = [
-  {
-    id: 'start',
-    label: 'Начало игры',
-    tag: 'Начало',
-    title: 'Начало игры',
-    sub: 'Всё что нужно знать перед первым входом на сервер.',
-    content: (
-      <>
-        <h3>Как зайти на сервер</h3>
-        <p>После покупки проходки ваш ник автоматически добавляется в белый список. Адрес сервера указан на странице Статистика. Подключайтесь через Java Edition.</p>
-        <h3>Первые шаги</h3>
-        <ul>
-          <li>Отойдите от спавна — ресурсы там уже истощены</li>
-          <li>Найдите место для базы подальше от других игроков</li>
-          <li>Зайдите в Discord сервера — там можно найти соседей</li>
-          <li>Познакомьтесь с другими и, возможно, вступите в общину</li>
-        </ul>
-        <h3>Версия</h3>
-        <p>Сервер работает на Java Edition последней стабильной версии. Пиратская версия поддерживается.</p>
-      </>
+const DEFAULT_ID = articles[0]?.id
+
+// Renderers for markdown elements that need light tweaks (no CSS changes):
+// responsive images and in-page navigation for internal /wiki/ links.
+function makeComponents(go) {
+  return {
+    img: ({ node, alt, ...props }) => (
+      <img {...props} alt={alt || ''} loading="lazy" />
     ),
-  },
-  {
-    id: 'rules',
-    label: 'Правила',
-    tag: 'Правила',
-    title: 'Правила сервера',
-    sub: 'Обязательно прочитайте перед игрой.',
-    content: (
-      <>
-        <h3>Основные правила</h3>
-        <ul>
-          <li>Запрещён грифинг построек других игроков</li>
-          <li>Запрещено воровство из сундуков</li>
-          <li>Запрещены читы, x-ray и другие нечестные модификации</li>
-          <li>Запрещено использование багов и дюпов (кроме разрешённых)</li>
-          <li>Уважительное отношение к другим игрокам обязательно</li>
-        </ul>
-        <h3>Санкции</h3>
-        <p>За нарушение — предупреждение, затем временный бан, затем постоянный без возврата средств.</p>
-      </>
-    ),
-  },
-  {
-    id: 'economy',
-    label: 'Экономика',
-    tag: 'Экономика',
-    title: 'Экономика',
-    sub: 'Валюта сервера — алмазы. Никаких плагинов на деньги.',
-    content: (
-      <>
-        <h3>Как работает</h3>
-        <p>Всё строится на реальных отношениях между игроками. Торгуйте ресурсами, открывайте магазины, устанавливайте цены самостоятельно.</p>
-        <h3>Торговля</h3>
-        <ul>
-          <li>Прямой обмен между игроками</li>
-          <li>Магазины на территории общин</li>
-          <li>Аукционы в Discord-чате</li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: 'communities',
-    label: 'Общины',
-    tag: 'Общины',
-    title: 'Общины',
-    sub: 'Объединяйтесь с другими для совместного строительства и торговли.',
-    content: (
-      <>
-        <h3>Что такое община</h3>
-        <p>Группа игроков с общей территорией или целью. У каждой общины есть страница на сайте со списком участников.</p>
-        <h3>Создание общины</h3>
-        <p>Создать может любой игрок с активной проходкой. Перейдите на страницу «Общины» и нажмите «Создать общину».</p>
-      </>
-    ),
-  },
-  {
-    id: 'grief',
-    label: 'Грифинг',
-    tag: 'Безопасность',
-    title: 'Грифинг и кражи',
-    sub: 'Как защититься и что делать если вас загрифили.',
-    content: (
-      <>
-        <h3>Если загрифили</h3>
-        <p>На сервере ведётся лог всех действий. Обратитесь к администратору в Discord. Грифер получит бан, постройки восстановят.</p>
-        <h3>Профилактика</h3>
-        <ul>
-          <li>Стройте базу подальше от спавна</li>
-          <li>Не оставляйте ценности на поверхности</li>
-          <li>Доверяйте только проверенным игрокам</li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: 'faq',
-    label: 'FAQ',
-    tag: 'FAQ',
-    title: 'Часто задаваемые вопросы',
-    sub: 'Быстрые ответы.',
-    content: (
-      <ul>
-        <li>Нужна ли лицензия? — Нет, пиратка работает</li>
-        <li>Какая версия? — Java Edition, последняя стабильная</li>
-        <li>Можно с Bedrock? — Пока нет</li>
-        <li>Когда вайп? — Объявляем в Discord заранее</li>
-      </ul>
-    ),
-  },
-]
+    a: ({ node, href = '', children, ...props }) => {
+      if (href.startsWith('/wiki/')) {
+        const target = href.slice('/wiki/'.length)
+        const found = articles.find(a => a.id === target)
+        if (found) {
+          return (
+            <a
+              href={href}
+              onClick={(e) => { e.preventDefault(); go(found.id) }}
+              {...props}
+            >
+              {children}
+            </a>
+          )
+        }
+      }
+      const external = /^https?:\/\//.test(href)
+      return (
+        <a href={href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} {...props}>
+          {children}
+        </a>
+      )
+    },
+  }
+}
 
 export default function WikiPage() {
-  const [active, setActive] = useState('start')
-  const article = articles.find(a => a.id === active)
+  const [active, setActive] = useState(DEFAULT_ID)
+  const article = articles.find(a => a.id === active) || articles[0]
+  const components = makeComponents(setActive)
 
   return (
     <section className="section">
       <div className="section-label">Wiki</div>
       <div className="section-title">База знаний</div>
-      <p className="section-sub">Всё о правилах, механиках и особенностях сервера.</p>
+      <p className="section-sub">Всё о механиках и особенностях сервера Ichorix.</p>
 
       <div className="wiki-layout">
         <div className="wiki-sidebar">
-          <div className="wiki-sidebar-title">Разделы</div>
-          {articles.map(a => (
-            <button
-              key={a.id}
-              className={`wiki-nav-item ${active === a.id ? 'active' : ''}`}
-              onClick={() => setActive(a.id)}
-            >
-              {a.label}
-            </button>
-          ))}
+          {categories.map(cat => {
+            const items = articles.filter(a => a.category === cat.slug)
+            if (items.length === 0) return null
+            return (
+              <div key={cat.slug}>
+                <div className="wiki-sidebar-title">{cat.title}</div>
+                {items.map(a => (
+                  <button
+                    key={a.id}
+                    className={`wiki-nav-item ${active === a.id ? 'active' : ''}`}
+                    onClick={() => setActive(a.id)}
+                  >
+                    {a.title}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
         </div>
+
         <div className="wiki-content">
           {article && (
             <div className="wiki-article">
-              <div className="wiki-tag">{article.tag}</div>
-              <h2>{article.title}</h2>
-              <p className="wiki-sub">{article.sub}</p>
-              {article.content}
+              <div className="wiki-tag">
+                {categories.find(c => c.slug === article.category)?.title || 'Wiki'}
+              </div>
+              <h1>{article.title}</h1>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+                {article.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>

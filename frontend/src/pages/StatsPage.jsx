@@ -29,7 +29,7 @@ export default function StatsPage() {
     .filter(p => p.nickname.toLowerCase().includes(search.toLowerCase()))
 
   function copyIp() {
-    navigator.clipboard.writeText('play.gryazworld.ru').then(() => {
+    navigator.clipboard.writeText('play.ichorix.cc').then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -41,12 +41,12 @@ export default function StatsPage() {
 
       <div className="stats-hero">
         <div className="server-avatar">
-          <img src="/favicon.jpg" alt="GryazWorld" />
+          <img src="/favicon.svg" alt="Ichorix" />
         </div>
         <div className="server-info">
-          <h2>GryazWorld</h2>
+          <h2>Ichorix</h2>
           <div className="ip-box">
-            <span className="ip-text">play.gryazworld.ru</span>
+            <span className="ip-text">play.ichorix.cc</span>
             <button className={`ip-copy ${copied ? 'copied' : ''}`} onClick={copyIp}>
               {copied ? '\u2713 Скопировано' : 'Копировать'}
             </button>

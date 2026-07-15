@@ -1,16 +1,93 @@
 import asyncio
+import html
+import json
+import logging
 import os
+
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
+from auth import (
+    DISCORD_ID_RE,
+    PLUGIN_SECRET,
+    CurrentUser,
+    JWT_ALG,
+    SESSION_SECRET,
+    current_user,
+    issue_session_token,
+    resolve_actor_discord_id,
+)
 from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
 
-import json
-import logging
+
+# ─── Sanitization helpers ───────────────────────────────────────────────────
+
+_ALLOWED_INFO_TAGS = ["b", "i", "u", "s", "br", "p", "a"]
+_ALLOWED_INFO_ATTRS = {"a": ["href"]}
+
+
+def _clean_info_html(value: str) -> str:
+    try:
+        import bleach
+        return bleach.clean(
+            value,
+            tags=_ALLOWED_INFO_TAGS,
+            attributes=_ALLOWED_INFO_ATTRS,
+            strip=True,
+        )
+    except Exception:
+        # Fallback если bleach не установлен.
+        return html.escape(value, quote=True)
+
+
+def _sanitize_info_blocks(blocks):
+    if not isinstance(blocks, list):
+        return blocks
+    for block in blocks:
+        if isinstance(block, dict):
+            if isinstance(block.get("content"), str):
+                block["content"] = _clean_info_html(block["content"])
+            if isinstance(block.get("title"), str):
+                block["title"] = _clean_info_html(block["title"])
+    return blocks
+
+
+def _escape_text(value: Optional[str]) -> str:
+    if value is None:
+        return ""
+    return html.escape(value, quote=True)
+
+
+async def _optional_current_user(
+    authorization: Optional[str] = Header(default=None),
+) -> Optional[CurrentUser]:
+    """Возвращает текущего пользователя из Bearer JWT или None."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1].strip()
+    if not SESSION_SECRET:
+        return None
+    try:
+        payload = jwt.decode(token, SESSION_SECRET, algorithms=[JWT_ALG])
+    except Exception:
+        return None
+    sub = payload.get("sub")
+    if not sub:
+        return None
+    return CurrentUser(discord_id=str(sub), nickname=payload.get("nick"))
+
+
+# ─── Endpoints ───────────────────────────────────────────────────────────────
+
+def validate_discord_id(value: str, field: str = "discord_id") -> str:
+    if not isinstance(value, str) or not DISCORD_ID_RE.fullmatch(value):
+        raise HTTPException(status_code=400, detail=f"Некорректный {field}")
+    return value
 
 log = logging.getLogger(__name__)
 
@@ -31,8 +108,11 @@ class TokenRequest(BaseModel):
 
 
 class LinkRequest(BaseModel):
-    discord_id: str
     minecraft_nick: str
+
+
+class PayFineRequest(BaseModel):
+    fine_id: int
 
 
 async def _notify_discord(payload: dict):
@@ -95,24 +175,34 @@ async def discord_token(data: TokenRequest):
 
         user = await user_resp.json()
 
+    display_name = user.get("global_name") or user["username"]
+    token = issue_session_token(discord_id=user["id"], nickname=display_name)
+
     return {
         "id": user["id"],
         "username": user["username"],
         "avatar": user.get("avatar"),
-        "global_name": user.get("global_name") or user["username"],
+        "global_name": display_name,
+        "token": token,
     }
 
 
 @router.post("/link")
-async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
-    """Link Discord ID to a Minecraft nickname."""
+async def link_account(
+    data: LinkRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Link the current Discord session to a Minecraft nickname."""
+    discord_id = user.discord_id
+
     # Check if this nick is already taken by another discord user
     result = await db.execute(
         select(Player).where(func.lower(Player.nickname) == data.minecraft_nick.lower())
     )
     player = result.scalar_one_or_none()
 
-    if player is not None and player.discord_id is not None and player.discord_id != data.discord_id:
+    if player is not None and player.discord_id is not None and player.discord_id != discord_id:
         raise HTTPException(
             status_code=409,
             detail="Ник уже зарегистрирован",
@@ -120,7 +210,7 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
 
     # Check if this discord_id is already linked to a different nick
     existing = await db.execute(
-        select(Player).where(Player.discord_id == data.discord_id)
+        select(Player).where(Player.discord_id == discord_id)
     )
     other = existing.scalar_one_or_none()
     if other is not None and (player is None or other.id != player.id):
@@ -131,35 +221,37 @@ async def link_account(data: LinkRequest, db: AsyncSession = Depends(get_db)):
 
     if player is None:
         player = Player(
-            uuid=f"web-{data.discord_id}",
+            uuid=f"web-{discord_id}",
             nickname=data.minecraft_nick,
-            discord_id=data.discord_id,
+            discord_id=discord_id,
         )
         db.add(player)
         await db.flush()
         account = BankAccount(player_id=player.id, balance=0.0)
         db.add(account)
     else:
-        player.discord_id = data.discord_id
+        player.discord_id = discord_id
 
     await db.commit()
 
-    import asyncio
-    asyncio.ensure_future(_rename_discord_member(data.discord_id, player.nickname))
+    asyncio.ensure_future(_rename_discord_member(discord_id, player.nickname))
     asyncio.ensure_future(_notify_discord({
         "type": "nick_linked",
-        "discord_id": data.discord_id,
+        "discord_id": discord_id,
         "nickname": player.nickname,
     }))
 
-    return {"status": "ok", "nickname": player.nickname, "discord_id": data.discord_id}
+    return {"status": "ok", "nickname": player.nickname, "discord_id": discord_id}
 
 
-@router.get("/profile/{discord_id}")
-async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
-    """Return player profile by Discord ID."""
+@router.get("/me")
+async def get_me(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current player's profile (resolved from session)."""
     result = await db.execute(
-        select(Player).where(Player.discord_id == discord_id)
+        select(Player).where(Player.discord_id == user.discord_id)
     )
     player = result.scalar_one_or_none()
 
@@ -205,11 +297,12 @@ async def get_profile(discord_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/pay-fine")
-async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
-    discord_id = data.get("discord_id")
-    fine_id = data.get("fine_id")
-
-    player_result = await db.execute(select(Player).where(Player.discord_id == discord_id))
+async def web_pay_fine(
+    data: PayFineRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    player_result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
     player = player_result.scalar_one_or_none()
     if not player:
         raise HTTPException(status_code=404, detail="Игрок не найден")
@@ -219,7 +312,7 @@ async def web_pay_fine(data: dict, db: AsyncSession = Depends(get_db)):
     if not account:
         raise HTTPException(status_code=404, detail="Счёт не найден")
 
-    fine_result = await db.execute(select(Fine).where(Fine.id == fine_id, Fine.player_id == player.id))
+    fine_result = await db.execute(select(Fine).where(Fine.id == data.fine_id, Fine.player_id == player.id))
     fine = fine_result.scalar_one_or_none()
     if not fine:
         raise HTTPException(status_code=404, detail="Штраф не найден")
@@ -286,19 +379,9 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
 
 class CommunityCreate(BaseModel):
     name: str
-    discord_id: str
-
-
-class CommunityJoin(BaseModel):
-    discord_id: str
-
-
-class CommunityDelete(BaseModel):
-    discord_id: str
 
 
 class CommunityUpdate(BaseModel):
-    discord_id: str
     name: Optional[str] = None
     description: Optional[str] = None
     tag: Optional[str] = None
@@ -314,27 +397,23 @@ class CommunityUpdate(BaseModel):
 
 
 class KickRequest(BaseModel):
-    discord_id: str
     target_discord_id: str
 
 
 class SetRoleRequest(BaseModel):
-    discord_id: str
     target_discord_id: str
     role: str
 
 
-class LeaveRequest(BaseModel):
-    discord_id: str
-
-
 class CommunityInviteBody(BaseModel):
-    discord_id: str
     nickname: str
+    # Только для plugin-пути (X-Plugin-Secret). Web-путь использует сессию и игнорирует это поле.
+    discord_id: Optional[str] = None
 
 
 class AcceptInviteBody(BaseModel):
-    nickname: str
+    # Только для plugin-пути. Web-путь использует сессию.
+    nickname: Optional[str] = None
 
 
 # ─── Communities endpoints ───────────────────────────────────────────────────
@@ -372,9 +451,9 @@ async def _community_dict(cm, db):
 
     return {
         "id": cm.id,
-        "name": cm.name,
-        "description": cm.description or "",
-        "tag": cm.tag or "",
+        "name": _escape_text(cm.name),
+        "description": _escape_text(cm.description),
+        "tag": _escape_text(cm.tag),
         "icon": cm.icon or "\U0001F3D8\uFE0F",
         "owner_discord_id": cm.owner_discord_id,
         "member_count": cm.member_count,
@@ -384,7 +463,7 @@ async def _community_dict(cm, db):
         "is_recruiting": cm.is_recruiting,
         "is_private": cm.is_private,
         "slug": cm.slug,
-        "info_blocks": _parse_json_field(cm.info_blocks),
+        "info_blocks": _sanitize_info_blocks(_parse_json_field(cm.info_blocks)),
         "images": _parse_json_field(cm.images),
         "total_hours": total_seconds // 3600,
         "members_discord_ids": members_discord_ids,
@@ -403,11 +482,16 @@ async def list_communities(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/communities")
-async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get_db)):
+async def create_community(
+    data: CommunityCreate,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Create a new community. Limit: 3 per discord_id."""
+    discord_id = user.discord_id
     result = await db.execute(
         select(func.count()).select_from(Community)
-        .where(Community.owner_discord_id == data.discord_id)
+        .where(Community.owner_discord_id == discord_id)
     )
     count = result.scalar()
     if count >= 3:
@@ -419,12 +503,12 @@ async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get
         description="",
         tag="",
         icon="🏘️",
-        owner_discord_id=data.discord_id,
+        owner_discord_id=discord_id,
         member_count=1,
     )
     db.add(comm)
     await db.flush()
-    member = CommunityMember(community_id=comm.id, discord_id=data.discord_id, role='owner')
+    member = CommunityMember(community_id=comm.id, discord_id=discord_id, role='owner')
     db.add(member)
     await db.commit()
     await db.refresh(comm)
@@ -432,13 +516,18 @@ async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get
 
 
 @router.patch("/communities/{community_id}")
-async def update_community(community_id: int, data: CommunityUpdate, db: AsyncSession = Depends(get_db)):
+async def update_community(
+    community_id: int,
+    data: CommunityUpdate,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Update community. Only the owner can edit."""
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != data.discord_id:
+    if comm.owner_discord_id != user.discord_id:
         raise HTTPException(status_code=403, detail="Только создатель может редактировать общину")
     if data.name is not None:
         comm.name = data.name.strip() or comm.name
@@ -461,7 +550,7 @@ async def update_community(community_id: int, data: CommunityUpdate, db: AsyncSe
     if data.slug is not None:
         comm.slug = data.slug or None
     if data.info_blocks is not None:
-        comm.info_blocks = json.dumps(data.info_blocks)
+        comm.info_blocks = json.dumps(_sanitize_info_blocks(data.info_blocks))
     if data.images is not None:
         comm.images = json.dumps(data.images)
     await db.commit()
@@ -470,11 +559,29 @@ async def update_community(community_id: int, data: CommunityUpdate, db: AsyncSe
 
 
 @router.get("/communities/{community_id}/members")
-async def community_members(community_id: int, db: AsyncSession = Depends(get_db)):
+async def community_members(
+    community_id: int,
+    user: Optional[CurrentUser] = Depends(_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Return members of a community with their nicknames and roles."""
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
-    if comm_result.scalar_one_or_none() is None:
+    comm = comm_result.scalar_one_or_none()
+    if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
+
+    if comm.is_private:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Требуется авторизация")
+        if user.discord_id != comm.owner_discord_id:
+            member_result = await db.execute(
+                select(CommunityMember).where(
+                    CommunityMember.community_id == community_id,
+                    CommunityMember.discord_id == user.discord_id,
+                )
+            )
+            if member_result.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail="Доступ запрещён")
 
     mem_result = await db.execute(
         select(CommunityMember).where(CommunityMember.community_id == community_id)
@@ -501,8 +608,13 @@ async def community_members(community_id: int, db: AsyncSession = Depends(get_db
 
 
 @router.post("/communities/{community_id}/join")
-async def join_community(community_id: int, data: CommunityJoin, db: AsyncSession = Depends(get_db)):
+async def join_community(
+    community_id: int,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Join a community. Cannot join twice."""
+    discord_id = user.discord_id
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
@@ -512,11 +624,11 @@ async def join_community(community_id: int, data: CommunityJoin, db: AsyncSessio
     existing = await db.execute(
         select(CommunityMember)
         .where(CommunityMember.community_id == community_id)
-        .where(CommunityMember.discord_id == data.discord_id)
+        .where(CommunityMember.discord_id == discord_id)
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=400, detail="Вы уже состоите в этой общине")
-    member = CommunityMember(community_id=community_id, discord_id=data.discord_id)
+    member = CommunityMember(community_id=community_id, discord_id=discord_id)
     db.add(member)
     comm.member_count += 1
     await db.commit()
@@ -524,9 +636,20 @@ async def join_community(community_id: int, data: CommunityJoin, db: AsyncSessio
 
 
 @router.get("/communities/owned")
-async def get_owned_community(discord_id: str, db: AsyncSession = Depends(get_db)):
-    """Return community owned by the given discord_id."""
-    result = await db.execute(select(Community).where(Community.owner_discord_id == discord_id))
+async def get_owned_community(
+    discord_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
+):
+    """Return community owned by the current user (web) or by the given discord_id (plugin).
+
+    Two auth modes:
+    - Web: Authorization: Bearer <jwt> — discord_id берётся из сессии, query игнорируется.
+    - Plugin: X-Plugin-Secret header + ?discord_id=<id> в query.
+    """
+    resolved_id = resolve_actor_discord_id(authorization, x_plugin_secret, discord_id)
+    result = await db.execute(select(Community).where(Community.owner_discord_id == resolved_id))
     comm = result.scalars().first()
     if comm is None:
         raise HTTPException(status_code=404, detail="Своей общины нет")
@@ -544,18 +667,26 @@ async def community_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/communities/{community_id}/kick")
-async def kick_member(community_id: int, data: KickRequest, db: AsyncSession = Depends(get_db)):
+async def kick_member(
+    community_id: int,
+    data: KickRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Kick a member. Owner or deputy can kick; deputy cannot kick owner or another deputy."""
+    target_id = validate_discord_id(data.target_discord_id, field="target_discord_id")
+    actor_id = user.discord_id
+
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if not comm:
         raise HTTPException(status_code=404, detail="Община не найдена")
 
-    is_owner = comm.owner_discord_id == data.discord_id
+    is_owner = comm.owner_discord_id == actor_id
     kicker_result = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == data.discord_id,
+            CommunityMember.discord_id == actor_id,
         )
     )
     kicker = kicker_result.scalar_one_or_none()
@@ -564,13 +695,13 @@ async def kick_member(community_id: int, data: KickRequest, db: AsyncSession = D
     if not is_owner and not is_deputy:
         raise HTTPException(status_code=403, detail="Нет прав")
 
-    if comm.owner_discord_id == data.target_discord_id:
+    if comm.owner_discord_id == target_id:
         raise HTTPException(status_code=403, detail="Нельзя кикнуть владельца")
 
     target_result = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == data.target_discord_id,
+            CommunityMember.discord_id == target_id,
         )
     )
     target = target_result.scalar_one_or_none()
@@ -587,17 +718,24 @@ async def kick_member(community_id: int, data: KickRequest, db: AsyncSession = D
 
 
 @router.post("/communities/{community_id}/set-role")
-async def set_role(community_id: int, data: SetRoleRequest, db: AsyncSession = Depends(get_db)):
+async def set_role(
+    community_id: int,
+    data: SetRoleRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Set member role. Only the owner can assign roles."""
+    target_id = validate_discord_id(data.target_discord_id, field="target_discord_id")
+
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
-    if not comm or comm.owner_discord_id != data.discord_id:
+    if not comm or comm.owner_discord_id != user.discord_id:
         raise HTTPException(status_code=403, detail="Только владелец может назначать роли")
 
     target_result = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == data.target_discord_id,
+            CommunityMember.discord_id == target_id,
         )
     )
     target = target_result.scalar_one_or_none()
@@ -610,20 +748,25 @@ async def set_role(community_id: int, data: SetRoleRequest, db: AsyncSession = D
 
 
 @router.post("/communities/{community_id}/leave")
-async def leave_community(community_id: int, data: LeaveRequest, db: AsyncSession = Depends(get_db)):
+async def leave_community(
+    community_id: int,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Leave a community. Owner cannot leave."""
+    discord_id = user.discord_id
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if not comm:
         raise HTTPException(status_code=404, detail="Община не найдена")
 
-    if comm.owner_discord_id == data.discord_id:
+    if comm.owner_discord_id == discord_id:
         raise HTTPException(status_code=400, detail="Владелец не может покинуть общину. Удалите её.")
 
     member_result = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == data.discord_id,
+            CommunityMember.discord_id == discord_id,
         )
     )
     member = member_result.scalar_one_or_none()
@@ -637,13 +780,24 @@ async def leave_community(community_id: int, data: LeaveRequest, db: AsyncSessio
 
 
 @router.post("/communities/{community_id}/invite")
-async def invite_to_community(community_id: int, data: CommunityInviteBody, db: AsyncSession = Depends(get_db)):
-    """Invite a player by nickname. Only the owner can invite."""
+async def invite_to_community(
+    community_id: int,
+    data: CommunityInviteBody,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
+):
+    """Invite a player by nickname. Only the community owner can invite.
+
+    Dual-auth: Bearer JWT (web) или X-Plugin-Secret + body.discord_id (plugin).
+    """
+    actor_id = resolve_actor_discord_id(authorization, x_plugin_secret, data.discord_id)
+
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != data.discord_id:
+    if comm.owner_discord_id != actor_id:
         raise HTTPException(status_code=403, detail="Только владелец может приглашать")
 
     player_result = await db.execute(
@@ -655,7 +809,7 @@ async def invite_to_community(community_id: int, data: CommunityInviteBody, db: 
     invite = CommunityInvite(
         community_id=community_id,
         invited_nickname=data.nickname.lower(),
-        invited_by_discord_id=data.discord_id,
+        invited_by_discord_id=actor_id,
     )
     db.add(invite)
     await db.commit()
@@ -663,33 +817,68 @@ async def invite_to_community(community_id: int, data: CommunityInviteBody, db: 
 
 
 @router.post("/communities/{community_id}/accept-invite")
-async def accept_invite(community_id: int, data: AcceptInviteBody, db: AsyncSession = Depends(get_db)):
-    """Accept a pending invite by nickname."""
+async def accept_invite(
+    community_id: int,
+    data: AcceptInviteBody = AcceptInviteBody(),
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+    x_plugin_secret: Optional[str] = Header(default=None),
+):
+    """Accept a pending invite addressed to the actor's linked nickname.
+
+    Dual-auth:
+    - Bearer JWT (web) → actor_discord_id из сессии, ник берётся из Player по discord_id.
+    - X-Plugin-Secret + body.nickname (plugin) → actor определяется по нику в БД
+      (Minecraft-аутентификация плагина гарантирует, что вызов идёт от этого игрока).
+    """
+    actor_discord_id: Optional[str] = None
+    actor_nickname: Optional[str] = None
+
+    if authorization and authorization.lower().startswith("bearer "):
+        # JWT path — переиспользуем resolve_actor_discord_id, тело игнорируем.
+        actor_discord_id = resolve_actor_discord_id(authorization, None, None)
+        player_result = await db.execute(
+            select(Player).where(Player.discord_id == actor_discord_id)
+        )
+        player = player_result.scalar_one_or_none()
+        if player is None or not player.nickname:
+            raise HTTPException(status_code=400, detail="Discord не привязан к Minecraft-нику")
+        actor_nickname = player.nickname
+    elif x_plugin_secret is not None:
+        # Plugin path — проверяем секрет и ищем actor-а по нику.
+        if not PLUGIN_SECRET or x_plugin_secret != PLUGIN_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid plugin secret")
+        if not data.nickname:
+            raise HTTPException(status_code=400, detail="nickname обязателен")
+        player_result = await db.execute(
+            select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
+        )
+        player = player_result.scalar_one_or_none()
+        if player is None or not player.discord_id:
+            raise HTTPException(status_code=404, detail="Игрок не найден")
+        actor_discord_id = player.discord_id
+        actor_nickname = player.nickname
+    else:
+        raise HTTPException(status_code=401, detail="not_authenticated")
+
     invite_result = await db.execute(
         select(CommunityInvite).where(
             CommunityInvite.community_id == community_id,
-            func.lower(CommunityInvite.invited_nickname) == data.nickname.lower(),
+            func.lower(CommunityInvite.invited_nickname) == actor_nickname.lower(),
         )
     )
     invite = invite_result.scalar_one_or_none()
     if invite is None:
         raise HTTPException(status_code=404, detail="Приглашение не найдено")
 
-    player_result = await db.execute(
-        select(Player).where(func.lower(Player.nickname) == data.nickname.lower())
-    )
-    player = player_result.scalar_one_or_none()
-    if player is None:
-        raise HTTPException(status_code=404, detail="Игрок не найден")
-
     existing = await db.execute(
         select(CommunityMember).where(
             CommunityMember.community_id == community_id,
-            CommunityMember.discord_id == player.discord_id,
+            CommunityMember.discord_id == actor_discord_id,
         )
     )
     if existing.scalar_one_or_none() is None:
-        member = CommunityMember(community_id=community_id, discord_id=player.discord_id)
+        member = CommunityMember(community_id=community_id, discord_id=actor_discord_id)
         db.add(member)
         comm_result = await db.execute(select(Community).where(Community.id == community_id))
         comm = comm_result.scalar_one_or_none()
@@ -702,13 +891,17 @@ async def accept_invite(community_id: int, data: AcceptInviteBody, db: AsyncSess
 
 
 @router.get("/communities/{community_id}/invites")
-async def list_invites(community_id: int, discord_id: str, db: AsyncSession = Depends(get_db)):
+async def list_invites(
+    community_id: int,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """List pending invites. Only the owner can view."""
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != discord_id:
+    if comm.owner_discord_id != user.discord_id:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
 
     invites_result = await db.execute(
@@ -722,23 +915,36 @@ async def list_invites(community_id: int, discord_id: str, db: AsyncSession = De
 
 
 @router.get("/all-linked-players")
-async def get_all_linked_players(db: AsyncSession = Depends(get_db)):
-    """Return all players with a linked Discord account."""
+async def get_all_linked_players(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all players with a linked Discord account.
+
+    Требуется авторизация; отдаём только nickname и uuid, без discord_id/ip.
+    """
     result = await db.execute(
-        select(Player).where(Player.discord_id != None)
+        select(Player.uuid, Player.nickname).where(Player.discord_id != None)
     )
-    players = result.scalars().all()
-    return [{"discord_id": p.discord_id, "nickname": p.nickname} for p in players]
+    rows = result.all()
+    return [
+        {"uuid": str(row.uuid) if row.uuid else None, "nickname": row.nickname}
+        for row in rows
+    ]
 
 
 @router.delete("/communities/{community_id}")
-async def delete_community(community_id: int, data: CommunityDelete, db: AsyncSession = Depends(get_db)):
+async def delete_community(
+    community_id: int,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Delete community. Only the owner can delete."""
     comm_result = await db.execute(select(Community).where(Community.id == community_id))
     comm = comm_result.scalar_one_or_none()
     if comm is None:
         raise HTTPException(status_code=404, detail="Община не найдена")
-    if comm.owner_discord_id != data.discord_id:
+    if comm.owner_discord_id != user.discord_id:
         raise HTTPException(status_code=403, detail="Только создатель может удалить общину")
     await db.execute(delete(CommunityMember).where(CommunityMember.community_id == community_id))
     await db.execute(delete(CommunityInvite).where(CommunityInvite.community_id == community_id))

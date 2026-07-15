@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Boolean,
+    Column, Integer, String, Float, DateTime, Boolean, Text,
     ForeignKey, Enum as SAEnum, text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -24,17 +24,32 @@ class Player(Base):
     __tablename__ = "players"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(String, unique=True, nullable=False, index=True)
+    uuid = Column(String, unique=True, nullable=True, index=True)
     nickname = Column(String, nullable=False)
     discord_id = Column(String, nullable=True)
     total_seconds = Column(Integer, default=0, nullable=False)
     warns = Column(Integer, default=0, nullable=False)
     is_online = Column(Boolean, default=False, nullable=False)
+    has_access = Column(Boolean, default=False, nullable=False)
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
+    whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
     warn_records = relationship("Warn", foreign_keys="Warn.player_id", back_populates="player")
+    subscriptions = relationship("Subscription", back_populates="player")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    sku = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    player = relationship("Player", back_populates="subscriptions")
 
 
 class BankAccount(Base):
@@ -148,6 +163,63 @@ class PendingAuth(Base):
     player_id = Column(Integer, ForeignKey("players.id"))
     ip_address = Column(String, nullable=False)
     token = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(String, primary_key=True)  # uuid
+    discord_id = Column(String, nullable=False, index=True)
+    minecraft_nick = Column(String, nullable=False)
+    items = Column(Text, nullable=False)  # JSON: [{sku, name, price, qty}]
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="RUB", nullable=False)
+    status = Column(String, default="pending", nullable=False)  # pending|paid|failed|canceled|refunded
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True)  # payment_id из YooKassa
+    order_id = Column(String, ForeignKey("orders.id"), nullable=False, index=True)
+    status = Column(String, nullable=False)
+    raw = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ── Auth / bans (used by routers/internal.py) — восстановлено по схеме БД ──────
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id = Column(Integer, primary_key=True)
+    minecraft_name = Column(String, nullable=False)
+    ip = Column(String, nullable=False)
+    session_id = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class DiscordAuthRequest(Base):
+    __tablename__ = "discord_auth_requests"
+
+    id = Column(Integer, primary_key=True)
+    pending_id = Column(String, nullable=False)
+    minecraft_name = Column(String, nullable=False)
+    discord_user_id = Column(String, nullable=False)
+    ip_address = Column(String, nullable=False)
+    timeout_sec = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IpBan(Base):
+    __tablename__ = "ip_bans"
+
+    id = Column(Integer, primary_key=True)
+    ip = Column(String, nullable=False)
+    minecraft_name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
