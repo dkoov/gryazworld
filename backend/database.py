@@ -1,9 +1,9 @@
-import os
+﻿import os
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, Boolean, Text,
-    ForeignKey, Enum as SAEnum, text
+    ForeignKey, Enum as SAEnum, text, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -155,6 +155,30 @@ class PlayerIP(Base):
     ip_address = Column(String, nullable=False)
     confirmed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (
+        UniqueConstraint("liker_discord_id", "target_player_id", name="uq_like_once"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    liker_discord_id = Column(String, nullable=False)
+    target_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PlaytimeDaily(Base):
+    __tablename__ = "playtime_daily"
+    __table_args__ = (
+        UniqueConstraint("player_id", "day", name="uq_playtime_day"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    day = Column(String, nullable=False)  # YYYY-MM-DD (UTC)
+    seconds = Column(Integer, default=0, nullable=False)
 
 
 class PendingAuth(Base):

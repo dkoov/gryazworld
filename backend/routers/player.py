@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import secrets
 from datetime import datetime
 from typing import Dict
@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily
 
 import os
 DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
@@ -92,6 +92,17 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
     if player.server is None or player.server == data.server:
         player.is_online = False
         player.server = None
+
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    daily_result = await db.execute(
+        select(PlaytimeDaily).where(PlaytimeDaily.player_id == player.id, PlaytimeDaily.day == today)
+    )
+    daily = daily_result.scalar_one_or_none()
+    if daily is None:
+        daily = PlaytimeDaily(player_id=player.id, day=today, seconds=0)
+        db.add(daily)
+    daily.seconds += data.session_seconds
+
     await db.commit()
 
     asyncio.ensure_future(_notify_discord({

@@ -1,4 +1,4 @@
-fastapi==0.115.0
+﻿fastapi==0.115.0
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.35
 aiosqlite==0.20.0
@@ -7,3 +7,4 @@ aiohttp==3.9.5
 yookassa==3.5.0
 PyJWT==2.9.0
 bleach==6.1.0
+aiomysql==0.2.0

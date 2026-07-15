@@ -1,8 +1,9 @@
-import asyncio
+﻿import asyncio
 import html
 import json
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 
 import aiohttp
 import jwt
@@ -22,7 +23,8 @@ from auth import (
     issue_session_token,
     resolve_actor_discord_id,
 )
-from database import get_db, Player, BankAccount, Fine, Community, CommunityMember, CommunityInvite
+from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily
+import charsystem_client
 
 
 # ─── Sanitization helpers ───────────────────────────────────────────────────
@@ -373,6 +375,145 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
         }
         for p in players
     ]
+
+
+# ─── Public player profile ───────────────────────────────────────────────────
+
+def _sum_seconds_since(rows: list, cutoff_day: str) -> int:
+    return sum(r.seconds for r in rows if r.day >= cutoff_day)
+
+
+@router.get("/player/{nickname}")
+async def public_player_profile(
+    nickname: str,
+    user: Optional[CurrentUser] = Depends(_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Public player profile page — no auth required to view."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    now = datetime.utcnow()
+    today = now.strftime("%Y-%m-%d")
+    week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+    month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    daily_result = await db.execute(
+        select(PlaytimeDaily).where(PlaytimeDaily.player_id == player.id)
+    )
+    daily_rows = daily_result.scalars().all()
+
+    warns_result = await db.execute(
+        select(Warn).where(Warn.player_id == player.id).order_by(Warn.created_at.desc())
+    )
+    warns = warns_result.scalars().all()
+
+    sub_result = await db.execute(
+        select(Subscription)
+        .where(Subscription.player_id == player.id, Subscription.expires_at > now)
+        .order_by(Subscription.expires_at.desc())
+    )
+    active_sub = sub_result.scalars().first()
+
+    communities_list = []
+    if player.discord_id:
+        member_result = await db.execute(
+            select(CommunityMember).where(CommunityMember.discord_id == player.discord_id)
+        )
+        memberships = member_result.scalars().all()
+        if memberships:
+            comm_ids = [m.community_id for m in memberships]
+            comms_result = await db.execute(select(Community).where(Community.id.in_(comm_ids)))
+            for c in comms_result.scalars().all():
+                communities_list.append({
+                    "id": c.id,
+                    "name": _escape_text(c.name),
+                    "tag": _escape_text(c.tag),
+                    "icon": c.icon,
+                    "member_count": c.member_count,
+                    "slug": c.slug,
+                    "discord_url": c.discord_url,
+                })
+
+    likes_count_result = await db.execute(
+        select(func.count()).select_from(Like).where(Like.target_player_id == player.id)
+    )
+    likes_count = likes_count_result.scalar() or 0
+
+    liked_by_me = False
+    if user is not None:
+        my_like = await db.execute(
+            select(Like).where(Like.target_player_id == player.id, Like.liker_discord_id == user.discord_id)
+        )
+        liked_by_me = my_like.scalar_one_or_none() is not None
+
+    characters = None
+    if player.uuid and not player.uuid.startswith("web-"):
+        characters = await charsystem_client.get_characters(player.uuid)
+
+    return {
+        "nickname": player.nickname,
+        "is_online": player.is_online,
+        "server": player.server,
+        "total_seconds": player.total_seconds,
+        "hours": player.total_seconds // 3600,
+        "playtime_today": _sum_seconds_since(daily_rows, today),
+        "playtime_week": _sum_seconds_since(daily_rows, week_ago),
+        "playtime_month": _sum_seconds_since(daily_rows, month_ago),
+        "warns": [
+            {
+                "reason": w.reason,
+                "issued_by": w.issued_by,
+                "created_at": w.created_at.isoformat(),
+            }
+            for w in warns
+        ],
+        "subscription": {"sku": active_sub.sku, "expires_at": active_sub.expires_at.isoformat()} if active_sub else None,
+        "communities": communities_list,
+        "characters": characters,
+        "likes_count": likes_count,
+        "liked_by_me": liked_by_me,
+        "discord_id": player.discord_id,
+    }
+
+
+@router.post("/player/{nickname}/like")
+async def like_player(
+    nickname: str,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle a like on a player's profile. Requires auth; cannot like yourself."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if player.discord_id == user.discord_id:
+        raise HTTPException(status_code=400, detail="Нельзя лайкнуть самого себя")
+
+    existing = await db.execute(
+        select(Like).where(Like.target_player_id == player.id, Like.liker_discord_id == user.discord_id)
+    )
+    like = existing.scalar_one_or_none()
+    if like is not None:
+        await db.delete(like)
+        await db.commit()
+        liked = False
+    else:
+        db.add(Like(target_player_id=player.id, liker_discord_id=user.discord_id))
+        await db.commit()
+        liked = True
+
+    count_result = await db.execute(
+        select(func.count()).select_from(Like).where(Like.target_player_id == player.id)
+    )
+    return {"liked": liked, "likes_count": count_result.scalar() or 0}
 
 
 # ─── Pydantic schemas ────────────────────────────────────────────────────────
