@@ -11,3 +11,6 @@ __pycache__/
 .venv/
 .idea/
 .omc/
+discord-bot-main/data/
+discord-bot-main/.env
+data/
