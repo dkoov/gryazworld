@@ -1,4 +1,5 @@
 import { ExtendedClient } from "./structures/Client";
+import { startNotifyServer } from "./services/notifyServer";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -51,4 +52,4 @@ process.on("uncaughtException", (error) => {
   console.error("[UncaughtException]", error);
 });
 
-client.start(process.env.TOKEN!);
+client.start(process.env.TOKEN!).then(() => startNotifyServer(client));

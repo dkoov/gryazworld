@@ -13,7 +13,7 @@ from database import get_db, Player, Fine, Warn
 
 log = logging.getLogger(__name__)
 
-DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
+DISCORD_BOT_URL = "http://ichorix-bot-main:5050/discord/notify"
 
 
 async def _notify_discord(payload: dict):
@@ -35,7 +35,12 @@ class IssueFineRequest(BaseModel):
     issued_by: str
     amount: float
     reason: str
+    comment: Optional[str] = None
     deadline: Optional[datetime] = None
+
+
+class MarkPaidRequest(BaseModel):
+    fine_id: int
 
 
 class IssueWarnRequest(BaseModel):
@@ -111,11 +116,18 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
 
     player = await get_player(data.uuid, db)
 
+    # ищем выписавшего (полицейского) по нику, чтобы упомянуть его в Discord
+    issuer_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.issued_by.lower())
+    )
+    issuer = issuer_result.scalar_one_or_none()
+
     fine = Fine(
         player_id=player.id,
         issued_by=data.issued_by,
         amount=data.amount,
         reason=data.reason,
+        comment=data.comment,
         deadline=data.deadline,
         status="pending"
     )
@@ -130,7 +142,9 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
         "discord_id": player.discord_id,
         "amount": fine.amount,
         "reason": fine.reason,
+        "comment": fine.comment,
         "issued_by": fine.issued_by,
+        "issued_by_discord_id": issuer.discord_id if issuer else None,
         "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
     })
 
@@ -142,6 +156,38 @@ async def issue_fine(data: IssueFineRequest, db: AsyncSession = Depends(get_db))
         "reason": fine.reason,
         "deadline": fine.deadline
     }
+
+
+@router.post("/mark-paid", dependencies=[Depends(verify_plugin_secret)])
+async def mark_fine_paid(data: MarkPaidRequest, db: AsyncSession = Depends(get_db)):
+    """Полицейский вручную подтверждает оплату штрафа (кнопка в Discord) —
+    в отличие от /web/pay-fine, баланс игрока НЕ трогает (штраф мог быть
+    оплачен не через сайт, а напрямую)."""
+    result = await db.execute(select(Fine).where(Fine.id == data.fine_id))
+    fine = result.scalar_one_or_none()
+    if fine is None:
+        raise HTTPException(status_code=404, detail="Fine not found")
+    if fine.status == "paid":
+        return {"status": "ok", "fine_id": fine.id, "already": True}
+    if fine.status not in ("pending", "overdue"):
+        raise HTTPException(status_code=400, detail=f"Fine is {fine.status}")
+
+    fine.status = "paid"
+    await db.commit()
+
+    player_result = await db.execute(select(Player).where(Player.id == fine.player_id))
+    player = player_result.scalar_one_or_none()
+
+    await _notify_discord({
+        "type": "fine_paid",
+        "fine_id": fine.id,
+        "nickname": player.nickname if player else "?",
+        "discord_id": player.discord_id if player else None,
+        "amount": fine.amount,
+        "reason": fine.reason,
+    })
+
+    return {"status": "ok", "fine_id": fine.id}
 
 
 @router.get("/overdue", dependencies=[Depends(verify_plugin_secret)])

@@ -91,7 +91,7 @@ def validate_discord_id(value: str, field: str = "discord_id") -> str:
 
 log = logging.getLogger(__name__)
 
-DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
+DISCORD_BOT_URL = "http://ichorix-bot-main:5050/discord/notify"
 
 router = APIRouter(prefix="/web", tags=["web"])
 

@@ -82,6 +82,7 @@ class Fine(Base):
     issued_by = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     reason = Column(String, nullable=False)
+    comment = Column(String, nullable=True)  # доп. комментарий, напр. "положить вещи в ячейку №5"
     deadline = Column(DateTime, nullable=True)
     status = Column(String, default="pending", nullable=False)  # pending, paid, cancelled
     created_at = Column(DateTime, default=datetime.utcnow)
