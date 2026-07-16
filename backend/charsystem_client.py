@@ -53,3 +53,33 @@ async def get_characters(uuid: str) -> Optional[list[dict]]:
         ]
     finally:
         conn.close()
+
+
+def _strip_section_codes(s: str) -> str:
+    return s.replace("§", "").replace("&", "")
+
+
+async def publish_chat_message(display_name: str, message: str) -> bool:
+    """Insert a Discord chat message onto cs_chat_bus so every Minecraft
+    server (via vzCharSystem's NetworkManager) broadcasts it. Returns False
+    if the game VPS is unreachable."""
+    name = _strip_section_codes(display_name)[:32]
+    text = _strip_section_codes(message)[:256]
+    payload = f"§8[§9Discord§8] §f{name}§9: §f{text}"
+
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (chat relay): %s", e)
+        return False
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO cs_chat_bus (origin, payload) VALUES (%s, %s)",
+                ("discord-bridge", payload),
+            )
+        await conn.commit()
+        return True
+    finally:
+        conn.close()

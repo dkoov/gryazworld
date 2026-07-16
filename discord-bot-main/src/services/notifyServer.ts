@@ -5,6 +5,8 @@ import { ExtendedClient } from "../structures/Client";
 const PORT = Number(process.env.NOTIFY_PORT ?? 5050);
 const NOTIFICATIONS_CHANNEL_ID = process.env.FINES_NOTIFY_CHANNEL_ID ?? "1522965883738128455";
 const SBI_FINES_CHANNEL_ID = process.env.FINES_SBI_CHANNEL_ID ?? "1522966760737734747";
+const MC_CHAT_CHANNEL_ID = process.env.MC_CHAT_CHANNEL_ID ?? "1504176921833902100";
+const AVATAR_URL = (nickname: string) => `https://mc-heads.net/avatar/${encodeURIComponent(nickname)}/64`;
 
 async function getChannel(client: ExtendedClient, id: string): Promise<TextChannel | null> {
   let channel = client.channels.cache.get(id) as TextChannel | undefined;
@@ -105,6 +107,24 @@ async function handleWarn(client: ExtendedClient, data: any, overdue = false): P
   }
 }
 
+async function handleChat(client: ExtendedClient, data: any): Promise<void> {
+  const nickname = String(data.nickname ?? "?");
+  const message = String(data.message ?? "").slice(0, 1900);
+  if (!message) return;
+
+  const channel = await getChannel(client, MC_CHAT_CHANNEL_ID);
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(0x95a5a6)
+    .setDescription(message)
+    .setAuthor({ name: nickname, iconURL: AVATAR_URL(nickname) });
+
+  await channel.send({ embeds: [embed] }).catch((e) =>
+    console.error("[Notify] chat -> minecraft-чат:", e)
+  );
+}
+
 export function startNotifyServer(client: ExtendedClient): void {
   const server = http.createServer((req, res) => {
     if (req.method !== "POST" || req.url !== "/discord/notify") {
@@ -132,6 +152,9 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "fine_overdue":
             await handleWarn(client, data, true);
+            break;
+          case "chat":
+            await handleChat(client, data);
             break;
           default:
             console.warn(`[Notify] неизвестный тип: ${type}`);

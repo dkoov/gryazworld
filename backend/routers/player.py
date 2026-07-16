@@ -10,9 +10,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
 from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily
+import charsystem_client
 
 import os
 DISCORD_BOT_URL = "http://gryazworld-bot:5000/discord/notify"
+ICHORIX_BOT_URL = "http://ichorix-bot-main:5050/discord/notify"
+
+
+async def _notify_ichorix(payload: dict):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(ICHORIX_BOT_URL, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status != 200:
+                    import logging
+                    logging.getLogger(__name__).warning("Ichorix notify вернул статус %s", resp.status)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Не удалось отправить уведомление в Ichorix bot: %s", e)
 
 # Хранит результаты confirm-auth до опроса плагина: token -> "confirmed" | "denied"
 _auth_results: Dict[str, str] = {}
@@ -144,12 +158,26 @@ async def player_death(data: PlayerDeathRequest):
 
 @router.post("/chat", dependencies=[Depends(verify_plugin_secret)])
 async def player_chat(data: PlayerChatRequest):
-    asyncio.ensure_future(_notify_discord({
+    asyncio.ensure_future(_notify_ichorix({
         "type": "chat",
         "nickname": data.nickname,
         "message": data.message,
         "server": data.server,
     }))
+    return {"status": "ok"}
+
+
+class DiscordChatRelayRequest(BaseModel):
+    username: str
+    message: str
+
+
+@router.post("/chat/discord-relay", dependencies=[Depends(verify_plugin_secret)])
+async def discord_chat_relay(data: DiscordChatRelayRequest):
+    """Discord -> Minecraft: пишет сообщение в cs_chat_bus, все игровые сервера его подхватят."""
+    ok = await charsystem_client.publish_chat_message(data.username, data.message)
+    if not ok:
+        raise HTTPException(status_code=502, detail="Игровой сервер недоступен")
     return {"status": "ok"}
 
 
