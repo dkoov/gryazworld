@@ -3,7 +3,7 @@ import logging
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
@@ -117,6 +117,7 @@ async def transfer(data: TransferRequest, db: AsyncSession = Depends(get_db)):
 class WithdrawRequest(BaseModel):
     nickname: str
     amount: int
+    comment: str = ""
 
 
 @router.post("/withdraw", dependencies=[Depends(verify_plugin_secret)])
@@ -124,7 +125,7 @@ async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    player = await db.execute(select(Player).where(Player.nickname == data.nickname))
+    player = await db.execute(select(Player).where(func.lower(Player.nickname) == data.nickname.lower()))
     player = player.scalar_one_or_none()
     if not player:
         raise HTTPException(404, "Игрок не найден")
@@ -138,6 +139,14 @@ async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(400, "Недостаточно средств")
 
     account.balance -= data.amount
+
+    tx = Transaction(
+        from_player_id=player.id,
+        amount=data.amount,
+        type="withdraw",
+        comment=data.comment,
+    )
+    db.add(tx)
     await db.commit()
     return {"balance": account.balance}
 
