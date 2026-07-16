@@ -19,7 +19,7 @@
 
 .pv-avatar-card {
   background: var(--surface);
-  border: 1px solid rgba(126,77,217,0.14);
+  border: 1px solid rgba(139,92,246,0.14);
   border-radius: var(--radius);
   overflow: hidden;
   display: flex;
@@ -55,7 +55,7 @@
   gap: 10px;
   padding: 10px 14px;
   background: var(--surface);
-  border: 1px solid rgba(126,77,217,0.12);
+  border: 1px solid rgba(139,92,246,0.12);
   border-radius: var(--radius);
   font-size: 0.82rem;
   color: var(--text);
@@ -131,7 +131,7 @@
 .pv-like-btn:hover { border-color: var(--gold); color: var(--text); }
 .pv-like-btn.liked { border-color: var(--gold); color: var(--gold); }
 .pv-likes-self {
-  background: rgba(126,77,217,0.15);
+  background: rgba(139,92,246,0.15);
   border: 1px solid var(--accent);
   color: var(--gold);
   height: fit-content;
@@ -142,7 +142,7 @@
   display: inline-block;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(126,77,217,0.15);
+  background: rgba(139,92,246,0.15);
   border: 1px solid var(--accent);
   color: var(--text);
   font-size: 0.75rem;
@@ -151,7 +151,7 @@
 
 .pv-card {
   background: var(--surface);
-  border: 1px solid rgba(126,77,217,0.14);
+  border: 1px solid rgba(139,92,246,0.14);
   border-radius: var(--radius);
   padding: 22px 24px;
 }
@@ -171,7 +171,7 @@
   padding: 18px;
   color: var(--muted);
   font-size: 0.8rem;
-  border: 1px dashed rgba(126,77,217,0.12);
+  border: 1px dashed rgba(139,92,246,0.12);
   border-radius: var(--radius);
 }
 
@@ -184,7 +184,7 @@
 }
 .pv-stat {
   background: var(--surface2);
-  border: 1px solid rgba(126,77,217,0.1);
+  border: 1px solid rgba(139,92,246,0.1);
   border-radius: var(--radius);
   padding: 14px 16px;
 }
@@ -212,9 +212,9 @@
 .pv-heatmap-cell { width: 12px; height: 12px; border-radius: 2px; }
 .pv-heatmap-future { background: transparent; }
 .pv-lvl-0 { background: rgba(37,37,51,0.3); }
-.pv-lvl-1 { background: rgba(126,77,217,0.2); }
-.pv-lvl-2 { background: rgba(126,77,217,0.4); }
-.pv-lvl-3 { background: rgba(126,77,217,0.6); }
+.pv-lvl-1 { background: rgba(139,92,246,0.2); }
+.pv-lvl-2 { background: rgba(139,92,246,0.4); }
+.pv-lvl-3 { background: rgba(139,92,246,0.6); }
 .pv-lvl-4 { background: var(--accent); }
 
 /* Subscription */
@@ -252,7 +252,7 @@
   gap: 10px;
   padding: 10px 16px;
   background: var(--surface2);
-  border: 1px solid rgba(126,77,217,0.1);
+  border: 1px solid rgba(139,92,246,0.1);
   border-radius: var(--radius);
   font-size: 0.85rem;
 }

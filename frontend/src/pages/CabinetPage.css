@@ -22,7 +22,7 @@
   align-items: center;
   padding: 10px 14px;
   background: var(--surface);
-  border: 1px solid rgba(126,77,217,0.12);
+  border: 1px solid rgba(139,92,246,0.12);
   border-radius: var(--radius);
   font-size: 0.82rem;
   color: var(--muted);
@@ -61,7 +61,7 @@
 }
 .cab-tab-btn:hover { color: var(--text); }
 .cab-tab-btn.active {
-  color: #fff;
+  color: var(--text);
   border-bottom-color: var(--accent2);
 }
 
@@ -124,14 +124,14 @@
 }
 .alert-info {
   background: var(--gold-glow);
-  border: 1px solid rgba(126,77,217,0.25);
+  border: 1px solid rgba(139,92,246,0.25);
   color: var(--gold);
 }
 
 .cab-card {
   width: 100%;
   background: var(--surface);
-  border: 1px solid rgba(126,77,217,0.14);
+  border: 1px solid rgba(139,92,246,0.14);
   border-radius: var(--radius);
   padding: 36px 40px;
 }
@@ -148,7 +148,7 @@
   height: 80px;
   border-radius: 50%;
   background: var(--surface2);
-  border: 2px solid rgba(126,77,217,0.2);
+  border: 2px solid rgba(139,92,246,0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,7 +171,7 @@
 .spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(126,77,217,0.2);
+  border: 3px solid rgba(139,92,246,0.2);
   border-top-color: var(--gold);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -195,7 +195,7 @@
   height: 88px;
   border-radius: 50%;
   background: var(--surface2);
-  border: 2px solid rgba(126,77,217,0.2);
+  border: 2px solid rgba(139,92,246,0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,7 +223,7 @@
 .link-screen-input {
   flex: 1;
   background: var(--surface2);
-  border: 1px solid rgba(126,77,217,0.18);
+  border: 1px solid rgba(139,92,246,0.18);
   border-radius: var(--radius);
   padding: 13px 18px;
   color: var(--text);
@@ -283,7 +283,7 @@
   padding: 24px;
   color: var(--muted);
   font-size: 0.8rem;
-  border: 1px dashed rgba(126,77,217,0.12);
+  border: 1px dashed rgba(139,92,246,0.12);
   border-radius: var(--radius);
 }
 

@@ -94,7 +94,7 @@
 }
 
 .cp-desc {
-  color: #fff;
+  color: var(--text);
   font-size: 13px;
   margin-bottom: 8px;
   line-height: 1.5;
@@ -209,7 +209,7 @@
 .cp-info-block-delete:hover { opacity: 1; }
 .cp-info-block-edit-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.7; }
 .cp-info-block-edit-btn:hover { opacity: 1; }
-.cp-info-block-edit textarea { width: 100%; background: #111; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 8px; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+.cp-info-block-edit textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; }
 .cp-info-block-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .cp-role-icon {
@@ -346,8 +346,8 @@
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: #111;
-  color: #fff;
+  background: var(--surface2);
+  color: var(--text);
   font-size: 13px;
   font-family: 'Manrope', sans-serif;
   margin-bottom: 10px;
@@ -453,7 +453,7 @@
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface);
-  color: #fff;
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
   font-size: 13px;
@@ -512,7 +512,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
 }
-.cp-image-item.new { border-color: rgba(126, 77, 217, 0.27); }
+.cp-image-item.new { border-color: rgba(139, 92, 246, 0.27); }
 
 .cp-image-item img {
   width: 56px;
