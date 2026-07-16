@@ -9,12 +9,14 @@
 }
 
 .footer-logo {
-  font-family: 'Manrope', sans-serif;
-  font-weight: 900;
-  font-size: 13px;
-  color: var(--accent);
+  display: flex;
+  align-items: center;
 }
-.footer-logo span { color: var(--muted); }
+.footer-logo img {
+  height: 34px;
+  width: auto;
+  display: block;
+}
 
 .footer-links {
   display: flex;

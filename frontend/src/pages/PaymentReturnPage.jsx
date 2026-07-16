@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { apiFetch } from '../api'
-import './AccessPage.css'
 
 const TERMINAL_STATUSES = ['paid', 'canceled', 'failed', 'refunded']
 const POLL_INTERVAL_MS = 2000

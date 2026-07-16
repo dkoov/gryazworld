@@ -45,10 +45,12 @@ export default function WikiPage() {
   const components = makeComponents(setActive)
 
   return (
-    <section className="section">
-      <div className="section-label">Wiki</div>
-      <div className="section-title">База знаний</div>
-      <p className="section-sub">Всё о механиках и особенностях сервера Ichorix.</p>
+    <section className="section wiki-section">
+      <div className="wiki-header">
+        <div className="section-label">Wiki</div>
+        <h1 className="wiki-title">База знаний</h1>
+        <p className="wiki-lead">Всё о механиках и особенностях сервера Ichorix.</p>
+      </div>
 
       <div className="wiki-layout">
         <div className="wiki-sidebar">

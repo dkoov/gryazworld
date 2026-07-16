@@ -74,8 +74,8 @@ function HeroContent() {
         className="home-hero-actions"
       >
         {/* TODO: уточнить у команды правильный URL (возможно Discord-инвайт) */}
-        <NavLink to="/access" className="home-btn home-btn-outline home-btn-lg">
-          Подать заявку
+        <NavLink to="/shop" className="home-btn home-btn-outline home-btn-lg">
+          Купить проходку
         </NavLink>
         <NavLink to="/wiki" className="home-btn home-btn-ghost home-btn-lg">
           Вики
@@ -245,7 +245,7 @@ function TallCard() {
           </span>
         </div>
         {/* TODO: уточнить у команды правильный URL (возможно Discord-инвайт) */}
-        <NavLink to="/access" className="home-btn home-btn-outline home-btn-sm">
+        <NavLink to="/shop" className="home-btn home-btn-outline home-btn-sm">
           Играть сейчас
         </NavLink>
       </div>
@@ -289,7 +289,7 @@ const steps = [
     title: 'Подай заявку',
     description:
       'Заполни зявку в нашем Discord или купи проходку - это помогает нам отсеивать гриферов и делать классный сервер!',
-    actions: [{ type: 'link', label: 'Подать заявку', to: '/access', variant: 'outline' }],
+    actions: [{ type: 'link', label: 'Купить проходку', to: '/shop', variant: 'outline' }],
   },
   {
     icon: CheckCircle,
@@ -444,7 +444,7 @@ function CtaSection() {
             <NavLink to="/wiki" className="home-btn home-btn-primary home-btn-md">
               Читать вики
             </NavLink>
-            <NavLink to="/access" className="home-btn home-btn-outline home-btn-md">
+            <NavLink to="/shop" className="home-btn home-btn-outline home-btn-md">
               Купить проходку
             </NavLink>
           </motion.div>
@@ -605,7 +605,7 @@ function FaqSection() {
             </span>
           </div>
 
-          <NavLink to="/access" className="home-btn home-btn-primary home-btn-md">
+          <NavLink to="/shop" className="home-btn home-btn-primary home-btn-md">
             Купить проходку
           </NavLink>
         </motion.div>

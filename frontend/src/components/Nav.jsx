@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
@@ -18,7 +18,6 @@ function applyTheme(theme) {
 export default function Nav() {
   const navigate = useNavigate()
   const [user, setUser] = useState(getDiscordUser())
-  const [online, setOnline] = useState(0)
   const [mcNick, setMcNick] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -39,17 +38,6 @@ export default function Nav() {
       .then(p => { if (p.nickname) setMcNick(p.nickname) })
       .catch(() => {})
   }, [user])
-
-  useEffect(() => {
-    const load = () => {
-      apiFetch('/web/server-stats')
-        .then(d => setOnline(d.online))
-        .catch(() => {})
-    }
-    load()
-    const id = setInterval(load, 30000)
-    return () => clearInterval(id)
-  }, [])
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -76,14 +64,13 @@ export default function Nav() {
   return (
     <>
     <nav className="nav">
-      <div className="nav-logo" onClick={() => navigate('/')}>
-        Ich<span>orix</span>
-      </div>
+      <Link to="/" className="nav-logo">
+        <img src="/logo-circle.png" alt="Ichorix" />
+      </Link>
 
       {/* Десктоп ссылки */}
       <ul className="nav-links">
         <li><NavLink to="/">Главная</NavLink></li>
-        <li><NavLink to="/access">Проходка</NavLink></li>
         <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
@@ -95,11 +82,6 @@ export default function Nav() {
 
       {/* Десктоп правая часть */}
       <div className="nav-right">
-        <div className="status-pill">
-          <span className="status-dot" />
-          <span>{online} онлайн</span>
-        </div>
-
         {user && (
           <>
             <button className="nav-icon-btn" title="Банк" onClick={() => goCabinetTab('bank')}>
@@ -179,7 +161,6 @@ export default function Nav() {
               </li>
             )}
             <li><NavLink to="/">Главная</NavLink></li>
-            <li><NavLink to="/access">Проходка</NavLink></li>
             <li><NavLink to="/shop">Магазин</NavLink></li>
             <li><NavLink to="/wiki">Wiki</NavLink></li>
             <li><NavLink to="/stats">Статистика</NavLink></li>

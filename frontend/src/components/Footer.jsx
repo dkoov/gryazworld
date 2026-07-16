@@ -4,9 +4,11 @@ import './Footer.css'
 export default function Footer() {
   return (
     <footer className="footer">
-      <div className="footer-logo">Ich<span>orix</span></div>
+      <Link to="/" className="footer-logo">
+        <img src="/logo-circle.png" alt="Ichorix" />
+      </Link>
       <div className="footer-links">
-        <Link to="/access">Проходка</Link>
+        <Link to="/shop">Магазин</Link>
         <Link to="/wiki">Wiki</Link>
         <Link to="/stats">Статистика</Link>
         {/* HIDDEN: до решения команды

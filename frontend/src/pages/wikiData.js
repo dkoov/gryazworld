@@ -27,7 +27,7 @@ export const articles = [
     "id": "start",
     "category": "general",
     "title": "Начать играть",
-    "content": "## Как начать игру?\n\nЧтобы попасть на сервер:\n\n1. Подай заявку через Discord — модерация рассмотрит в течение 24 часов\n2. Или купи проходку [на сайте](/access) — доступ выдаётся автоматически\n\nПосле получения доступа заходи на **play.ichorix.cc**\n\n**Если у вас возникнут какие-либо проблемы или вопросы, не стесняйтесь обращаться в нашу поддержку через [Discord](https://icho.wtf). Мы всегда готовы помочь вам начать играть и наслаждаться нашим сервером!**"
+    "content": "## Как начать игру?\n\nЧтобы попасть на сервер:\n\n1. Подай заявку через Discord — модерация рассмотрит в течение 24 часов\n2. Или купи проходку [на сайте](/shop) — доступ выдаётся автоматически\n\nПосле получения доступа заходи на **play.ichorix.cc**\n\n**Если у вас возникнут какие-либо проблемы или вопросы, не стесняйтесь обращаться в нашу поддержку через [Discord](https://icho.wtf). Мы всегда готовы помочь вам начать играть и наслаждаться нашим сервером!**"
   },
   {
     "id": "commands",
@@ -57,7 +57,7 @@ export const articles = [
     "id": "mechanics/voice",
     "category": "mechanics",
     "title": "Голосовой чат",
-    "content": "На нашем сервере есть механика голосового чата с помощью мода [PlasmoVoice](https://modrinth.com/plugin/plasmo-voice). Вы можете общаться с другими игроками, используя микрофон, и слышать их голоса в реальном времени.\n\n## Значение HUD иконок\n\n![](https://raw.githubusercontent.com/ichorixcc/wiki/refs/heads/main/assets/images/voice/1.png)\n\n## Значение иконок над игроками\n\n![](https://raw.githubusercontent.com/ichorixcc/wiki/refs/heads/main/assets/images/voice/2.png)\n\n## Создание дисков с музыкой\n\nВы можете создавать музыкальные диски и слушать музыку с них, если у вас есть мод.\n\nПодробности о создании дисков с музыкой вы можете найти в [Диски](https://wiki.ichorix.cc/mechanics/dics)"
+    "content": "На нашем сервере есть механика голосового чата с помощью мода [PlasmoVoice](https://modrinth.com/plugin/plasmo-voice). Вы можете общаться с другими игроками, используя микрофон, и слышать их голоса в реальном времени.\n\n## Значение HUD иконок\n\n![](https://raw.githubusercontent.com/ichorixcc/wiki/refs/heads/main/assets/images/voice/1.png)\n\n## Значение иконок над игроками\n\n![](https://raw.githubusercontent.com/ichorixcc/wiki/refs/heads/main/assets/images/voice/2.png)\n\n## Создание дисков с музыкой\n\nВы можете создавать музыкальные диски и слушать музыку с них, если у вас есть мод.\n\nПодробности о создании дисков с музыкой вы можете найти в [Диски](/wiki/mechanics/dics)"
   },
   {
     "id": "mechanics/dics",
