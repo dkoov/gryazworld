@@ -4,6 +4,7 @@ import { registerCommands } from "../handlers/CommandHandler";
 import { sendApplicationMessage } from "../modules/application/applicationMessage";
 import { sendSupportMessage } from "../modules/support/supportMessage";
 import { sendStaffMessage } from "../modules/staff/staffMessage";
+import { sendCourtMessage } from "../modules/court/courtMessage";
 
 const event: Event<"clientReady"> = {
   name: "clientReady",
@@ -43,6 +44,7 @@ const event: Event<"clientReady"> = {
     await sendApplicationMessage(client);
     await sendSupportMessage(client);
     await sendStaffMessage(client);
+    await sendCourtMessage(client);
   },
 };
 
