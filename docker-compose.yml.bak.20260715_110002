@@ -1,0 +1,50 @@
+services:
+  backend:
+    build: ./backend
+    container_name: gryazworld-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/serverpanel.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  discord-bot:
+    build: ./discord-bot
+    container_name: gryazworld-bot
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./discord-bot/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: gryazworld-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  discord-bot-main:
+    image: gryazworld-discord-bot-main
+    container_name: ichorix-bot-main
+    restart: unless-stopped
+    env_file:
+      - ./discord-bot-main/.env
+    depends_on:
+      backend:
+        condition: service_healthy

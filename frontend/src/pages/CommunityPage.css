@@ -87,7 +87,7 @@
 }
 
 .cp-title {
-  font-family: 'Unbounded', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-weight: 700;
   font-size: 24px;
   margin: 0 0 6px;
@@ -225,7 +225,7 @@
   border: none;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
 }
 
 /* ─── Panels (right column) ───────────────────────────────────────────────── */
@@ -256,7 +256,7 @@
   color: var(--text);
   cursor: pointer;
   font-size: 13px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   width: 100%;
   margin-bottom: 6px;
   transition: background 0.2s;
@@ -349,7 +349,7 @@
   background: #111;
   color: #fff;
   font-size: 13px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   margin-bottom: 10px;
   outline: none;
   box-sizing: border-box;
@@ -411,7 +411,7 @@
   color: var(--text);
   cursor: pointer;
   font-size: 14px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   transition: background 0.2s, border-color 0.2s;
 }
 .cp-join-btn:hover { background: var(--surface2); border-color: var(--accent); }
@@ -457,7 +457,7 @@
   cursor: pointer;
   white-space: nowrap;
   font-size: 13px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   transition: background 0.2s;
 }
 .cp-upload-btn:hover { background: var(--surface2); }
@@ -477,7 +477,7 @@
   color: #e05c5c;
   cursor: pointer;
   font-size: 14px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   transition: background 0.2s;
 }
 .cp-delete-btn:hover { background: rgba(224, 92, 92, 0.1); }
@@ -560,7 +560,7 @@
   border: 1px solid var(--border2);
   color: var(--text);
   padding: 11px 14px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;

@@ -1,28 +1,44 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0F0F13;
-  --surface: #16161D;
-  --surface2: #252533;
-  --surface3: #2f2f3f;
-  --border: #2a2a36;
-  --border2: #38384a;
-  --text: #ffffff;
-  --muted: #8F8F94;
-  --muted2: #5f5f6a;
-  --accent: #7E4DD9;
-  --accent2: #9B6FE8;
-  --green: #4a7c59;
-  --green2: #6bbc88;
+  --bg: #0a0912;
+  --surface: #121019;
+  --surface2: #171420;
+  --surface3: #1f1b2c;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e9e7f0;
+  --muted: #9b93ab;
+  --muted2: #6d6679;
+  --accent: #8b5cf6;
+  --accent2: #a78bfa;
+  --pink: #f0abfc;
+  --green: #22c55e;
+  --green2: #4ade80;
   --discord: #5865F2;
-  --danger: #c84b4b;
-  --danger-bg: rgba(200,75,75,0.12);
-  --warn-clr: #c89a4b;
-  --warn-bg: rgba(200,154,75,0.12);
-  --gold: #7E4DD9;
-  --gold-dim: #5e38a8;
-  --gold-glow: rgba(126,77,217,0.18);
-  --radius: 10px;
+  --danger: #f87171;
+  --danger-bg: rgba(248,113,113,0.12);
+  --warn-clr: #fb923c;
+  --warn-bg: rgba(251,146,60,0.12);
+  --gold: #a78bfa;
+  --gold-dim: #6d28d9;
+  --gold-glow: rgba(139,92,246,0.18);
+  --radius: 12px;
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f5fa;
+  --surface: #ffffff;
+  --surface2: #f0eef7;
+  --surface3: #e7e3f3;
+  --border: rgba(20,10,40,0.08);
+  --border2: rgba(20,10,40,0.14);
+  --text: #1c1730;
+  --muted: #6b6478;
+  --muted2: #948d9f;
+  --danger-bg: rgba(248,113,113,0.1);
+  --warn-bg: rgba(251,146,60,0.1);
+  --gold-glow: rgba(139,92,246,0.12);
 }
 
 html { scroll-behavior: smooth; }
@@ -30,10 +46,11 @@ html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   font-size: 14px;
   line-height: 1.7;
   overflow-x: hidden;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 body::before {
@@ -45,6 +62,7 @@ body::before {
   z-index: 9999;
   opacity: 0.4;
 }
+:root[data-theme="light"] body::before { opacity: 0.15; }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -66,6 +84,25 @@ a { color: inherit; text-decoration: none; }
   to { transform: rotate(360deg); }
 }
 
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.page-fade {
+  animation: pageIn 0.4s ease;
+}
+
 /* ============================================ */
 /* Восстановленные общие классы после порта Ichorix homepage */
 /* Использовались на страницах: AccessPage, ShopPage, WikiPage, StatsPage и др. */
@@ -77,12 +114,13 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent2);
   margin-bottom: 10px;
 }
 .section-title {
-  font-family: 'Unbounded', sans-serif;
-  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   font-size: clamp(22px, 3.5vw, 38px);
   line-height: 1.1;
   color: var(--text);

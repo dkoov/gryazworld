@@ -1,8 +1,19 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
 import './Nav.css'
+
+const THEME_KEY = 'ichorix_theme'
+
+function getTheme() {
+  return localStorage.getItem(THEME_KEY) || 'dark'
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem(THEME_KEY, theme)
+}
 
 export default function Nav() {
   const navigate = useNavigate()
@@ -10,6 +21,11 @@ export default function Nav() {
   const [online, setOnline] = useState(0)
   const [mcNick, setMcNick] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [theme, setTheme] = useState(getTheme())
+  const menuRef = useRef(null)
+
+  useEffect(() => { applyTheme(theme) }, [theme])
 
   useEffect(() => {
     const handler = () => setUser(getDiscordUser())
@@ -35,12 +51,26 @@ export default function Nav() {
     return () => clearInterval(id)
   }, [])
 
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setUserMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
   function logout() {
     clearSessionToken()
     clearDiscordUser()
     setUser(null)
     setMcNick(null)
+    setUserMenuOpen(false)
     window.dispatchEvent(new Event('auth-change'))
+  }
+
+  function goCabinetTab(tab) {
+    setUserMenuOpen(false)
+    navigate(tab ? `/cabinet?tab=${tab}` : '/cabinet')
   }
 
   return (
@@ -70,13 +100,49 @@ export default function Nav() {
           <span>{online} онлайн</span>
         </div>
 
+        {user && (
+          <>
+            <button className="nav-icon-btn" title="Банк" onClick={() => goCabinetTab('bank')}>
+              <span className="nav-icon nav-icon-bank" />
+            </button>
+            <button className="nav-icon-btn" title="Сообщения" onClick={() => goCabinetTab('messenger')}>
+              <span className="nav-icon nav-icon-msg" />
+            </button>
+            <button className="nav-icon-btn" title="Общины" onClick={() => goCabinetTab('communities')}>
+              <span className="nav-icon nav-icon-communities" />
+            </button>
+          </>
+        )}
+
         {user ? (
-          <div className="user-info">
-            <div className="user-link" onClick={() => navigate('/cabinet')}>
+          <div className="user-menu-wrap" ref={menuRef}>
+            <div className="user-link" onClick={() => setUserMenuOpen(o => !o)}>
               <img src={getAvatarUrl(user)} alt="" className="user-avatar" />
-              <span className="user-name">{mcNick || user.global_name || user.username}</span>
+              <span className={`user-chevron ${userMenuOpen ? 'open' : ''}`}>▾</span>
             </div>
-            <button className="btn btn-ghost" onClick={logout}>Выйти</button>
+
+            {userMenuOpen && (
+              <div className="user-dropdown">
+                <div className="user-dropdown-head">
+                  <img src={getAvatarUrl(user)} alt="" className="user-dropdown-avatar" />
+                  <div>
+                    <div className="user-dropdown-name">{mcNick || user.global_name || user.username}</div>
+                    <div className="user-dropdown-link" onClick={() => goCabinetTab()}>Открыть профиль →</div>
+                  </div>
+                </div>
+                <div className="user-dropdown-row">
+                  <span>Тёмная тема</span>
+                  <div
+                    className={`theme-switch ${theme === 'dark' ? 'on' : ''}`}
+                    onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+                  >
+                    <div className="theme-switch-thumb" />
+                  </div>
+                </div>
+                <div className="user-dropdown-item" onClick={() => navigate('/shop')}>Магазин</div>
+                <div className="user-dropdown-item danger" onClick={logout}>Выйти из аккаунта</div>
+              </div>
+            )}
           </div>
         ) : (
           <button className="btn btn-discord" onClick={() => navigate('/cabinet')}>

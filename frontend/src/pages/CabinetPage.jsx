@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   apiFetch,
   getDiscordUser,
@@ -15,10 +15,20 @@ import {
 } from '../api'
 import DiscordIcon from '../components/DiscordIcon'
 import PlayerProfileView from '../components/PlayerProfileView'
+import BankTab from '../components/BankTab'
 import './CabinetPage.css'
+
+const TABS = [
+  { key: 'profile', label: 'Профиль' },
+  { key: 'bank', label: 'Банк' },
+  { key: 'messenger', label: 'Мессенджер' },
+  { key: 'communities', label: 'Общины' },
+]
 
 export default function CabinetPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = TABS.some(t => t.key === searchParams.get('tab')) ? searchParams.get('tab') : 'profile'
   const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
   const [account, setAccount] = useState(null) // /web/me: balance, fines, linked
@@ -248,51 +258,87 @@ export default function CabinetPage() {
         </div>
       )}
 
-      {/* Profile screen — тот же вид, что и публичный /player/:nickname */}
+      {/* Profile screen — вкладки: Профиль / Банк / Мессенджер / Общины */}
       {screen === 'profile' && user && richProfile && (
-        <>
-          <PlayerProfileView
-            profile={richProfile}
-            isSelf={true}
-            extraActions={
-              <div className="cab-extra">
-                <div className="cab-extra-row">
-                  <span>Баланс</span>
-                  <strong>{Math.round(account?.balance ?? 0)} алм.</strong>
-                </div>
-                <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
-              </div>
-            }
-          />
+        <div className="cab-tabs-wrap">
+          <div className="cab-tabs">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                className={`cab-tab-btn ${activeTab === t.key ? 'active' : ''}`}
+                onClick={() => setSearchParams(t.key === 'profile' ? {} : { tab: t.key })}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-          {account?.active_fines?.length > 0 && (
-            <div className="pv-card cab-fines-card">
-              <div className="pv-section-title">Активные штрафы</div>
-              <div className="fines-list">
-                {account.active_fines.map(f => (
-                  <div key={f.id} className="fine-item">
-                    <div className="fine-main">
-                      <div className="fine-reason">{f.reason}</div>
-                      <div className="fine-meta">
-                        {f.deadline ? (() => {
-                          const diff = new Date(f.deadline) - new Date()
-                          if (diff <= 0) return 'Срок истёк'
-                          const hours = Math.floor(diff / 1000 / 60 / 60)
-                          const minutes = Math.floor((diff / 1000 / 60) % 60)
-                          return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
-                        })() : 'Без срока'}
-                      </div>
+          {activeTab === 'profile' && (
+            <>
+              <PlayerProfileView
+                profile={richProfile}
+                isSelf={true}
+                extraActions={
+                  <div className="cab-extra">
+                    <div className="cab-extra-row">
+                      <span>Баланс</span>
+                      <strong>{Math.round(account?.balance ?? 0)} алм.</strong>
                     </div>
-                    <div className="fine-right">
-                      <div className="fine-amount">{f.amount} алмазов</div>
-                      <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
-                    </div>
+                    <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
                   </div>
-                ))}
-              </div>
+                }
+              />
+
+              {account?.active_fines?.length > 0 && (
+                <div className="pv-card cab-fines-card">
+                  <div className="pv-section-title">Активные штрафы</div>
+                  <div className="fines-list">
+                    {account.active_fines.map(f => (
+                      <div key={f.id} className="fine-item">
+                        <div className="fine-main">
+                          <div className="fine-reason">{f.reason}</div>
+                          <div className="fine-meta">
+                            {f.deadline ? (() => {
+                              const diff = new Date(f.deadline) - new Date()
+                              if (diff <= 0) return 'Срок истёк'
+                              const hours = Math.floor(diff / 1000 / 60 / 60)
+                              const minutes = Math.floor((diff / 1000 / 60) % 60)
+                              return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
+                            })() : 'Без срока'}
+                          </div>
+                        </div>
+                        <div className="fine-right">
+                          <div className="fine-amount">{f.amount} алмазов</div>
+                          <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'bank' && (
+            <div className="cab-tab-content">
+              <BankTab nickname={richProfile.nickname} />
             </div>
           )}
-        </>
+
+          {activeTab === 'messenger' && (
+            <div className="cab-tab-content cab-stub">
+              <div className="cab-stub-title">Мессенджер скоро появится</div>
+              <div className="cab-stub-desc">Прямые сообщения между игроками в разработке. Загляните позже.</div>
+            </div>
+          )}
+
+          {activeTab === 'communities' && (
+            <div className="cab-tab-content cab-stub">
+              <div className="cab-stub-title">Общины скоро появятся</div>
+              <div className="cab-stub-desc">Раздел общин пока в разработке.</div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

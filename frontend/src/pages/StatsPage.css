@@ -24,7 +24,7 @@
 }
 
 .server-info h2 {
-  font-family: 'Unbounded', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-weight: 700;
   font-size: 26px;
   color: var(--text);
@@ -39,7 +39,7 @@
 }
 .ip-text {
   padding: 10px 16px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   font-size: 13px;
   color: var(--text);
   background: var(--surface);
@@ -52,7 +52,7 @@
   border-left: 1px solid var(--border2);
   color: var(--muted);
   cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -79,7 +79,7 @@
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   transition: all 0.2s;
 }
 .stats-tabs button.active {
@@ -103,7 +103,7 @@
   border-radius: 8px;
 }
 .server-cell-name {
-  font-family: 'Unbounded', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-weight: 600;
   font-size: 14px;
   color: var(--muted);
@@ -114,7 +114,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   font-weight: 700;
   font-size: 22px;
   color: var(--text);
@@ -137,7 +137,7 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   transition: all 0.2s;
 }
 .server-tabs button.active {
@@ -153,7 +153,7 @@
   background: var(--surface);
   color: var(--text);
   font-size: 14px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Manrope', sans-serif;
   outline: none;
 }
 .stats-search:focus { border-color: var(--accent); }

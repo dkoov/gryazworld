@@ -9,7 +9,7 @@ import aiohttp
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -23,7 +23,7 @@ from auth import (
     issue_session_token,
     resolve_actor_discord_id,
 )
-from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily
+from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily, Transaction
 import charsystem_client
 
 
@@ -337,6 +337,118 @@ async def web_pay_fine(
     }))
 
     return {"status": "ok", "fine_id": fine.id, "balance": account.balance}
+
+
+# ─── Bank (веб-версия, для личного кабинета) ─────────────────────────────────
+
+async def _get_own_player_account(user: CurrentUser, db: AsyncSession):
+    player_result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
+    player = player_result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+    return player, account
+
+
+@router.get("/bank/me")
+async def bank_me(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    player, account = await _get_own_player_account(user, db)
+    return {"nickname": player.nickname, "balance": account.balance}
+
+
+@router.get("/bank/transactions")
+async def bank_transactions(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    player, _ = await _get_own_player_account(user, db)
+
+    tx_result = await db.execute(
+        select(Transaction)
+        .where(or_(Transaction.from_player_id == player.id, Transaction.to_player_id == player.id))
+        .order_by(Transaction.created_at.desc())
+        .limit(100)
+    )
+    txs = tx_result.scalars().all()
+
+    counterparty_ids = {t.from_player_id for t in txs} | {t.to_player_id for t in txs}
+    counterparty_ids.discard(None)
+    counterparty_ids.discard(player.id)
+    names = {}
+    if counterparty_ids:
+        players_result = await db.execute(select(Player).where(Player.id.in_(counterparty_ids)))
+        names = {p.id: p.nickname for p in players_result.scalars().all()}
+
+    result = []
+    for t in txs:
+        outgoing = t.from_player_id == player.id
+        counterparty_id = t.to_player_id if outgoing else t.from_player_id
+        result.append({
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "outgoing": outgoing,
+            "comment": t.comment,
+            "counterparty": names.get(counterparty_id) if counterparty_id else None,
+            "created_at": t.created_at.isoformat(),
+        })
+    return result
+
+
+class BankTransferRequest(BaseModel):
+    to_nickname: str
+    amount: float
+    comment: str = ""
+
+
+@router.post("/bank/transfer")
+async def bank_transfer(
+    data: BankTransferRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
+
+    from_player, from_account = await _get_own_player_account(user, db)
+
+    to_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.to_nickname.strip().lower())
+    )
+    to_player = to_result.scalar_one_or_none()
+    if not to_player:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if to_player.id == from_player.id:
+        raise HTTPException(status_code=400, detail="Нельзя перевести самому себе")
+
+    to_account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == to_player.id))
+    to_account = to_account_result.scalar_one_or_none()
+    if not to_account:
+        raise HTTPException(status_code=404, detail="У получателя нет счёта")
+
+    if from_account.balance < data.amount:
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
+
+    from_account.balance -= data.amount
+    to_account.balance += data.amount
+
+    tx = Transaction(
+        from_player_id=from_player.id,
+        to_player_id=to_player.id,
+        amount=data.amount,
+        type="transfer",
+        comment=data.comment,
+    )
+    db.add(tx)
+    await db.commit()
+
+    return {"status": "ok", "balance": from_account.balance}
 
 
 @router.get("/server-stats")
