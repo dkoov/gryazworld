@@ -7,6 +7,48 @@ function formatHours(seconds) {
   return (seconds / 3600).toFixed(1)
 }
 
+const DAY_MS = 86400000
+const MONTH_LABELS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
+
+function levelFor(seconds) {
+  if (!seconds) return 0
+  if (seconds < 30 * 60) return 1
+  if (seconds < 2 * 3600) return 2
+  if (seconds < 5 * 3600) return 3
+  return 4
+}
+
+function buildHeatmapWeeks(heatmap) {
+  const byDay = new Map(heatmap.map(h => [h.day, h.seconds]))
+  const today = new Date()
+  today.setUTCHours(0, 0, 0, 0)
+  const start = new Date(today.getTime() - 363 * DAY_MS)
+  // align to the previous Monday so weeks are full columns
+  const startDow = (start.getUTCDay() + 6) % 7
+  start.setTime(start.getTime() - startDow * DAY_MS)
+
+  const weeks = []
+  const monthMarks = []
+  let cursor = new Date(start)
+  let weekIdx = 0
+  let lastMonth = -1
+  while (cursor <= today) {
+    const week = []
+    for (let d = 0; d < 7; d++) {
+      const key = cursor.toISOString().slice(0, 10)
+      week.push({ day: key, seconds: byDay.get(key) || 0, future: cursor > today })
+      if (d === 0 && cursor.getUTCMonth() !== lastMonth) {
+        lastMonth = cursor.getUTCMonth()
+        monthMarks.push({ weekIdx, label: MONTH_LABELS[lastMonth] })
+      }
+      cursor = new Date(cursor.getTime() + DAY_MS)
+    }
+    weeks.push(week)
+    weekIdx++
+  }
+  return { weeks, monthMarks }
+}
+
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime()
   const day = 86400000
@@ -68,6 +110,8 @@ export default function PlayerProfilePage() {
   }
 
   const isSelf = me && profile.discord_id === me.id
+  const { weeks, monthMarks } = buildHeatmapWeeks(profile.heatmap || [])
+  const monthLabelByWeek = new Map(monthMarks.map(m => [m.weekIdx, m.label]))
 
   return (
     <section className="section pp-page">
@@ -89,9 +133,6 @@ export default function PlayerProfilePage() {
             {profile.is_online ? `На сервере (${profile.server})` : 'Не в сети'}
           </div>
           <div className="pp-badges">
-            {profile.subscription && (
-              <span className="pp-badge pp-badge-sub">IchoPlus активен</span>
-            )}
             {profile.discord_id && (
               <a
                 className="pp-badge pp-badge-discord"
@@ -116,6 +157,25 @@ export default function PlayerProfilePage() {
       </div>
 
       <div className="pp-card">
+        <div className="pp-section-title">Подписка</div>
+        <div className="pp-sub-row">
+          <div>
+            <div className="pp-sub-name">IchoPlus</div>
+            {profile.subscription ? (
+              <div className="pp-sub-status pp-sub-active">
+                Активна до {new Date(profile.subscription.expires_at).toLocaleDateString('ru-RU')}
+              </div>
+            ) : (
+              <div className="pp-sub-status">Не куплена</div>
+            )}
+          </div>
+          {!profile.subscription && isSelf && (
+            <a href="/shop" className="pp-sub-buy">Купить подписку</a>
+          )}
+        </div>
+      </div>
+
+      <div className="pp-card">
         <div className="pp-section-title">Статистика</div>
         <div className="pp-stats-grid">
           <div className="pp-stat">
@@ -133,6 +193,32 @@ export default function PlayerProfilePage() {
           <div className="pp-stat">
             <div className="pp-stat-label">Сегодня</div>
             <div className="pp-stat-value">{formatHours(profile.playtime_today)} ч.</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="pp-card">
+        <div className="pp-section-title">Активность за год</div>
+        <div className="pp-heatmap-scroll">
+          <div className="pp-heatmap">
+            <div className="pp-heatmap-months">
+              {weeks.map((_, wi) => (
+                <span key={wi} className="pp-heatmap-month-cell">{monthLabelByWeek.get(wi) || ''}</span>
+              ))}
+            </div>
+            <div className="pp-heatmap-grid">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="pp-heatmap-week">
+                  {week.map(d => (
+                    <div
+                      key={d.day}
+                      className={`pp-heatmap-cell ${d.future ? 'pp-heatmap-future' : `pp-lvl-${levelFor(d.seconds)}`}`}
+                      title={d.future ? '' : `${d.day}: ${(d.seconds / 3600).toFixed(1)} ч.`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

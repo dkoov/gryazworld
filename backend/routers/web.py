@@ -402,10 +402,12 @@ async def public_player_profile(
     week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
     month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
+    year_ago = (now - timedelta(days=364)).strftime("%Y-%m-%d")
     daily_result = await db.execute(
-        select(PlaytimeDaily).where(PlaytimeDaily.player_id == player.id)
+        select(PlaytimeDaily).where(PlaytimeDaily.player_id == player.id, PlaytimeDaily.day >= year_ago)
     )
     daily_rows = daily_result.scalars().all()
+    heatmap = [{"day": r.day, "seconds": r.seconds} for r in sorted(daily_rows, key=lambda r: r.day)]
 
     warns_result = await db.execute(
         select(Warn).where(Warn.player_id == player.id).order_by(Warn.created_at.desc())
@@ -464,6 +466,7 @@ async def public_player_profile(
         "playtime_today": _sum_seconds_since(daily_rows, today),
         "playtime_week": _sum_seconds_since(daily_rows, week_ago),
         "playtime_month": _sum_seconds_since(daily_rows, month_ago),
+        "heatmap": heatmap,
         "warns": [
             {
                 "reason": w.reason,
