@@ -1,0 +1,289 @@
+import { useState } from 'react'
+import './PlayerProfileView.css'
+
+const DAY_MS = 86400000
+const MONTH_LABELS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
+
+function formatHours(seconds) {
+  return (seconds / 3600).toFixed(1)
+}
+
+function levelFor(seconds) {
+  if (!seconds) return 0
+  if (seconds < 30 * 60) return 1
+  if (seconds < 2 * 3600) return 2
+  if (seconds < 5 * 3600) return 3
+  return 4
+}
+
+function buildHeatmapWeeks(heatmap) {
+  const byDay = new Map(heatmap.map(h => [h.day, h.seconds]))
+  const today = new Date()
+  today.setUTCHours(0, 0, 0, 0)
+  const start = new Date(today.getTime() - 363 * DAY_MS)
+  const startDow = (start.getUTCDay() + 6) % 7
+  start.setTime(start.getTime() - startDow * DAY_MS)
+
+  const weeks = []
+  const monthMarks = []
+  let cursor = new Date(start)
+  let weekIdx = 0
+  let lastMonth = -1
+  while (cursor <= today) {
+    const week = []
+    for (let d = 0; d < 7; d++) {
+      const key = cursor.toISOString().slice(0, 10)
+      week.push({ day: key, seconds: byDay.get(key) || 0, future: cursor > today })
+      if (d === 0 && cursor.getUTCMonth() !== lastMonth) {
+        lastMonth = cursor.getUTCMonth()
+        monthMarks.push({ weekIdx, label: MONTH_LABELS[lastMonth] })
+      }
+      cursor = new Date(cursor.getTime() + DAY_MS)
+    }
+    weeks.push(week)
+    weekIdx++
+  }
+  return { weeks, monthMarks }
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const day = 86400000
+  if (diff < day) return 'сегодня'
+  if (diff < 2 * day) return 'вчера'
+  const days = Math.floor(diff / day)
+  if (days < 30) return `${days} дн. назад`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} мес. назад`
+  const years = Math.floor(months / 12)
+  return `${years} г. назад`
+}
+
+/**
+ * Общий вид профиля игрока — используется и на публичной странице /player/:nickname,
+ * и в личном кабинете (там же данные из /web/me, но профиль строится идентично).
+ */
+export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions }) {
+  const [showAllChars, setShowAllChars] = useState(false)
+  const [showAllCommunities, setShowAllCommunities] = useState(false)
+
+  const characters = profile.characters
+  const shownChars = characters ? (showAllChars ? characters : characters.slice(0, 3)) : []
+  const communities = profile.communities || []
+  const shownCommunities = showAllCommunities ? communities : communities.slice(0, 2)
+
+  return (
+    <div className="pv-layout">
+      <aside className="pv-sidebar">
+        <div className="pv-avatar-card">
+          <img
+            className="pv-avatar-img"
+            src={`https://mc-heads.net/body/${encodeURIComponent(profile.nickname)}/300`}
+            alt={profile.nickname}
+          />
+        </div>
+
+        {!isSelf && profile.discord_id && (
+          <a
+            className="pv-message-btn"
+            href={`https://discord.com/users/${profile.discord_id}`}
+            target="_blank" rel="noreferrer"
+          >
+            Написать сообщение
+          </a>
+        )}
+
+        <div className="pv-social-list">
+          {profile.discord_id && (
+            <a className="pv-social-row pv-social-discord" href={`https://discord.com/users/${profile.discord_id}`} target="_blank" rel="noreferrer">
+              <span className="pv-social-icon">◆</span>
+              <span>{profile.nickname}</span>
+            </a>
+          )}
+          <div className="pv-social-row pv-social-inactive">
+            <span className="pv-social-icon">▲</span>
+            <span>Подключить ВКонтакте</span>
+          </div>
+          <div className="pv-social-row pv-social-inactive">
+            <span className="pv-social-icon">●</span>
+            <span>Подключить Twitch</span>
+          </div>
+        </div>
+
+        {extraActions}
+      </aside>
+
+      <main className="pv-main">
+        <div className="pv-header">
+          <div>
+            <div className="pv-name-row">
+              <span className={`pv-online-dot ${profile.is_online ? 'is-online' : ''}`} />
+              <h1 className="pv-name">{profile.nickname}</h1>
+            </div>
+            <div className="pv-status-text">
+              {profile.is_online ? `На сервере (${profile.server})` : 'Не в сети'}
+            </div>
+          </div>
+          {isSelf ? (
+            <div className="pv-likes-self">♥ {profile.likes_count}</div>
+          ) : (
+            <button className={`pv-like-btn ${profile.liked_by_me ? 'liked' : ''}`} disabled={liking} onClick={onToggleLike}>
+              {profile.liked_by_me ? '♥' : '♡'} {profile.likes_count}
+            </button>
+          )}
+        </div>
+
+        <div className="pv-role-row">
+          <span className="pv-role-badge">{profile.role_name || 'Игрок'}</span>
+        </div>
+
+        <div className="pv-card">
+          <div className="pv-section-title">Статистика</div>
+          <div className="pv-stats-grid">
+            <div className="pv-stat">
+              <div className="pv-stat-label">Наиграно</div>
+              <div className="pv-stat-value">{formatHours(profile.total_seconds)} ч.</div>
+            </div>
+            <div className="pv-stat">
+              <div className="pv-stat-label">Месяц</div>
+              <div className="pv-stat-value">{formatHours(profile.playtime_month)} ч.</div>
+            </div>
+            <div className="pv-stat">
+              <div className="pv-stat-label">Неделя</div>
+              <div className="pv-stat-value">{formatHours(profile.playtime_week)} ч.</div>
+            </div>
+            <div className="pv-stat">
+              <div className="pv-stat-label">Сегодня</div>
+              <div className="pv-stat-value">{formatHours(profile.playtime_today)} ч.</div>
+            </div>
+          </div>
+
+          <Heatmap heatmap={profile.heatmap || []} />
+        </div>
+
+        <div className="pv-card">
+          <div className="pv-sub-row">
+            <div>
+              <div className="pv-sub-name">IchoPlus</div>
+              {profile.subscription ? (
+                <div className="pv-sub-status pv-sub-active">
+                  Активна до {new Date(profile.subscription.expires_at).toLocaleDateString('ru-RU')}
+                </div>
+              ) : (
+                <div className="pv-sub-status">Не куплена</div>
+              )}
+            </div>
+            {!profile.subscription && isSelf && (
+              <a href="/shop" className="pv-sub-buy">Купить подписку</a>
+            )}
+          </div>
+        </div>
+
+        <div className="pv-card">
+          <div className="pv-section-title">Персонажи{characters ? ` (${characters.length})` : ''}</div>
+          {characters === null ? (
+            <div className="pv-empty-inline">Игровой сервер сейчас недоступен</div>
+          ) : characters.length === 0 ? (
+            <div className="pv-empty-inline">Персонажей нет</div>
+          ) : (
+            <>
+              <div className="pv-characters-list">
+                {shownChars.map(c => (
+                  <div key={c.char_id} className={`pv-character-row ${c.is_active ? 'is-active' : ''}`}>
+                    <span className="pv-character-idx">#{c.char_id}</span>
+                    <span className="pv-character-name">{c.name}</span>
+                    {c.is_active && <span className="pv-character-active">выбран</span>}
+                  </div>
+                ))}
+              </div>
+              {characters.length > 3 && (
+                <button className="pv-show-more" onClick={() => setShowAllChars(v => !v)}>
+                  {showAllChars ? 'Скрыть' : 'Показать больше...'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="pv-card">
+          <div className="pv-section-title">Предупреждения ({profile.warns.length})</div>
+          {profile.warns.length === 0 ? (
+            <div className="pv-empty-inline">Предупреждений нет</div>
+          ) : (
+            <div className="pv-warns-list">
+              {profile.warns.map((w, i) => (
+                <div key={i} className="pv-warn-row">
+                  <div className="pv-warn-reason">{w.reason}</div>
+                  <div className="pv-warn-meta">
+                    Выдал <span>{w.issued_by}</span> · {timeAgo(w.created_at)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="pv-card">
+          <div className="pv-section-title">Общины ({communities.length})</div>
+          {communities.length === 0 ? (
+            <div className="pv-empty-inline">Не состоит ни в одной общине</div>
+          ) : (
+            <>
+              <div className="pv-communities-list">
+                {shownCommunities.map(c => (
+                  <div key={c.id} className="pv-community-card">
+                    <div className="pv-community-info">
+                      <div className="pv-community-name">
+                        <span className="pv-community-icon">{c.icon}</span> {c.name}
+                      </div>
+                      {c.tag && <div className="pv-community-tagline">{c.tag}</div>}
+                      <div className="pv-community-meta">{c.member_count} участников</div>
+                      {c.discord_url && <div className="pv-community-meta">Есть Discord сервер</div>}
+                    </div>
+                    <div className="pv-community-accent" />
+                  </div>
+                ))}
+              </div>
+              {communities.length > 2 && (
+                <button className="pv-show-more" onClick={() => setShowAllCommunities(v => !v)}>
+                  {showAllCommunities ? 'Скрыть' : 'Показать больше...'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function Heatmap({ heatmap }) {
+  const { weeks, monthMarks } = buildHeatmapWeeks(heatmap)
+  const monthLabelByWeek = new Map(monthMarks.map(m => [m.weekIdx, m.label]))
+  return (
+    <div className="pv-heatmap-block">
+      <div className="pv-heatmap-scroll">
+        <div className="pv-heatmap">
+          <div className="pv-heatmap-months">
+            {weeks.map((_, wi) => (
+              <span key={wi} className="pv-heatmap-month-cell">{monthLabelByWeek.get(wi) || ''}</span>
+            ))}
+          </div>
+          <div className="pv-heatmap-grid">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="pv-heatmap-week">
+                {week.map(d => (
+                  <div
+                    key={d.day}
+                    className={`pv-heatmap-cell ${d.future ? 'pv-heatmap-future' : `pv-lvl-${levelFor(d.seconds)}`}`}
+                    title={d.future ? '' : `${d.day}: ${(d.seconds / 3600).toFixed(1)} ч.`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

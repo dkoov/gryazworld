@@ -454,8 +454,12 @@ async def public_player_profile(
         liked_by_me = my_like.scalar_one_or_none() is not None
 
     characters = None
-    if player.uuid and not player.uuid.startswith("web-"):
-        characters = await charsystem_client.get_characters(player.uuid)
+    role_name = None
+    if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
+        meta = await charsystem_client.get_player_meta(player.uuid)
+        if meta is not None:
+            characters = meta["characters"]
+            role_name = meta["role_name"]
 
     return {
         "nickname": player.nickname,
@@ -478,6 +482,7 @@ async def public_player_profile(
         "subscription": {"sku": active_sub.sku, "expires_at": active_sub.expires_at.isoformat()} if active_sub else None,
         "communities": communities_list,
         "characters": characters,
+        "role_name": role_name,
         "likes_count": likes_count,
         "liked_by_me": liked_by_me,
         "discord_id": player.discord_id,

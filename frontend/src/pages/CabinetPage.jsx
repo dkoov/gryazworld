@@ -5,7 +5,6 @@ import {
   getDiscordUser,
   setDiscordUser,
   clearDiscordUser,
-  getAvatarUrl,
   setSessionToken,
   clearSessionToken,
   parseOauthState,
@@ -15,31 +14,19 @@ import {
   redirectToDiscordOauth,
 } from '../api'
 import DiscordIcon from '../components/DiscordIcon'
+import PlayerProfileView from '../components/PlayerProfileView'
 import './CabinetPage.css'
 
 export default function CabinetPage() {
   const navigate = useNavigate()
   const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const [account, setAccount] = useState(null) // /web/me: balance, fines, linked
+  const [richProfile, setRichProfile] = useState(null) // /web/player/{nick}: shared view data
   const [alerts, setAlerts] = useState([])
   const [linkNick, setLinkNick] = useState('')
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState('')
-  const [heatmap, setHeatmap] = useState([])
-
-  // TODO: подтягивать реальные данные активности с бэка (эндпоинт пока не готов)
-  useEffect(() => {
-    const weeks = []
-    for (let w = 0; w < 52; w++) {
-      const days = []
-      for (let d = 0; d < 7; d++) {
-        days.push(Math.floor(Math.random() * 5)) // 0..4
-      }
-      weeks.push(days)
-    }
-    setHeatmap(weeks)
-  }, [])
 
   function addAlert(msg, type = 'error') {
     const id = Date.now()
@@ -54,8 +41,22 @@ export default function CabinetPage() {
     })
   }
 
-  async function loadProfile() {
+  async function loadAccount() {
     return apiFetch('/web/me')
+  }
+
+  async function loadRichProfile(nickname) {
+    return apiFetch(`/web/player/${encodeURIComponent(nickname)}`)
+  }
+
+  async function loadEverything() {
+    const acc = await loadAccount()
+    setAccount(acc)
+    if (acc.linked) {
+      const rich = await loadRichProfile(acc.nickname)
+      setRichProfile(rich)
+    }
+    return acc
   }
 
   useEffect(() => {
@@ -79,7 +80,6 @@ export default function CabinetPage() {
         try {
           const res = await exchangeCode(code)
           setSessionToken(res.token)
-          // user-объект для UI (avatar, global_name) — без чувствительных полей.
           const u = {
             id: res.id,
             username: res.username,
@@ -91,9 +91,8 @@ export default function CabinetPage() {
           clearOauthInFlight()
           window.dispatchEvent(new Event('auth-change'))
 
-          const p = await loadProfile()
-          setProfile(p)
-          setScreen(p.linked ? 'profile' : 'link')
+          const acc = await loadEverything()
+          setScreen(acc.linked ? 'profile' : 'link')
 
           const returnTo = parsed.r
           if (returnTo && returnTo !== '/cabinet' && returnTo.startsWith('/')) {
@@ -107,8 +106,6 @@ export default function CabinetPage() {
         return
       }
 
-      // Если apiFetch ранее словил 401 на другой странице — нас сюда редиректнули
-      // с pending_return_to. Запускаем OAuth и просим Discord вернуть на исходный URL.
       const pendingReturn = consumePendingReturn()
       const stored = getDiscordUser()
 
@@ -116,11 +113,9 @@ export default function CabinetPage() {
         setScreen('loading')
         try {
           setUser(stored)
-          const p = await loadProfile()
-          setProfile(p)
-          setScreen(p.linked ? 'profile' : 'link')
+          const acc = await loadEverything()
+          setScreen(acc.linked ? 'profile' : 'link')
         } catch (e) {
-          // 401 уже обработан в apiFetch (он сам редиректит). Сюда падают только не-401 ошибки.
           addAlert(e.message)
           setScreen('login')
         }
@@ -155,8 +150,7 @@ export default function CabinetPage() {
         body: JSON.stringify({ minecraft_nick: linkNick.trim() }),
       })
       addAlert('Аккаунт успешно привязан!', 'success')
-      const p = await loadProfile()
-      setProfile(p)
+      await loadEverything()
       setScreen('profile')
       window.dispatchEvent(new Event('auth-change'))
     } catch (e) {
@@ -170,7 +164,8 @@ export default function CabinetPage() {
     clearSessionToken()
     clearDiscordUser()
     setUser(null)
-    setProfile(null)
+    setAccount(null)
+    setRichProfile(null)
     setScreen('login')
     window.dispatchEvent(new Event('auth-change'))
     addAlert('Вы вышли из аккаунта', 'info')
@@ -182,15 +177,8 @@ export default function CabinetPage() {
         method: 'POST',
         body: JSON.stringify({ fine_id: fineId }),
       })
-      const p = await loadProfile()
-      setProfile(p)
+      await loadEverything()
     } catch (e) { alert(e.message) }
-  }
-
-  function escHtml(s) {
-    const div = document.createElement('div')
-    div.textContent = s
-    return div.innerHTML
   }
 
   return (
@@ -260,155 +248,51 @@ export default function CabinetPage() {
         </div>
       )}
 
-      {/* Profile screen */}
-      {screen === 'profile' && user && (
-        <div className="cab-card cab-profile">
-          {/* Discord header */}
-          <div className="profile-header">
-            <div className="avatar-wrap">
-              <img src={getAvatarUrl(user)} alt="Avatar" />
-              <div className="discord-badge">
-                <DiscordIcon size={12} />
-              </div>
-            </div>
-            <div className="profile-meta">
-              <div className="profile-name">{user.global_name || user.username}</div>
-              <div className="profile-tag">Discord ID: <span>{user.id}</span></div>
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          {/* Ichorix header: 3D skin + role/subscription badges */}
-          <div className="cab-header">
-            <div className="cab-skin-box">
-              <iframe
-                className="cab-skin-frame"
-                title="Minecraft skin"
-                src={`https://vzge.me/embed/full/${(profile && profile.nickname) ? encodeURIComponent(profile.nickname) : 'Steve'}`}
-                frameBorder="0"
-                style={{ width: 240, height: 480, background: 'transparent' }}
-              />
-            </div>
-            <div className="cab-header-info">
-              <div className="cab-header-name">
-                {(profile && profile.nickname) || user.username}
-              </div>
-              <div className="cab-badges">
-                <span className="cab-badge cab-badge-role">Игрок</span>
-                <span className="cab-badge cab-badge-sub">IchoPlus: Не куплен</span>
-              </div>
-              <div className="cab-header-discord">
-                <DiscordIcon size={16} color="#5865F2" />
-                <span>Discord ID: {user.id}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          {/* Stats block */}
-          {profile && profile.linked && (
-            <div className="block-stats">
-              <div className="cab-section-title">Профиль на сервере</div>
-              <div className="stats-grid-cab">
-                <div className="stat-card">
-                  <div className="stat-label">Minecraft ник</div>
-                  <div className="stat-value" style={{ fontSize: '0.95rem' }}>{profile.nickname}</div>
+      {/* Profile screen — тот же вид, что и публичный /player/:nickname */}
+      {screen === 'profile' && user && richProfile && (
+        <>
+          <PlayerProfileView
+            profile={richProfile}
+            isSelf={true}
+            extraActions={
+              <div className="cab-extra">
+                <div className="cab-extra-row">
+                  <span>Баланс</span>
+                  <strong>{Math.round(account?.balance ?? 0)} алм.</strong>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-label">Часов на сервере</div>
-                  <div className="stat-value">{profile.hours}</div>
-                  <div className="stat-sub">{profile.minutes} мин.</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Баланс</div>
-                  <div className="stat-value">{Math.round(profile.balance)}</div>
-                  <div className="stat-sub">алмазов</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Варны</div>
-                  <div className={`stat-value ${profile.warns >= 3 ? 'danger' : profile.warns >= 2 ? 'warn' : ''}`}>
-                    {profile.warns}
-                  </div>
-                  <div className="stat-sub">/ 3 до бана</div>
-                </div>
+                <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
               </div>
+            }
+          />
 
-              <div style={{ marginTop: 28 }}>
-                <div className="cab-section-title">Активные штрафы</div>
-                <div className="fines-list">
-                  {(!profile.active_fines || profile.active_fines.length === 0) ? (
-                    <div className="empty-state">Активных штрафов нет</div>
-                  ) : (
-                    profile.active_fines.map(f => (
-                      <div key={f.id} className="fine-item">
-                        <div className="fine-main">
-                          <div className="fine-reason">{f.reason}</div>
-                          <div className="fine-meta">
-                            {f.deadline ? (() => {
-                              const diff = new Date(f.deadline) - new Date()
-                              if (diff <= 0) return 'Срок истёк'
-                              const hours = Math.floor(diff / 1000 / 60 / 60)
-                              const minutes = Math.floor((diff / 1000 / 60) % 60)
-                              return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
-                            })() : 'Без срока'}
-                          </div>
-                        </div>
-                        <div className="fine-right">
-                          <div className="fine-amount">{f.amount} алмазов</div>
-                          <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
-                        </div>
+          {account?.active_fines?.length > 0 && (
+            <div className="pv-card cab-fines-card">
+              <div className="pv-section-title">Активные штрафы</div>
+              <div className="fines-list">
+                {account.active_fines.map(f => (
+                  <div key={f.id} className="fine-item">
+                    <div className="fine-main">
+                      <div className="fine-reason">{f.reason}</div>
+                      <div className="fine-meta">
+                        {f.deadline ? (() => {
+                          const diff = new Date(f.deadline) - new Date()
+                          if (diff <= 0) return 'Срок истёк'
+                          const hours = Math.floor(diff / 1000 / 60 / 60)
+                          const minutes = Math.floor((diff / 1000 / 60) % 60)
+                          return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
+                        })() : 'Без срока'}
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+                    <div className="fine-right">
+                      <div className="fine-amount">{f.amount} алмазов</div>
+                      <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-
-          <div className="divider" />
-
-          {/* Activity heatmap */}
-          <div className="cab-heatmap-block">
-            <div className="cab-section-title">Активность за год</div>
-            <div className="cab-heatmap-scroll">
-              <div className="cab-heatmap">
-                <div className="cab-heatmap-months">
-                  {['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'].map(m => (
-                    <span key={m} className="cab-heatmap-month">{m}</span>
-                  ))}
-                </div>
-                <div className="cab-heatmap-body">
-                  <div className="cab-heatmap-days">
-                    <span></span>
-                    <span>Пн</span>
-                    <span></span>
-                    <span>Ср</span>
-                    <span></span>
-                    <span>Пт</span>
-                    <span></span>
-                  </div>
-                  <div className="cab-heatmap-grid">
-                    {heatmap.map((week, wi) => (
-                      <div key={wi} className="cab-heatmap-week">
-                        {week.map((lvl, di) => (
-                          <div key={di} className={`cab-heatmap-cell cab-lvl-${lvl}`} />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          <div className="logout-row">
-            <button className="btn btn-danger" onClick={logout}>Выйти</button>
-          </div>
-        </div>
+        </>
       )}
     </div>
   )

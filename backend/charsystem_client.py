@@ -26,6 +26,12 @@ async def _connect() -> aiomysql.Connection:
 
 async def get_characters(uuid: str) -> Optional[list[dict]]:
     """Return this player's characters (name + char_id), or None if the game VPS is unreachable."""
+    meta = await get_player_meta(uuid)
+    return meta["characters"] if meta is not None else None
+
+
+async def get_player_meta(uuid: str) -> Optional[dict]:
+    """Return {characters, role_name} for a player, or None if the game VPS is unreachable."""
     try:
         conn = await _connect()
     except Exception as e:
@@ -40,17 +46,21 @@ async def get_characters(uuid: str) -> Optional[list[dict]]:
             )
             rows = await cur.fetchall()
             active_char = -1
+            role_name = None
             await cur.execute(
-                "SELECT active_char FROM cs_players WHERE uuid = %s",
+                "SELECT active_char, role_name FROM cs_players WHERE uuid = %s",
                 (uuid,),
             )
-            active_row = await cur.fetchone()
-            if active_row is not None:
-                active_char = active_row[0]
-        return [
-            {"char_id": r[0], "name": r[1], "is_active": r[0] == active_char}
-            for r in rows
-        ]
+            player_row = await cur.fetchone()
+            if player_row is not None:
+                active_char, role_name = player_row
+        return {
+            "characters": [
+                {"char_id": r[0], "name": r[1], "is_active": r[0] == active_char}
+                for r in rows
+            ],
+            "role_name": role_name,
+        }
     finally:
         conn.close()
 
