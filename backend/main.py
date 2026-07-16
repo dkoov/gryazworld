@@ -34,6 +34,8 @@ async def lifespan(app: FastAPI):
 
 
 ALLOWED_ORIGINS = [
+    "https://ichorix.cc",
+    "https://www.ichorix.cc",
     "https://gryazworld.ru",
     "http://gryazworld.ru",
     "http://localhost:5173",
