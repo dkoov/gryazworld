@@ -3,13 +3,13 @@
    ============================================================ */
 
 .home-root {
-  --home-bg: #0F0F13;
-  --home-card: #16161D;
-  --home-border: #252533;
-  --home-accent: #7E4DD9;
-  --home-accent-hover: #9B6FE8;
+  --home-bg: var(--bg);
+  --home-card: var(--surface);
+  --home-border: var(--surface2);
+  --home-accent: var(--accent);
+  --home-accent-hover: var(--accent2);
   --home-font-head: 'Manrope', sans-serif;
-  --home-font-body: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --home-font-body: 'Manrope', sans-serif;
 
   background-color: var(--home-bg);
   color: #fff;
