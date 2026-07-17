@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock } from 'lucide-react'
+import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock, Siren } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
@@ -82,6 +82,14 @@ export default function BankPage() {
 
   const [isIchoPlus, setIsIchoPlus] = useState(false)
 
+  const [canGiveFines, setCanGiveFines] = useState(false)
+  const [fineBusy, setFineBusy] = useState(false)
+  const [fineFormError, setFineFormError] = useState('')
+  const [fineNick, setFineNick] = useState('')
+  const [fineAmount, setFineAmount] = useState('')
+  const [fineReason, setFineReason] = useState('')
+  const [fineComment, setFineComment] = useState('')
+
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
   const [editImageUrl, setEditImageUrl] = useState('')
@@ -128,6 +136,9 @@ export default function BankPage() {
     apiFetch('/web/bank/permissions')
       .then(p => setIsIchoPlus(!!p.is_ichoplus))
       .catch(() => {})
+    apiFetch('/web/court/permissions')
+      .then(p => setCanGiveFines(!!p.can_review))
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -161,6 +172,37 @@ export default function BankPage() {
     setEditImageUrl(activeAccount.image_url || '')
     setModal('edit')
     setFormError('')
+  }
+
+  function openFine() {
+    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment('')
+    setFineFormError('')
+    setModal('fine')
+  }
+
+  async function submitFine() {
+    setFineFormError('')
+    const amt = Number(fineAmount)
+    if (!fineNick.trim()) { setFineFormError('Введи ник игрока'); return }
+    if (!amt || amt <= 0) { setFineFormError('Введи сумму'); return }
+    if (!fineReason.trim()) { setFineFormError('Введи причину'); return }
+    setFineBusy(true)
+    try {
+      await apiFetch('/web/court/fines', {
+        method: 'POST',
+        body: JSON.stringify({
+          nickname: fineNick.trim(),
+          amount: amt,
+          reason: fineReason.trim(),
+          comment: fineComment.trim(),
+        }),
+      })
+      closeModal()
+    } catch (e) {
+      setFineFormError(e.message)
+    } finally {
+      setFineBusy(false)
+    }
   }
 
   async function handleImagePick(e) {
@@ -449,6 +491,16 @@ export default function BankPage() {
               </>
             )}
           </div>
+
+          {canGiveFines && (
+            <div className="bank-fine-tile" onClick={openFine}>
+              <span className="bank-fine-tile-icon"><Siren size={16} /></span>
+              <div className="bank-fine-tile-info">
+                <div className="bank-fine-tile-title">Штраф</div>
+                <div className="bank-fine-tile-desc">Выдать штраф игроку</div>
+              </div>
+            </div>
+          )}
 
           <div className="bank-other-cards">
             <div className="bank-other-title">Другие карты</div>
@@ -846,6 +898,49 @@ export default function BankPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="btn btn-primary" disabled={busy} onClick={submitNewCard}>Создать</button>
+        </div>
+      </Modal>
+
+      <Modal open={modal === 'fine'} onClose={closeModal}>
+        <h2><Siren size={18} className="bank-fine-modal-icon" /> Выдать штраф</h2>
+        <div className="inp-group">
+          <PlayerNicknameInput
+            value={fineNick}
+            onChange={setFineNick}
+            placeholder="Ник игрока..."
+          />
+        </div>
+        <div className="inp-group">
+          <label>Причина</label>
+          <input type="text" value={fineReason} onChange={e => setFineReason(e.target.value)} maxLength={200} />
+        </div>
+        <div className="inp-group">
+          <div className="bank-amount-input-wrap right">
+            <input
+              className="bank-amount-input right"
+              type="number"
+              value={fineAmount}
+              onChange={e => setFineAmount(e.target.value)}
+              placeholder="Сумма штрафа"
+            />
+            <span className="bank-amount-icon right"><Gem size={14} /></span>
+          </div>
+        </div>
+        <div className="inp-group">
+          <textarea
+            value={fineComment}
+            onChange={e => setFineComment(e.target.value.slice(0, 350))}
+            placeholder="Комментарий (необязательно)"
+            rows={3}
+          />
+          <div className="bt-char-count">Символов {fineComment.length}/350</div>
+        </div>
+        {fineFormError && <p className="bank-transfer-error">{fineFormError}</p>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+          <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
+          <button className="bank-fine-submit-btn" disabled={fineBusy} onClick={submitFine}>
+            {fineBusy ? 'Отправка...' : 'Оштрафовать'}
+          </button>
         </div>
       </Modal>
     </div>

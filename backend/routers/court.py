@@ -208,6 +208,62 @@ async def approve_claim(
     return {"status": "ok", "fine_id": fine.id}
 
 
+class CreateFineRequest(BaseModel):
+    nickname: str
+    amount: float
+    reason: str
+    comment: Optional[str] = None
+
+
+@router.post("/web/court/fines")
+async def create_fine(
+    data: CreateFineRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Прямая выдача штрафа с сайта -- без иска, для Судьи/Полицейского/админа."""
+    me = await _require_reviewer(user, db)
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
+    if not data.reason.strip():
+        raise HTTPException(status_code=400, detail="Укажи причину")
+
+    target_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.nickname.strip().lower())
+    )
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if target.id == me.id:
+        raise HTTPException(status_code=400, detail="Нельзя оштрафовать самого себя")
+
+    fine = Fine(
+        player_id=target.id,
+        issued_by=me.nickname,
+        amount=data.amount,
+        reason=data.reason.strip()[:200],
+        comment=data.comment.strip()[:350] if data.comment else None,
+        status="pending",
+    )
+    db.add(fine)
+    await db.commit()
+    await db.refresh(fine)
+
+    await _notify_discord({
+        "type": "fine",
+        "fine_id": fine.id,
+        "player": target.nickname,
+        "discord_id": target.discord_id,
+        "amount": fine.amount,
+        "reason": fine.reason,
+        "comment": fine.comment,
+        "issued_by": fine.issued_by,
+        "issued_by_discord_id": me.discord_id,
+    })
+
+    return {"status": "ok", "fine_id": fine.id}
+
+
 class DismissClaimRequest(BaseModel):
     comment: Optional[str] = None
 

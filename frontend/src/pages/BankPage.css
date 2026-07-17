@@ -656,6 +656,47 @@
   padding: 10px 12px;
 }
 
+/* ── Штраф (прямая выдача, Судья/Полицейский/админ) ───────────────────── */
+.bank-fine-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--danger-bg);
+  border-radius: 12px;
+  background: var(--danger-bg);
+  padding: 13px 16px;
+  cursor: pointer;
+  animation: fadeUp 0.5s ease both;
+  animation-delay: 0.1s;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.bank-fine-tile:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.bank-fine-tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  flex: none;
+}
+.bank-fine-tile-info { min-width: 0; }
+.bank-fine-tile-title { font-size: 13.5px; font-weight: 800; color: var(--danger); }
+.bank-fine-tile-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.bank-fine-modal-icon { color: var(--danger); vertical-align: -3px; margin-right: 6px; }
+.bank-fine-submit-btn {
+  border: none;
+  border-radius: var(--radius);
+  padding: 0 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--danger);
+  color: #fff;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.bank-fine-submit-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.bank-fine-submit-btn:disabled { opacity: 0.6; cursor: default; }
+
 @media (max-width: 720px) {
   .bank-layout { grid-template-columns: 1fr; }
 }

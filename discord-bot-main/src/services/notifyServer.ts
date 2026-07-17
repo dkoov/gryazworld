@@ -26,6 +26,15 @@ async function getThreadSendable(client: ExtendedClient, id: string) {
   return null;
 }
 
+/** Иск рассмотрен -- закрываем (архивируем) тред, чтобы было видно, что дело закрыто. */
+async function archiveThread(thread: any): Promise<void> {
+  if (thread?.isThread?.()) {
+    await thread.setArchived(true).catch((e: unknown) =>
+      console.error("[Notify] не удалось архивировать тред:", e)
+    );
+  }
+}
+
 function fineFields(data: any): { name: string; value: string; inline?: boolean }[] {
   const fields = [
     { name: "Игрок", value: String(data.player ?? "?"), inline: true },
@@ -73,13 +82,14 @@ async function handleFine(client: ExtendedClient, data: any): Promise<void> {
     );
   }
 
-  // если штраф выдан по результату рассмотрения иска -- отчитываемся прямо в тред дела
+  // если штраф выдан по результату рассмотрения иска -- отчитываемся прямо в тред дела и закрываем его
   if (data.claim_thread_id) {
     const thread = await getThreadSendable(client, String(data.claim_thread_id));
     if (thread) {
       await thread.send({ embeds: [embed] }).catch((e) =>
         console.error("[Notify] fine -> тред иска:", e)
       );
+      await archiveThread(thread);
     }
   }
 }
@@ -102,6 +112,7 @@ async function handleClaimDismissed(client: ExtendedClient, data: any): Promise<
       await thread.send({ content, embeds: [embed] }).catch((e) =>
         console.error("[Notify] claim_dismissed -> тред иска:", e)
       );
+      await archiveThread(thread);
     }
   }
 }
