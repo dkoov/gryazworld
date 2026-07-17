@@ -77,13 +77,12 @@ export default function Nav() {
     <>
     <nav className="nav">
       <div className="nav-logo" onClick={() => navigate('/')}>
-        Ich<span>orix</span>
+        <img src="/logo.png" alt="Ichorix" />
       </div>
 
       {/* Десктоп ссылки */}
       <ul className="nav-links">
         <li><NavLink to="/">Главная</NavLink></li>
-        <li><NavLink to="/access">Проходка</NavLink></li>
         <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
@@ -179,7 +178,6 @@ export default function Nav() {
               </li>
             )}
             <li><NavLink to="/">Главная</NavLink></li>
-            <li><NavLink to="/access">Проходка</NavLink></li>
             <li><NavLink to="/shop">Магазин</NavLink></li>
             <li><NavLink to="/wiki">Wiki</NavLink></li>
             <li><NavLink to="/stats">Статистика</NavLink></li>

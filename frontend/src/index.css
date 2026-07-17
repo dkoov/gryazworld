@@ -1,6 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  --bg-rgb: 10,9,18;
   --bg: #0a0912;
   --surface: #121019;
   --surface2: #171420;
@@ -27,6 +28,7 @@
 }
 
 :root[data-theme="light"] {
+  --bg-rgb: 246,245,250;
   --bg: #f6f5fa;
   --surface: #ffffff;
   --surface2: #f0eef7;
