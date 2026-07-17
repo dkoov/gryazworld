@@ -656,6 +656,48 @@
   padding: 10px 12px;
 }
 
+/* ── Штрафы (иски на рассмотрении, Судья/админ) ───────────────────────── */
+.bank-claims-block { border-color: rgba(251, 191, 36, 0.35); }
+.bank-claims-title-icon { color: #fbbf24; vertical-align: -3px; margin-right: 6px; }
+.bank-claim-thread-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent2);
+  text-decoration: none;
+  font-weight: 600;
+}
+.bank-claim-thread-link:hover { text-decoration: underline; }
+
+.bank-claim-detail {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bank-claim-detail-row { display: flex; gap: 8px; font-size: 13px; }
+.bank-claim-detail-label {
+  flex: none;
+  width: 80px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.bank-claim-description {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
 @media (max-width: 720px) {
   .bank-layout { grid-template-columns: 1fr; }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock } from 'lucide-react'
+import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock, Scale, ExternalLink } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
@@ -80,8 +80,17 @@ export default function BankPage() {
   const [invoices, setInvoices] = useState([])
   const [invoiceBusyId, setInvoiceBusyId] = useState(null)
 
-  const [canInvoice, setCanInvoice] = useState(false)
   const [isIchoPlus, setIsIchoPlus] = useState(false)
+
+  const [canReviewClaims, setCanReviewClaims] = useState(false)
+  const [claims, setClaims] = useState([])
+  const [claimModal, setClaimModal] = useState(null) // claim object or null
+  const [claimBusy, setClaimBusy] = useState(false)
+  const [claimFormError, setClaimFormError] = useState('')
+  const [approveAmount, setApproveAmount] = useState('')
+  const [approveReason, setApproveReason] = useState('')
+  const [approveComment, setApproveComment] = useState('')
+  const [approveDefendant, setApproveDefendant] = useState('')
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -127,10 +136,20 @@ export default function BankPage() {
       .finally(() => setLoading(false))
     loadInvoices()
     apiFetch('/web/bank/permissions')
-      .then(p => { setCanInvoice(!!p.can_invoice); setIsIchoPlus(!!p.is_ichoplus) })
+      .then(p => setIsIchoPlus(!!p.is_ichoplus))
+      .catch(() => {})
+    apiFetch('/web/court/permissions')
+      .then(p => {
+        setCanReviewClaims(!!p.can_review)
+        if (p.can_review) loadClaims()
+      })
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function loadClaims() {
+    apiFetch('/web/court/claims').then(setClaims).catch(() => {})
+  }
 
   function loadTxs(accountId) {
     apiFetch(`/web/bank/accounts/${accountId}/transactions`).then(setTxs).catch(() => setTxs([]))
@@ -267,6 +286,64 @@ export default function BankPage() {
       alert(e.message)
     } finally {
       setInvoiceBusyId(null)
+    }
+  }
+
+  function openClaimReview(claim) {
+    setClaimModal(claim)
+    setApproveAmount('')
+    setApproveReason(claim.subject || '')
+    setApproveComment('')
+    setApproveDefendant(claim.defendant_resolved ? '' : claim.defendant || '')
+    setClaimFormError('')
+  }
+
+  function closeClaimReview() {
+    setClaimModal(null)
+    setClaimFormError('')
+  }
+
+  async function submitApproveClaim() {
+    if (!claimModal) return
+    setClaimFormError('')
+    const amt = Number(approveAmount)
+    if (!amt || amt <= 0) { setClaimFormError('Введи сумму штрафа'); return }
+    if (!approveReason.trim()) { setClaimFormError('Введи причину'); return }
+    setClaimBusy(true)
+    try {
+      await apiFetch(`/web/court/claims/${claimModal.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({
+          defendant_nickname: approveDefendant.trim() || undefined,
+          amount: amt,
+          reason: approveReason.trim(),
+          comment: approveComment.trim(),
+        }),
+      })
+      closeClaimReview()
+      loadClaims()
+    } catch (e) {
+      setClaimFormError(e.message)
+    } finally {
+      setClaimBusy(false)
+    }
+  }
+
+  async function submitDismissClaim() {
+    if (!claimModal) return
+    setClaimFormError('')
+    setClaimBusy(true)
+    try {
+      await apiFetch(`/web/court/claims/${claimModal.id}/dismiss`, {
+        method: 'POST',
+        body: JSON.stringify({ comment: approveComment.trim() }),
+      })
+      closeClaimReview()
+      loadClaims()
+    } catch (e) {
+      setClaimFormError(e.message)
+    } finally {
+      setClaimBusy(false)
     }
   }
 
@@ -478,6 +555,57 @@ export default function BankPage() {
         </div>
 
         <div className="bank-right">
+          {canReviewClaims && (
+            <div className="bank-invoices-block bank-claims-block">
+              <div className="bank-history-title bank-invoices-title">
+                <Scale size={16} className="bank-claims-title-icon" /> Штрафы
+              </div>
+              {claims.length === 0 ? (
+                <div className="bank-other-empty">Нет поданных исков</div>
+              ) : (
+                <div className="bank-invoices-list">
+                  {claims.map((c, i) => (
+                    <div
+                      key={c.id}
+                      className={`bank-invoice-row bank-claim-row status-${c.status}`}
+                      style={{ animationDelay: `${i * 0.04}s` }}
+                    >
+                      <img className="bank-tx-avatar" src={mcHead(c.defendant || '?', 64)} alt="" />
+                      <div className="bank-invoice-info">
+                        <div className="bank-tx-name">{c.subject}</div>
+                        <div className="bank-tx-comment">
+                          {c.plaintiff || 'Discord'} против {c.defendant}
+                          {!c.defendant_resolved && ' (не привязан)'}
+                        </div>
+                        <div className="bank-invoice-meta">
+                          {formatDateTime(c.created_at)}
+                          {c.status === 'pending' && <span className="bank-invoice-status pending">на рассмотрении</span>}
+                          {c.status === 'approved' && <span className="bank-invoice-status paid">оштрафован</span>}
+                          {c.status === 'dismissed' && <span className="bank-invoice-status declined">отклонён</span>}
+                          {c.thread_url && (
+                            <a href={c.thread_url} target="_blank" rel="noreferrer" className="bank-claim-thread-link">
+                              <ExternalLink size={11} /> тред
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="bank-invoice-right">
+                        {c.status === 'pending' && (
+                          <div className="bank-invoice-actions">
+                            <button className="bank-invoice-pay" onClick={() => openClaimReview(c)}>Рассмотреть</button>
+                          </div>
+                        )}
+                        {c.status !== 'pending' && c.resolved_by && (
+                          <div className="bank-tx-comment">{c.resolved_by}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {invoices.length > 0 && (
             <div className="bank-invoices-block">
               <div className="bank-history-title bank-invoices-title">Счета</div>
@@ -594,14 +722,12 @@ export default function BankPage() {
           >
             Перевести
           </div>
-          {canInvoice && (
-            <div
-              className={`bt-tab ${transferMode === 'invoice' ? 'active' : ''}`}
-              onClick={() => { setTransferMode('invoice'); setFormError('') }}
-            >
-              <Receipt size={13} className="bt-tab-icon" /> Выставить счёт
-            </div>
-          )}
+          <div
+            className={`bt-tab ${transferMode === 'invoice' ? 'active' : ''}`}
+            onClick={() => { setTransferMode('invoice'); setFormError('') }}
+          >
+            <Receipt size={13} className="bt-tab-icon" /> Выставить счёт
+          </div>
         </div>
 
         {transferFromAccount && (() => {
@@ -850,6 +976,80 @@ export default function BankPage() {
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="btn btn-primary" disabled={busy} onClick={submitNewCard}>Создать</button>
         </div>
+      </Modal>
+
+      <Modal open={!!claimModal} onClose={closeClaimReview} wide>
+        <h2>Рассмотрение иска</h2>
+        {claimModal && (
+          <>
+            <div className="bank-claim-detail">
+              <div className="bank-claim-detail-row">
+                <span className="bank-claim-detail-label">Истец</span>
+                <span>{claimModal.plaintiff || 'не привязан на сайте'}</span>
+              </div>
+              <div className="bank-claim-detail-row">
+                <span className="bank-claim-detail-label">Ответчик</span>
+                <span>{claimModal.defendant}{!claimModal.defendant_resolved && ' (не найден по нику)'}</span>
+              </div>
+              <div className="bank-claim-detail-row">
+                <span className="bank-claim-detail-label">Суть</span>
+                <span>{claimModal.subject}</span>
+              </div>
+              <div className="bank-claim-description">{claimModal.description}</div>
+              {claimModal.thread_url && (
+                <a href={claimModal.thread_url} target="_blank" rel="noreferrer" className="bank-claim-thread-link">
+                  <ExternalLink size={12} /> Открыть тред в Discord
+                </a>
+              )}
+            </div>
+
+            {!claimModal.defendant_resolved && (
+              <div className="inp-group">
+                <label>Ник ответчика на сайте</label>
+                <PlayerNicknameInput
+                  value={approveDefendant}
+                  onChange={setApproveDefendant}
+                  placeholder="Ник игрока..."
+                />
+              </div>
+            )}
+
+            <div className="inp-group">
+              <label>Причина штрафа</label>
+              <input type="text" value={approveReason} onChange={e => setApproveReason(e.target.value)} maxLength={200} />
+            </div>
+
+            <div className="inp-group">
+              <div className="bank-amount-input-wrap right">
+                <input
+                  className="bank-amount-input right"
+                  type="number"
+                  value={approveAmount}
+                  onChange={e => setApproveAmount(e.target.value)}
+                  placeholder="Сумма штрафа"
+                />
+                <span className="bank-amount-icon right"><Gem size={14} /></span>
+              </div>
+            </div>
+
+            <div className="inp-group">
+              <textarea
+                value={approveComment}
+                onChange={e => setApproveComment(e.target.value.slice(0, 350))}
+                placeholder="Комментарий (необязательно)"
+                rows={3}
+              />
+              <div className="bt-char-count">Символов {approveComment.length}/350</div>
+            </div>
+
+            {claimFormError && <p className="bank-transfer-error">{claimFormError}</p>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 14 }}>
+              <button className="btn btn-ghost" onClick={closeClaimReview}>Закрыть</button>
+              <button className="bank-invoice-decline" disabled={claimBusy} onClick={submitDismissClaim}>Отклонить иск</button>
+              <button className="btn btn-primary" disabled={claimBusy} onClick={submitApproveClaim}>Оштрафовать</button>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   )
