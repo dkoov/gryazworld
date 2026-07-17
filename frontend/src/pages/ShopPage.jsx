@@ -26,12 +26,14 @@ export default function ShopPage() {
   return (
     <section className="section">
     <div className="shop-container">
-      <div className="section-label">Магазин</div>
-      <div className="section-title">Услуги и подписки</div>
-      <p className="section-sub">Дополнительные товары для уже зарегистрированных игроков.</p>
+      <div className="shop-header">
+        <div className="section-label">Магазин</div>
+        <div className="section-title">Услуги и подписки</div>
+        <p className="section-sub">Дополнительные товары для уже зарегистрированных игроков.</p>
 
-      <div className="notice">
-        <strong>Важно:</strong> покупки доступны только после входа через Discord и привязки Minecraft-ника.
+        <div className="shop-notice">
+          <strong>Важно:</strong> покупки доступны только после входа через Discord и привязки Minecraft-ника.
+        </div>
       </div>
 
       {/* Сезонная проходка — тот же вид, что был на /access */}
@@ -117,10 +119,12 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 60 }}>
-        <div className="section-label">FAQ</div>
-        <div className="section-title" style={{ fontSize: 22, marginBottom: 24 }}>Частые вопросы</div>
-        <div className="faq-list">
+      <div className="shop-block shop-faq-block">
+        <div className="shop-faq-header">
+          <div className="section-label">FAQ</div>
+          <div className="section-title" style={{ fontSize: 26 }}>Частые вопросы</div>
+        </div>
+        <div className="faq-list shop-faq-card">
           <FaqItem q="Нужна лицензия Minecraft?" a="Нет, можно играть с пиратской версии Java Edition. Официальная лицензия тоже подходит." />
           <FaqItem q="Как быстро дают доступ после оплаты?" a="Автоматически, в течение нескольких секунд. Система сама добавляет ник в белый список и выдаёт роль в Discord." />
           <FaqItem q="Можно вернуть деньги?" a="Да, если наиграли меньше 2 часов и прошло не более 3 дней — напишите администратору в Discord." />
