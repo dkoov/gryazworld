@@ -146,7 +146,8 @@ app.add_middleware(
     limits=[
         ("/web/payments/create", 5, 60),
         ("/web/payments/webhook", 60, 60),
-        ("/web/", 30, 60),
+        ("/web/players/search", 90, 30),
+        ("/web/", 120, 60),
         ("/mc/", 100, 60),
         ("/auth/", 10, 60),
     ],
