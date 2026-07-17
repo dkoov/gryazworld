@@ -120,6 +120,24 @@ class Warn(Base):
     player = relationship("Player", foreign_keys=[player_id], back_populates="warn_records")
 
 
+class Claim(Base):
+    # "Иск" -- жалоба через Discord-бота, рассматривается Судьёй/Админом на сайте
+    __tablename__ = "claims"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plaintiff_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    plaintiff_discord_id = Column(String, nullable=True)
+    defendant_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    defendant_text = Column(String, nullable=False)  # ник/упоминание как ввёл истец в Discord
+    subject = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    thread_url = Column(String, nullable=True)  # ссылка на приватный тред в Discord
+    status = Column(String, default="pending", nullable=False)  # pending, approved, dismissed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(String, nullable=True)  # ник судьи/админа
+    fine_id = Column(Integer, ForeignKey("fines.id"), nullable=True)
+
 class Community(Base):
     __tablename__ = "communities"
 
