@@ -100,19 +100,19 @@ export default function Nav() {
       <div className="nav-right">
         {user && (
           <>
-            <button className="nav-feature-btn nav-feature-bank" title="Банк" onClick={() => navigate('/bank')}>
-              <Landmark size={16} strokeWidth={2.3} />
+            <button className="nav-feature-btn" title="Банк" onClick={() => navigate('/bank')}>
+              <Landmark size={18} strokeWidth={1.75} />
             </button>
-            <button className="nav-feature-btn nav-feature-msg" title="Сообщения" onClick={() => navigate('/messenger')}>
-              <MessageCircle size={16} strokeWidth={2.3} />
+            <button className="nav-feature-btn" title="Сообщения" onClick={() => navigate('/messenger')}>
+              <MessageCircle size={18} strokeWidth={1.75} />
               {unreadMsgs > 0 && <span className="nav-feature-badge" />}
             </button>
             <button
-              className="nav-feature-btn nav-feature-communities"
+              className="nav-feature-btn"
               title="Общины"
               onClick={() => openComingSoon('Общины', 'Раздел общин пока в разработке.')}
             >
-              <Users size={16} strokeWidth={2.3} />
+              <Users size={18} strokeWidth={1.75} />
             </button>
           </>
         )}

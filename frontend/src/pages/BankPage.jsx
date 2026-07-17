@@ -405,33 +405,43 @@ export default function BankPage() {
       </div>
 
       <Modal open={modal === 'transfer'} onClose={closeModal}>
-        <div className="bank-modal-hero">
-          <div className="bank-modal-hero-icon">◆</div>
-          <h2>Перевести деньги</h2>
+        <div className="bank-transfer-title">
+          <span className="bank-transfer-title-icon">◆</span>
+          <h2>Перевод денег</h2>
         </div>
-        <div className="inp-group">
-          <label>Ник игрока</label>
-          <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Введите ник игрока" />
-        </div>
-        <div className="inp-group">
-          <label>Сумма</label>
-          <div className="bank-amount-input-wrap">
-            <span className="bank-amount-icon">◆</span>
-            <input
-              className="bank-amount-input"
-              type="number"
-              value={transferAmount}
-              onChange={e => setTransferAmount(e.target.value)}
-              placeholder="0"
-            />
+
+        <div className="bank-transfer-row">
+          <div className="inp-group bank-transfer-nick">
+            <label>Ник игрока</label>
+            <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Введите ник" />
+          </div>
+          <div className="inp-group bank-transfer-sum">
+            <label>Сумма</label>
+            <div className="bank-amount-input-wrap">
+              <span className="bank-amount-icon">◆</span>
+              <input
+                className="bank-amount-input"
+                type="number"
+                value={transferAmount}
+                onChange={e => setTransferAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
         </div>
+
         <div className="inp-group">
-          <label>Комментарий</label>
-          <textarea value={transferComment} onChange={e => setTransferComment(e.target.value)} placeholder="Необязательно" rows={3} />
+          <input
+            type="text"
+            className="bank-transfer-comment"
+            value={transferComment}
+            onChange={e => setTransferComment(e.target.value)}
+            placeholder="Комментарий (необязательно)"
+          />
         </div>
+
         {formError && <p className="bank-transfer-error">{formError}</p>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 14 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="btn btn-primary" disabled={busy} onClick={submitTransfer}>
             {busy ? 'Отправка...' : <>Перевести <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}

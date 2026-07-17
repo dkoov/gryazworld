@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
 import './MessengerPage.css'
@@ -22,6 +22,7 @@ function formatTime(iso) {
 
 export default function MessengerPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [checking, setChecking] = useState(true)
   const [linked, setLinked] = useState(false)
 
@@ -52,6 +53,16 @@ export default function MessengerPage() {
     loadConversations()
     const id = setInterval(loadConversations, 15000)
     return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked])
+
+  useEffect(() => {
+    if (!linked) return
+    const to = searchParams.get('to')
+    if (to) {
+      openConversation(to)
+      setSearchParams({}, { replace: true })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked])
 

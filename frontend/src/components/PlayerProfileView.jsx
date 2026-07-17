@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DiscordIcon from './DiscordIcon'
 import VkIcon from './VkIcon'
 import TwitchIcon from './TwitchIcon'
@@ -69,6 +70,7 @@ function timeAgo(iso) {
  * и в личном кабинете (там же данные из /web/me, но профиль строится идентично).
  */
 export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions, showSkinViewer }) {
+  const navigate = useNavigate()
   const [showAllChars, setShowAllChars] = useState(false)
   const [showAllCommunities, setShowAllCommunities] = useState(false)
 
@@ -95,37 +97,42 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
           </div>
         )}
 
-        {!isSelf && profile.discord_id && (
-          <a
+        {!isSelf && (
+          <button
             className="pv-message-btn"
-            href={`https://discord.com/users/${profile.discord_id}`}
-            target="_blank" rel="noreferrer"
+            onClick={() => navigate(`/messenger?to=${encodeURIComponent(profile.nickname)}`)}
           >
             Написать сообщение
-          </a>
+          </button>
         )}
 
-        <div className="pv-social-list">
-          {profile.discord_id ? (
-            <a className="pv-social-row pv-social-discord" href={`https://discord.com/users/${profile.discord_id}`} target="_blank" rel="noreferrer">
-              <span className="pv-social-icon"><DiscordIcon size={16} color="#5865F2" /></span>
-              <span>{profile.nickname}</span>
-            </a>
-          ) : (
-            <div className="pv-social-row pv-social-inactive">
-              <span className="pv-social-icon"><DiscordIcon size={16} color="currentColor" /></span>
-              <span>Подключить Discord</span>
-            </div>
-          )}
-          <div className="pv-social-row pv-social-inactive">
-            <span className="pv-social-icon"><VkIcon size={16} color="currentColor" /></span>
-            <span>Подключить ВКонтакте</span>
+        {(isSelf || profile.discord_id) && (
+          <div className="pv-social-list">
+            {profile.discord_id ? (
+              <a className="pv-social-row pv-social-discord" href={`https://discord.com/users/${profile.discord_id}`} target="_blank" rel="noreferrer">
+                <span className="pv-social-icon"><DiscordIcon size={16} color="#5865F2" /></span>
+                <span>{profile.nickname}</span>
+              </a>
+            ) : isSelf && (
+              <div className="pv-social-row pv-social-inactive">
+                <span className="pv-social-icon"><DiscordIcon size={16} color="currentColor" /></span>
+                <span>Подключить Discord</span>
+              </div>
+            )}
+            {isSelf && (
+              <>
+                <div className="pv-social-row pv-social-inactive">
+                  <span className="pv-social-icon"><VkIcon size={16} color="currentColor" /></span>
+                  <span>Подключить ВКонтакте</span>
+                </div>
+                <div className="pv-social-row pv-social-inactive">
+                  <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
+                  <span>Подключить Twitch</span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="pv-social-row pv-social-inactive">
-            <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
-            <span>Подключить Twitch</span>
-          </div>
-        </div>
+        )}
 
         {extraActions}
       </aside>
@@ -158,23 +165,11 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
 
         <div className="pv-card">
           <div className="pv-section-title">Статистика</div>
-          <div className="pv-stats-grid">
-            <div className="pv-stat">
-              <div className="pv-stat-label">Наиграно</div>
-              <div className="pv-stat-value">{formatHours(profile.total_seconds)} ч.</div>
-            </div>
-            <div className="pv-stat">
-              <div className="pv-stat-label">Месяц</div>
-              <div className="pv-stat-value">{formatHours(profile.playtime_month)} ч.</div>
-            </div>
-            <div className="pv-stat">
-              <div className="pv-stat-label">Неделя</div>
-              <div className="pv-stat-value">{formatHours(profile.playtime_week)} ч.</div>
-            </div>
-            <div className="pv-stat">
-              <div className="pv-stat-label">Сегодня</div>
-              <div className="pv-stat-value">{formatHours(profile.playtime_today)} ч.</div>
-            </div>
+          <div className="pv-stats-inline">
+            <span>Наиграл: <b>{formatHours(profile.total_seconds)} ч.</b></span>
+            <span>Месяц: <b>{formatHours(profile.playtime_month)} ч.</b></span>
+            <span>Неделя: <b>{formatHours(profile.playtime_week)} ч.</b></span>
+            <span>Сегодня: <b>{formatHours(profile.playtime_today)} ч.</b></span>
           </div>
 
           <Heatmap heatmap={profile.heatmap || []} />

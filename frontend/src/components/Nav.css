@@ -67,35 +67,26 @@
   position: relative;
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: 9px;
   border: none;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--muted);
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  transition: color 0.15s ease, background 0.15s ease;
 }
 .nav-feature-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.28);
-}
-.nav-feature-bank {
-  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
-}
-.nav-feature-msg {
-  background: linear-gradient(135deg, var(--accent), var(--pink));
-}
-.nav-feature-communities {
-  background: linear-gradient(135deg, var(--green), var(--green2));
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
 }
 .nav-feature-badge {
   position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 10px;
-  height: 10px;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #f87171;
   border: 2px solid var(--bg);

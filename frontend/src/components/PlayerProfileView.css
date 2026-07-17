@@ -41,13 +41,17 @@
 
 .pv-message-btn {
   display: block;
+  width: 100%;
   text-align: center;
   padding: 11px 16px;
+  border: none;
   border-radius: var(--radius);
   background: var(--gold);
   color: #0a0a0b;
+  font-family: inherit;
   font-size: 0.85rem;
   font-weight: 600;
+  cursor: pointer;
 }
 .pv-message-btn:hover { opacity: 0.88; }
 
@@ -185,30 +189,18 @@
 }
 
 /* Stats */
-.pv-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
+.pv-stats-inline {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 20px;
+  row-gap: 4px;
+  font-size: 0.82rem;
+  color: var(--muted);
   margin-bottom: 18px;
 }
-.pv-stat {
-  background: var(--surface2);
-  border: 1px solid rgba(139,92,246,0.1);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-}
-.pv-stat-label {
-  font-size: 0.65rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-}
-.pv-stat-value {
-  font-family: 'Manrope', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--gold);
+.pv-stats-inline b {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* Heatmap */
