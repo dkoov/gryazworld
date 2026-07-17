@@ -41,7 +41,7 @@ const button: Button = {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `## Версия сервера:
-\`\`\`1.21.11\`\`\``
+\`\`\`26.2\`\`\``
         ),
       )
       .addTextDisplayComponents(

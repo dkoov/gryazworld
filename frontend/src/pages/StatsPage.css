@@ -1,4 +1,4 @@
-.stats-hero {
+﻿.stats-hero {
   display: flex;
   align-items: flex-start;
   gap: 32px;
@@ -11,11 +11,13 @@
   height: 96px;
   background: var(--surface2);
   border: 1px solid var(--border2);
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 8px 28px rgba(139,92,246,0.18);
 }
 .server-avatar img {
   width: 100%;
@@ -25,7 +27,7 @@
 
 .server-info h2 {
   font-family: 'Manrope', sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 26px;
   color: var(--text);
   margin-bottom: 14px;
@@ -35,31 +37,35 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border2);
+  border-radius: 999px;
   overflow: hidden;
+  background: var(--surface);
 }
 .ip-text {
-  padding: 10px 16px;
+  padding: 11px 20px;
   font-family: 'Manrope', sans-serif;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 13.5px;
   color: var(--text);
-  background: var(--surface);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 .ip-copy {
-  padding: 10px 14px;
-  background: var(--surface2);
+  padding: 11px 18px;
+  margin: 3px 3px 3px 0;
+  border-radius: 999px;
+  background: var(--accent);
   border: none;
-  border-left: 1px solid var(--border2);
-  color: var(--muted);
+  color: #fff;
   cursor: pointer;
   font-family: 'Manrope', sans-serif;
+  font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
-.ip-copy:hover { background: var(--accent); color: #0a0a0b; }
-.ip-copy.copied { background: var(--green); color: #fff; }
+.ip-copy:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.ip-copy.copied { background: var(--green); }
 
 .stats-controls {
   margin-bottom: 24px;
