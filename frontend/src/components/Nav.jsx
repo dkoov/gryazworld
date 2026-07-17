@@ -1,7 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
+import { Landmark, MessageCircle, Users } from 'lucide-react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
+import Modal from './Modal'
+import BankTab from './BankTab'
 import './Nav.css'
 
 const THEME_KEY = 'ichorix_theme'
@@ -18,11 +21,12 @@ function applyTheme(theme) {
 export default function Nav() {
   const navigate = useNavigate()
   const [user, setUser] = useState(getDiscordUser())
-  const [online, setOnline] = useState(0)
   const [mcNick, setMcNick] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
+  const [bankOpen, setBankOpen] = useState(false)
+  const [comingSoon, setComingSoon] = useState(null) // null | { title, desc }
   const menuRef = useRef(null)
 
   useEffect(() => { applyTheme(theme) }, [theme])
@@ -41,17 +45,6 @@ export default function Nav() {
   }, [user])
 
   useEffect(() => {
-    const load = () => {
-      apiFetch('/web/server-stats')
-        .then(d => setOnline(d.online))
-        .catch(() => {})
-    }
-    load()
-    const id = setInterval(load, 30000)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
     function onClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) setUserMenuOpen(false)
     }
@@ -68,9 +61,13 @@ export default function Nav() {
     window.dispatchEvent(new Event('auth-change'))
   }
 
-  function goCabinetTab(tab) {
-    setUserMenuOpen(false)
-    navigate(tab ? `/cabinet?tab=${tab}` : '/cabinet')
+  function openBank() {
+    if (mcNick) setBankOpen(true)
+    else navigate('/cabinet')
+  }
+
+  function openComingSoon(title, desc) {
+    setComingSoon({ title, desc })
   }
 
   return (
@@ -94,21 +91,24 @@ export default function Nav() {
 
       {/* Десктоп правая часть */}
       <div className="nav-right">
-        <div className="status-pill">
-          <span className="status-dot" />
-          <span>{online} онлайн</span>
-        </div>
-
         {user && (
           <>
-            <button className="nav-icon-btn" title="Банк" onClick={() => goCabinetTab('bank')}>
-              <span className="nav-icon nav-icon-bank" />
+            <button className="nav-feature-btn nav-feature-bank" title="Банк" onClick={openBank}>
+              <Landmark size={16} strokeWidth={2.3} />
             </button>
-            <button className="nav-icon-btn" title="Сообщения" onClick={() => goCabinetTab('messenger')}>
-              <span className="nav-icon nav-icon-msg" />
+            <button
+              className="nav-feature-btn nav-feature-msg"
+              title="Сообщения"
+              onClick={() => openComingSoon('Мессенджер', 'Прямые сообщения между игроками в разработке. Загляните позже.')}
+            >
+              <MessageCircle size={16} strokeWidth={2.3} />
             </button>
-            <button className="nav-icon-btn" title="Общины" onClick={() => goCabinetTab('communities')}>
-              <span className="nav-icon nav-icon-communities" />
+            <button
+              className="nav-feature-btn nav-feature-communities"
+              title="Общины"
+              onClick={() => openComingSoon('Общины', 'Раздел общин пока в разработке.')}
+            >
+              <Users size={16} strokeWidth={2.3} />
             </button>
           </>
         )}
@@ -126,7 +126,7 @@ export default function Nav() {
                   <img src={getAvatarUrl(user)} alt="" className="user-dropdown-avatar" />
                   <div>
                     <div className="user-dropdown-name">{mcNick || user.global_name || user.username}</div>
-                    <div className="user-dropdown-link" onClick={() => goCabinetTab()}>Открыть профиль →</div>
+                    <div className="user-dropdown-link" onClick={() => { setUserMenuOpen(false); navigate('/cabinet') }}>Открыть профиль →</div>
                   </div>
                 </div>
                 <div className="user-dropdown-row">
@@ -191,6 +191,18 @@ export default function Nav() {
           )}
         </div>
       )}
+
+      {/* Банк — модалка поверх любой страницы */}
+      <Modal open={bankOpen} onClose={() => setBankOpen(false)} wide>
+        <h2>Банк</h2>
+        {mcNick && <BankTab nickname={mcNick} />}
+      </Modal>
+
+      {/* Мессенджер / Общины — заглушка "скоро" */}
+      <Modal open={!!comingSoon} onClose={() => setComingSoon(null)}>
+        <h2>{comingSoon?.title}</h2>
+        <p>{comingSoon?.desc}</p>
+      </Modal>
     </>
   )
 }

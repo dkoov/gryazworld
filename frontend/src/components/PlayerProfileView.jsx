@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import './PlayerProfileView.css'
+
+const SkinViewer = lazy(() => import('./SkinViewer'))
 
 const DAY_MS = 86400000
 const MONTH_LABELS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
@@ -63,7 +65,7 @@ function timeAgo(iso) {
  * Общий вид профиля игрока — используется и на публичной странице /player/:nickname,
  * и в личном кабинете (там же данные из /web/me, но профиль строится идентично).
  */
-export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions }) {
+export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions, showSkinViewer }) {
   const [showAllChars, setShowAllChars] = useState(false)
   const [showAllCommunities, setShowAllCommunities] = useState(false)
 
@@ -75,13 +77,19 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
   return (
     <div className="pv-layout">
       <aside className="pv-sidebar">
-        <div className="pv-avatar-card">
-          <img
-            className="pv-avatar-img"
-            src={`https://mc-heads.net/body/${encodeURIComponent(profile.nickname)}/300`}
-            alt={profile.nickname}
-          />
-        </div>
+        {showSkinViewer ? (
+          <Suspense fallback={<div className="pv-avatar-card skinviewer-loading">Загрузка 3D-модели...</div>}>
+            <SkinViewer nickname={profile.nickname} />
+          </Suspense>
+        ) : (
+          <div className="pv-avatar-card">
+            <img
+              className="pv-avatar-img"
+              src={`https://mc-heads.net/body/${encodeURIComponent(profile.nickname)}/300`}
+              alt={profile.nickname}
+            />
+          </div>
+        )}
 
         {!isSelf && profile.discord_id && (
           <a
