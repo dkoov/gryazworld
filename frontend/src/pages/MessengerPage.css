@@ -103,6 +103,9 @@
   width: 34px;
   height: 34px;
   border-radius: 8px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  background: var(--surface2);
   flex: none;
 }
 

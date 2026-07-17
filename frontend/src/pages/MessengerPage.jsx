@@ -3,20 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
 import './MessengerPage.css'
 
-const GRADIENTS = [
-  'linear-gradient(135deg,#8b5cf6,#ec4899)',
-  'linear-gradient(135deg,#4ade80,#166534)',
-  'linear-gradient(135deg,#38bdf8,#6366f1)',
-  'linear-gradient(135deg,#f472b6,#ec4899)',
-  'linear-gradient(135deg,#fb923c,#f97316)',
-  'linear-gradient(135deg,#f87171,#7f1d1d)',
-  'linear-gradient(135deg,#a78bfa,#6d28d9)',
-]
-
-function avatarGradient(name) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  return GRADIENTS[hash % GRADIENTS.length]
+function mcHead(nickname, size = 64) {
+  return `https://mc-heads.net/avatar/${encodeURIComponent(nickname)}/${size}`
 }
 
 function formatDate(iso) {
@@ -164,7 +152,7 @@ export default function MessengerPage() {
                 className={`msg-conv-row ${active === c.nickname ? 'active' : ''}`}
                 onClick={() => openConversation(c.nickname)}
               >
-                <div className="msg-avatar" style={{ background: avatarGradient(c.nickname) }} />
+                <img className="msg-avatar" src={mcHead(c.nickname)} alt="" />
                 <div className="msg-conv-info">
                   <div className="msg-conv-top">
                     <span className="msg-conv-name">{c.nickname}</span>
@@ -188,7 +176,7 @@ export default function MessengerPage() {
           {active && (
             <>
               <div className="msg-thread-head">
-                <div className="msg-avatar" style={{ background: avatarGradient(active) }} />
+                <img className="msg-avatar" src={mcHead(active)} alt="" />
                 <div className="msg-thread-name">{active}</div>
               </div>
 

@@ -54,7 +54,7 @@ export default function PlayerProfilePage() {
 
   return (
     <section className="section">
-      <PlayerProfileView profile={profile} isSelf={isSelf} liking={liking} onToggleLike={toggleLike} />
+      <PlayerProfileView profile={profile} isSelf={isSelf} liking={liking} onToggleLike={toggleLike} showSkinViewer={true} />
     </section>
   )
 }
