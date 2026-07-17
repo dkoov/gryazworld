@@ -96,6 +96,92 @@ async def get_skin(uuid: str, nickname: Optional[str] = None) -> Optional[dict]:
         conn.close()
 
 
+async def get_roles() -> list[str]:
+    """All role names defined in cs_roles (includes Owner -- callers that expose this
+    to the web admin panel must filter it out themselves)."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (roles): %s", e)
+        return []
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT name FROM cs_roles ORDER BY name")
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+async def get_player_roles(uuid: str) -> list[str]:
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (player roles): %s", e)
+        return []
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT role_name FROM cs_player_roles WHERE uuid = %s ORDER BY sort DESC, role_name",
+                (uuid,),
+            )
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+async def grant_role(uuid: str, role_name: str) -> None:
+    """Add a role in cs_player_roles and make it the displayed primary role
+    (cs_players.role_name) -- mirrors what /role give does in-game."""
+    conn = await _connect()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT IGNORE INTO cs_player_roles (uuid, role_name, sort) VALUES (%s, %s, 0)",
+                (uuid, role_name),
+            )
+            await cur.execute(
+                "UPDATE cs_players SET role_name = %s WHERE uuid = %s",
+                (role_name, uuid),
+            )
+        await conn.commit()
+    finally:
+        conn.close()
+
+
+async def revoke_role(uuid: str, role_name: str) -> None:
+    """Remove a role from cs_player_roles. If it was the displayed primary role,
+    fall back to any other role the player still has, or clear it."""
+    conn = await _connect()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM cs_player_roles WHERE uuid = %s AND role_name = %s",
+                (uuid, role_name),
+            )
+            await cur.execute(
+                "SELECT role_name FROM cs_players WHERE uuid = %s",
+                (uuid,),
+            )
+            row = await cur.fetchone()
+            if row is not None and row[0] == role_name:
+                await cur.execute(
+                    "SELECT role_name FROM cs_player_roles WHERE uuid = %s ORDER BY sort DESC, role_name LIMIT 1",
+                    (uuid,),
+                )
+                remaining = await cur.fetchone()
+                await cur.execute(
+                    "UPDATE cs_players SET role_name = %s WHERE uuid = %s",
+                    (remaining[0] if remaining else None, uuid),
+                )
+        await conn.commit()
+    finally:
+        conn.close()
+
+
 def _strip_section_codes(s: str) -> str:
     return s.replace("§", "").replace("&", "")
 

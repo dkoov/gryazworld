@@ -279,6 +279,7 @@ async def get_me(
         "uuid": player.uuid,
         "nickname": player.nickname,
         "discord_id": player.discord_id,
+        "is_admin": player.is_admin,
         "total_seconds": player.total_seconds,
         "hours": hours,
         "minutes": minutes,

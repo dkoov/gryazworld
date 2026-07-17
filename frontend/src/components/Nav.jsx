@@ -21,6 +21,7 @@ export default function Nav() {
   const navigate = useNavigate()
   const [user, setUser] = useState(getDiscordUser())
   const [mcNick, setMcNick] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
@@ -38,7 +39,7 @@ export default function Nav() {
   useEffect(() => {
     if (!user) return
     apiFetch('/web/me')
-      .then(p => { if (p.nickname) setMcNick(p.nickname) })
+      .then(p => { if (p.nickname) setMcNick(p.nickname); setIsAdmin(!!p.is_admin) })
       .catch(() => {})
   }, [user])
 
@@ -132,6 +133,9 @@ export default function Nav() {
                   </div>
                 </div>
                 <div className="user-dropdown-item" onClick={() => navigate('/shop')}>Магазин</div>
+                {isAdmin && (
+                  <div className="user-dropdown-item" onClick={() => { setUserMenuOpen(false); navigate('/admin') }}>Админ-панель</div>
+                )}
                 <div className="user-dropdown-item danger" onClick={logout}>Выйти из аккаунта</div>
               </div>
             )}

@@ -9,6 +9,7 @@ import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
 import CabinetPage from './pages/CabinetPage'
 import BankPage from './pages/BankPage'
+import AdminPage from './pages/AdminPage'
 import PlayerProfilePage from './pages/PlayerProfilePage'
 import OfertaPage from './pages/OfertaPage'
 import PaymentReturnPage from './pages/PaymentReturnPage'
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
         <Route path="/bank" element={<BankPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/player/:nickname" element={<PlayerProfilePage />} />
         <Route path="/oferta" element={<OfertaPage />} />
         <Route path="/payment/return" element={<PaymentReturnPage />} />

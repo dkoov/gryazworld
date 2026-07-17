@@ -33,6 +33,7 @@ class Player(Base):
     has_access = Column(Boolean, default=False, nullable=False)
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
     whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
+    is_admin = Column(Boolean, default=False, nullable=False)  # доступ к /admin (выдача игровых ролей)
 
     bank_account = relationship("BankAccount", back_populates="player", uselist=False)
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
