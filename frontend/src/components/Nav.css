@@ -21,7 +21,9 @@
 }
 .nav-logo img {
   height: 34px;
-  width: auto;
+  width: 34px;
+  border-radius: 50%;
+  object-fit: cover;
   display: block;
 }
 

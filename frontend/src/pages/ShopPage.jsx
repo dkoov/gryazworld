@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, ShieldCheck, Users, Calendar, Clock, Check } from 'lucide-react'
 import { createPayment, getDiscordUser } from '../api'
@@ -34,9 +34,11 @@ export default function ShopPage() {
   return (
     <section className="section shop-section">
       <div className="shop-inner">
-        <div className="section-label">Магазин</div>
-        <div className="section-title">Услуги и подписки</div>
-        <p className="section-sub">Дополнительные товары для уже зарегистрированных игроков.</p>
+        <div className="shop-header">
+          <div className="section-label">Магазин</div>
+          <div className="section-title">Услуги и подписки</div>
+          <p className="shop-sub">Дополнительные товары для уже зарегистрированных игроков.</p>
+        </div>
 
         <div className="shop-notice">
           <strong>Важно:</strong> покупки доступны только после входа через Discord и привязки Minecraft-ника.
@@ -70,6 +72,7 @@ export default function ShopPage() {
               discount="−48%"
               period="на весь сезон"
               featured
+              badge="Сезонный хит"
               features={['Полный доступ к серверу', 'Роль «Игрок» в Discord', 'Белый список на сервере', 'Java Edition']}
             />
           </div>
@@ -87,7 +90,7 @@ export default function ShopPage() {
           <PriceCard
             sku="ichoplus_1m"
             name="IchoPlus 1 месяц"
-            price="159"
+            price="199"
             period="на 30 дней"
             featured
             features={['Роль IchoPlus в Discord', 'Цветной ник в чате', 'Расширенные команды']}
@@ -96,15 +99,17 @@ export default function ShopPage() {
             <CompactPriceCard
               sku="ichoplus_2m"
               name="IchoPlus 2 месяца"
-              price="399"
+              price="349"
               period="на 60 дней"
+              perMonth="≈175₽/мес"
             />
             <CompactPriceCard
               sku="ichoplus_3m"
               name="IchoPlus 3 месяца"
-              price="699"
+              price="449"
               period="на 90 дней"
               badge="выгода"
+              perMonth="≈150₽/мес"
             />
           </div>
         </div>
@@ -117,6 +122,7 @@ export default function ShopPage() {
             name="Разбан"
             price="599"
             period="без обнуления"
+            note="Выдача сразу после оплаты"
             features={['Снятие бана с аккаунта', 'Восстановление доступа к серверу']}
           />
           <PriceCard
@@ -124,6 +130,7 @@ export default function ShopPage() {
             name="Размут"
             price="199"
             period="без обнуления"
+            note="Выдача сразу после оплаты"
             features={['Снятие мута', 'Восстановление доступа к чату']}
           />
           <PriceCard
@@ -131,6 +138,7 @@ export default function ShopPage() {
             name="Разварн"
             price="49"
             period="без обнуления"
+            note="Выдача сразу после оплаты"
             features={['Снятие одного варна']}
           />
         </div>
@@ -152,9 +160,47 @@ export default function ShopPage() {
   )
 }
 
-function PriceCard({ sku, name, price, oldPrice, discount, period, features, featured, badge }) {
+function useCountUp(target, duration = 800) {
+  const [value, setValue] = useState(0)
+  const ref = useRef(null)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !startedRef.current) {
+          startedRef.current = true
+          const start = performance.now()
+          const animate = (now) => {
+            const elapsed = now - start
+            if (elapsed >= duration) {
+              setValue(target)
+              return
+            }
+            const progress = elapsed / duration
+            const easeOut = 1 - Math.pow(1 - progress, 3)
+            setValue(Math.floor(target * easeOut))
+            requestAnimationFrame(animate)
+          }
+          requestAnimationFrame(animate)
+        }
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [target, duration])
+
+  return [value, ref]
+}
+
+function PriceCard({ sku, name, price, oldPrice, discount, period, features, featured, badge, note }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const numericPrice = sku === 'access_seasonal' ? Number(price) : 0
+  const [animatedPrice, priceRef] = useCountUp(numericPrice, 800)
 
   async function handleBuy() {
     if (!getDiscordUser()) {
@@ -184,8 +230,14 @@ function PriceCard({ sku, name, price, oldPrice, discount, period, features, fea
             <span className="shop-discount">{discount}</span>
           </div>
         )}
-        <div className="shop-card-price">{price}<span>₽</span></div>
-        <div className="shop-card-period">{period}</div>
+        <div className="shop-card-price" ref={priceRef}>{sku === 'access_seasonal' ? animatedPrice : price}<span>₽</span></div>
+        <div className="shop-card-period">{period}{note && <span className="shop-card-note">{note}</span>}</div>
+        {sku === 'access_seasonal' && (
+          <div className="shop-urgency">
+            <Clock className="shop-urgency-ico" size={14} strokeWidth={1.8} />
+            <span>Стартовая цена сезона — вырастет 1 августа</span>
+          </div>
+        )}
       </div>
 
       {sku === 'access_seasonal' && (
@@ -205,7 +257,7 @@ function PriceCard({ sku, name, price, oldPrice, discount, period, features, fea
       </ul>
 
       <button
-        className={`btn ${featured ? 'btn-primary' : 'btn-outline'}`}
+        className={`btn ${featured && sku === 'access_seasonal' ? 'btn-primary shop-pulse-btn' : featured ? 'btn-primary' : 'btn-outline'}`}
         onClick={handleBuy}
         disabled={loading}
       >
@@ -215,7 +267,7 @@ function PriceCard({ sku, name, price, oldPrice, discount, period, features, fea
   )
 }
 
-function CompactPriceCard({ sku, name, price, period, badge }) {
+function CompactPriceCard({ sku, name, price, period, badge, perMonth }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
@@ -242,7 +294,7 @@ function CompactPriceCard({ sku, name, price, period, badge }) {
           {badge && <span className="shop-badge small">{badge}</span>}
         </div>
         <div className="shop-compact-price">{price}<span>₽</span></div>
-        <div className="shop-compact-period">{period}</div>
+        <div className="shop-compact-period">{period}{perMonth && <span className="shop-compact-per-month">{perMonth}</span>}</div>
       </div>
       <button
         className="btn btn-outline"
