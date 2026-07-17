@@ -7,6 +7,7 @@ import aiohttp
 from sqlalchemy import select, delete
 
 from database import SessionLocal, Player, Subscription
+import charsystem_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,13 @@ async def check_expired_subscriptions():
             guild_id = os.getenv("DISCORD_GUILD_ID")
             role_id = os.getenv("ICHOPLUS_ROLE_ID")
 
-            if not bot_token or not guild_id or not role_id:
+            discord_configured = bool(bot_token and guild_id and role_id)
+            if not discord_configured:
                 logger.warning("Discord env variables for IchoPlus cron are not configured")
-            else:
+
+            # раньше вся проверка истёкших подписок была внутри "if discord_configured" --
+            # теперь снятие игровой роли IchoPlus идёт всегда, Discord-часть остаётся условной
+            if True:
                 session = SessionLocal()
                 try:
                     result = await session.execute(
@@ -41,6 +46,22 @@ async def check_expired_subscriptions():
                                         sub.id,
                                         sub.player_id,
                                     )
+                                    continue
+
+                                if (
+                                    player.uuid
+                                    and not player.uuid.startswith("web-")
+                                    and not player.uuid.startswith("manual:")
+                                ):
+                                    try:
+                                        await charsystem_client.revoke_role(player.uuid, "IchoPlus")
+                                    except Exception:
+                                        logger.exception(
+                                            "Failed to revoke in-game IchoPlus role for player %s",
+                                            player.id,
+                                        )
+
+                                if not discord_configured:
                                     continue
                                 if not player.discord_id:
                                     logger.warning(
