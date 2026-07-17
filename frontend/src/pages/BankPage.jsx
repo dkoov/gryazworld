@@ -63,6 +63,9 @@ export default function BankPage() {
   const [transferNick, setTransferNick] = useState('')
   const [transferAmount, setTransferAmount] = useState('')
   const [transferComment, setTransferComment] = useState('')
+  const [transferFromId, setTransferFromId] = useState(null)
+  const [fromDropdownOpen, setFromDropdownOpen] = useState(false)
+  const fromDropdownRef = useRef(null)
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -73,7 +76,16 @@ export default function BankPage() {
   const [newCardLabel, setNewCardLabel] = useState('')
 
   const activeAccount = accounts.find(a => a.id === activeId) || null
+  const transferFromAccount = accounts.find(a => a.id === transferFromId) || activeAccount
   const animatedBalance = useCountUp(activeAccount?.balance ?? 0)
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (fromDropdownRef.current && !fromDropdownRef.current.contains(e.target)) setFromDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   function loadAccounts() {
     return apiFetch('/web/bank/accounts').then(list => {
@@ -109,6 +121,8 @@ export default function BankPage() {
 
   function openTransfer() {
     setTransferNick(''); setTransferAmount(''); setTransferComment('')
+    setTransferFromId(activeId)
+    setFromDropdownOpen(false)
     setModal('transfer')
     setFormError('')
   }
@@ -143,15 +157,16 @@ export default function BankPage() {
     const amt = Number(transferAmount)
     if (!transferNick.trim()) { setFormError('Введи ник игрока'); return }
     if (!amt || amt <= 0) { setFormError('Введи сумму'); return }
+    const fromId = transferFromAccount?.id
     setBusy(true)
     try {
-      await apiFetch(`/web/bank/accounts/${activeAccount.id}/transfer`, {
+      await apiFetch(`/web/bank/accounts/${fromId}/transfer`, {
         method: 'POST',
         body: JSON.stringify({ to_nickname: transferNick.trim(), amount: amt, comment: transferComment.trim() }),
       })
       closeModal()
       loadAccounts()
-      loadTxs(activeAccount.id)
+      loadTxs(fromId)
     } catch (e) {
       setFormError(e.message)
     } finally {
@@ -404,46 +419,99 @@ export default function BankPage() {
         </div>
       </div>
 
-      <Modal open={modal === 'transfer'} onClose={closeModal}>
-        <div className="bank-transfer-title">
-          <span className="bank-transfer-title-icon">◆</span>
-          <h2>Перевод денег</h2>
+      <Modal open={modal === 'transfer'} onClose={closeModal} wide>
+        <div className="bt-tabs">
+          <div className="bt-tab active">Перевести</div>
+          <div className="bt-tab disabled" title="Скоро">Выставить счёт</div>
         </div>
 
-        <div className="bank-transfer-row">
-          <div className="inp-group bank-transfer-nick">
-            <label>Ник игрока</label>
-            <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Введите ник" />
-          </div>
-          <div className="inp-group bank-transfer-sum">
-            <label>Сумма</label>
-            <div className="bank-amount-input-wrap">
-              <span className="bank-amount-icon">◆</span>
-              <input
-                className="bank-amount-input"
-                type="number"
-                value={transferAmount}
-                onChange={e => setTransferAmount(e.target.value)}
-                placeholder="0"
-              />
+        {transferFromAccount && (
+          <div className="bt-preview-row">
+            <div className="bt-preview-card">
+              <div className="bank-card-top">
+                <span>{transferFromAccount.label || (transferFromAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
+                <span>I-Bank</span>
+              </div>
+              <div className="bank-card-bottom">
+                <span>{transferFromAccount.owner_nickname}</span>
+                <span>◆ {Math.round(transferFromAccount.balance)}</span>
+              </div>
             </div>
+            <div className="bt-preview-arrow">→</div>
+            <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
+              {transferNick.trim() ? (
+                <>
+                  <img src={mcHead(transferNick, 40)} alt="" />
+                  <span>{transferNick}</span>
+                </>
+              ) : (
+                <span className="bt-preview-placeholder">Игрок не выбран</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="bt-select-row" ref={fromDropdownRef}>
+          <div
+            className="bt-select-main"
+            onClick={() => accounts.length > 1 && setFromDropdownOpen(v => !v)}
+          >
+            <img className="bt-select-avatar" src={mcHead(transferFromAccount?.owner_nickname || '?', 40)} alt="" />
+            <div className="bt-select-info">
+              <div className="bt-select-name">{transferFromAccount?.owner_nickname}</div>
+              <div className="bt-select-sub">
+                {transferFromAccount?.label || (transferFromAccount?.is_primary ? 'Основная карта' : 'Карта')}
+              </div>
+            </div>
+            {accounts.length > 1 && <span className={`bt-select-chevron ${fromDropdownOpen ? 'open' : ''}`}>▾</span>}
+          </div>
+          {fromDropdownOpen && (
+            <div className="bt-select-dropdown">
+              {accounts.map(a => (
+                <div
+                  key={a.id}
+                  className="bt-select-option"
+                  onMouseDown={() => { setTransferFromId(a.id); setFromDropdownOpen(false) }}
+                >
+                  <img src={mcHead(a.owner_nickname, 28)} alt="" />
+                  <span>{a.label || (a.is_primary ? 'Основная карта' : 'Карта')}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="inp-group">
+          <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Ник игрока" />
+        </div>
+
+        <div className="inp-group">
+          <div className="bank-amount-input-wrap right">
+            <input
+              className="bank-amount-input right"
+              type="number"
+              value={transferAmount}
+              onChange={e => setTransferAmount(e.target.value)}
+              placeholder="Сумма"
+            />
+            <span className="bank-amount-icon right">◆</span>
           </div>
         </div>
 
         <div className="inp-group">
-          <input
-            type="text"
-            className="bank-transfer-comment"
+          <textarea
             value={transferComment}
-            onChange={e => setTransferComment(e.target.value)}
-            placeholder="Комментарий (необязательно)"
+            onChange={e => setTransferComment(e.target.value.slice(0, 350))}
+            placeholder="Комментарий"
+            rows={3}
           />
+          <div className="bt-char-count">Символов {transferComment.length}/350</div>
         </div>
 
         {formError && <p className="bank-transfer-error">{formError}</p>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 14 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
-          <button className="btn btn-primary" disabled={busy} onClick={submitTransfer}>
+          <button className="btn btn-primary" disabled={busy || !transferNick.trim() || !transferAmount} onClick={submitTransfer}>
             {busy ? 'Отправка...' : <>Перевести <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}
           </button>
         </div>
@@ -451,6 +519,18 @@ export default function BankPage() {
 
       <Modal open={modal === 'edit'} onClose={closeModal}>
         <h2>Редактировать карту</h2>
+        {activeAccount && (
+          <div className="bank-card bank-edit-card-preview">
+            <div className="bank-card-top">
+              <span>{editLabel || (activeAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
+              <span>I-Bank</span>
+            </div>
+            <div className="bank-card-bottom">
+              <span>{holderName?.toUpperCase()}</span>
+              <span>◆ {Math.round(activeAccount.balance)}</span>
+            </div>
+          </div>
+        )}
         <div className="inp-group">
           <label>Название карты</label>
           <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} placeholder="Основная карта" maxLength={40} />

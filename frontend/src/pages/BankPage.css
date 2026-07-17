@@ -329,34 +329,113 @@
   margin: 0;
 }
 
-.bank-transfer-title {
+/* ── Перевод: вкладки ─────────────────────────────────────────────────── */
+.bt-tabs {
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--border2);
+}
+.bt-tab {
+  flex: 1;
+  text-align: center;
+  padding: 13px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.bt-tab.active { background: var(--accent); color: #fff; }
+.bt-tab.disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* ── Перевод: превью карт с стрелкой ──────────────────────────────────── */
+.bt-preview-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.bank-transfer-title-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--pink));
-  color: #fff;
+.bt-preview-card {
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  padding: 12px;
+  background: repeating-linear-gradient(45deg, #2a1f45, #2a1f45 8px, #382a5c 8px, #382a5c 16px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+}
+.bt-preview-card .bank-card-top,
+.bt-preview-card .bank-card-bottom { font-size: 11px; }
+.bt-preview-arrow { color: var(--muted); font-size: 16px; flex: none; }
+.bt-preview-target {
+  flex: 1;
+  min-width: 0;
+  min-height: 66px;
+  border-radius: 12px;
+  border: 1px dashed var(--border2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  flex: none;
+  gap: 8px;
+  padding: 12px;
 }
-.bank-transfer-title h2 { margin: 0; font-size: 17px; }
+.bt-preview-target.filled {
+  border-style: solid;
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.06);
+}
+.bt-preview-target img { width: 28px; height: 28px; border-radius: 7px; object-fit: cover; image-rendering: pixelated; }
+.bt-preview-target span { font-size: 12.5px; font-weight: 700; }
+.bt-preview-placeholder { color: var(--muted2); font-size: 11.5px; font-weight: 500; text-align: center; }
 
-.bank-transfer-row {
+/* ── Перевод: выбор своей карты (со списком) ──────────────────────────── */
+.bt-select-row { position: relative; margin-bottom: 16px; }
+.bt-select-main {
   display: flex;
+  align-items: center;
   gap: 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--surface2);
 }
-.bank-transfer-nick { flex: 1.4; min-width: 0; }
-.bank-transfer-sum { flex: 1; min-width: 0; }
-.bank-transfer-comment { font-size: 12.5px !important; }
+.bt-select-avatar { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; image-rendering: pixelated; flex: none; }
+.bt-select-info { min-width: 0; flex: 1; }
+.bt-select-name { font-size: 12.5px; font-weight: 700; }
+.bt-select-sub { font-size: 11px; color: var(--muted); }
+.bt-select-chevron { color: var(--muted); font-size: 11px; transition: transform 0.2s ease; cursor: pointer; }
+.bt-select-chevron.open { transform: rotate(180deg); }
+.bt-select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 40;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+  animation: dropdownIn 0.15s ease;
+}
+.bt-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.bt-select-option:hover { background: rgba(139, 92, 246, 0.12); }
+.bt-select-option img { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; image-rendering: pixelated; }
+
+.bt-char-count { text-align: right; font-size: 10.5px; color: var(--muted2); margin-top: 4px; }
 
 .bank-amount-input-wrap { position: relative; }
 .bank-amount-icon {
@@ -369,8 +448,12 @@
   pointer-events: none;
 }
 .bank-amount-input { padding-left: 34px !important; }
+.bank-amount-icon.right { left: auto; right: 14px; }
+.bank-amount-input.right { padding-left: 14px !important; padding-right: 34px !important; }
 
 .bank-btn-diamond { color: inherit; opacity: 0.85; }
+
+.bank-edit-card-preview { margin-bottom: 18px; aspect-ratio: 2.3; }
 
 .bank-access-add-row { display: flex; gap: 10px; align-items: flex-start; }
 .bank-access-add-row .pni-wrap { margin: 0; }
