@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Crown } from 'lucide-react'
+import { Crown, Gem, ArrowRight, Receipt } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
@@ -379,15 +379,19 @@ export default function BankPage() {
               <div className="bank-card-bottom">
                 <div className="bank-card-holder">{holderName?.toUpperCase()}</div>
                 <div className="bank-card-balance">
-                  {activeAccount.hide_balance ? '◆ ••••' : `◆ ${animatedBalance}`}
+                  <Gem size={13} />
+                  {activeAccount.hide_balance ? ' ••••' : ` ${animatedBalance}`}
                 </div>
               </div>
             </div>
           )}
 
           <div className="bank-actions">
-            <div className="bank-action-row" onClick={openTransfer}>
+            <div className="bank-action-row" onClick={() => openTransfer('transfer')}>
               <span className="bank-action-icon">⇄</span>Перевод денег
+            </div>
+            <div className="bank-action-row" onClick={() => openTransfer('invoice')}>
+              <span className="bank-action-icon"><Receipt size={14} /></span>Выставить счёт
             </div>
             {activeAccount?.is_owner && (
               <>
@@ -451,7 +455,7 @@ export default function BankPage() {
                       </div>
                     </div>
                     <div className="bank-invoice-right">
-                      <div className="bank-tx-amount">◆ {Math.round(inv.amount)}</div>
+                      <div className="bank-tx-amount"><Gem size={12} className="bank-tx-amount-icon" /> {Math.round(inv.amount)}</div>
                       {inv.status === 'pending' && !inv.outgoing && (
                         <div className="bank-invoice-actions">
                           <button
@@ -546,7 +550,7 @@ export default function BankPage() {
               </div>
               <div className="bank-card-bottom">
                 <span>{transferFromAccount.owner_nickname}</span>
-                <span>◆ {Math.round(transferFromAccount.balance)}</span>
+                <span className="bank-card-balance"><Gem size={12} /> {Math.round(transferFromAccount.balance)}</span>
               </div>
             </div>
           )
@@ -566,7 +570,9 @@ export default function BankPage() {
           return (
             <div className="bt-preview-row" key={transferMode}>
               {isInvoice ? targetEl : cardEl}
-              <div className={`bt-preview-arrow ${isInvoice ? 'flipped' : ''}`}>→</div>
+              <div className={`bt-preview-arrow ${isInvoice ? 'flipped' : ''}`}>
+                <ArrowRight size={18} className="bt-preview-arrow-icon" />
+              </div>
               {isInvoice ? cardEl : targetEl}
             </div>
           )
@@ -619,7 +625,7 @@ export default function BankPage() {
               onChange={e => setTransferAmount(e.target.value)}
               placeholder="Сумма"
             />
-            <span className="bank-amount-icon right">◆</span>
+            <span className="bank-amount-icon right"><Gem size={14} /></span>
           </div>
         </div>
 
@@ -639,7 +645,7 @@ export default function BankPage() {
           <button className="btn btn-primary" disabled={busy || !transferNick.trim() || !transferAmount} onClick={submitTransfer}>
             {busy
               ? 'Отправка...'
-              : <>{transferMode === 'invoice' ? 'Выставить' : 'Перевести'} <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}
+              : <>{transferMode === 'invoice' ? 'Выставить' : 'Перевести'} <Gem size={13} className="bank-btn-diamond" /> {transferAmount || 0}</>}
           </button>
         </div>
       </Modal>
@@ -654,7 +660,7 @@ export default function BankPage() {
             </div>
             <div className="bank-card-bottom">
               <span>{holderName?.toUpperCase()}</span>
-              <span>◆ {Math.round(activeAccount.balance)}</span>
+              <span className="bank-card-balance"><Gem size={12} /> {Math.round(activeAccount.balance)}</span>
             </div>
           </div>
         )}
