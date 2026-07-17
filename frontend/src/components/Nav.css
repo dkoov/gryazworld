@@ -64,6 +64,7 @@
 }
 
 .nav-feature-btn {
+  position: relative;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -88,6 +89,16 @@
 }
 .nav-feature-communities {
   background: linear-gradient(135deg, var(--green), var(--green2));
+}
+.nav-feature-badge {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f87171;
+  border: 2px solid var(--bg);
 }
 
 .user-menu-wrap { position: relative; }

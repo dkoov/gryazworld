@@ -22,6 +22,7 @@ export default function Nav() {
   const [user, setUser] = useState(getDiscordUser())
   const [mcNick, setMcNick] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [unreadMsgs, setUnreadMsgs] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
@@ -41,6 +42,18 @@ export default function Nav() {
     apiFetch('/web/me')
       .then(p => { if (p.nickname) setMcNick(p.nickname); setIsAdmin(!!p.is_admin) })
       .catch(() => {})
+  }, [user])
+
+  useEffect(() => {
+    if (!user) { setUnreadMsgs(0); return }
+    const load = () => {
+      apiFetch('/web/messenger/unread-count')
+        .then(d => setUnreadMsgs(d.count || 0))
+        .catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
   }, [user])
 
   useEffect(() => {
@@ -90,12 +103,9 @@ export default function Nav() {
             <button className="nav-feature-btn nav-feature-bank" title="Банк" onClick={() => navigate('/bank')}>
               <Landmark size={16} strokeWidth={2.3} />
             </button>
-            <button
-              className="nav-feature-btn nav-feature-msg"
-              title="Сообщения"
-              onClick={() => openComingSoon('Мессенджер', 'Прямые сообщения между игроками в разработке. Загляните позже.')}
-            >
+            <button className="nav-feature-btn nav-feature-msg" title="Сообщения" onClick={() => navigate('/messenger')}>
               <MessageCircle size={16} strokeWidth={2.3} />
+              {unreadMsgs > 0 && <span className="nav-feature-badge" />}
             </button>
             <button
               className="nav-feature-btn nav-feature-communities"

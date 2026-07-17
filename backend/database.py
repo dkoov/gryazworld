@@ -148,6 +148,17 @@ class CommunityInvite(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    from_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    to_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+
+
 class PlayerIP(Base):
     __tablename__ = "player_ips"
 
