@@ -23,6 +23,7 @@
   height: 34px;
   width: auto;
   display: block;
+  border-radius: 9px;
 }
 
 .nav-links {
