@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
-import { Landmark, MessageCircle, Users } from 'lucide-react'
+import { Landmark, MessageCircle, Users, Scale } from 'lucide-react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
 import Modal from './Modal'
@@ -22,6 +22,7 @@ export default function Nav() {
   const [user, setUser] = useState(getDiscordUser())
   const [mcNick, setMcNick] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [canReviewClaims, setCanReviewClaims] = useState(false)
   const [unreadMsgs, setUnreadMsgs] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -41,6 +42,9 @@ export default function Nav() {
     if (!user) return
     apiFetch('/web/me')
       .then(p => { if (p.nickname) setMcNick(p.nickname); setIsAdmin(!!p.is_admin) })
+      .catch(() => {})
+    apiFetch('/web/court/permissions')
+      .then(p => setCanReviewClaims(!!p.can_review))
       .catch(() => {})
   }, [user])
 
@@ -103,6 +107,11 @@ export default function Nav() {
             <button className="nav-feature-btn" title="Банк" onClick={() => navigate('/bank')}>
               <Landmark size={18} strokeWidth={1.75} />
             </button>
+            {canReviewClaims && (
+              <button className="nav-feature-btn" title="Суд" onClick={() => navigate('/court')}>
+                <Scale size={18} strokeWidth={1.75} />
+              </button>
+            )}
             <button className="nav-feature-btn" title="Сообщения" onClick={() => navigate('/messenger')}>
               <MessageCircle size={18} strokeWidth={1.75} />
               {unreadMsgs > 0 && <span className="nav-feature-badge" />}

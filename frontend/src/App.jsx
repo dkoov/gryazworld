@@ -9,6 +9,7 @@ import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
 import CabinetPage from './pages/CabinetPage'
 import BankPage from './pages/BankPage'
+import CourtPage from './pages/CourtPage'
 import AdminPage from './pages/AdminPage'
 import MessengerPage from './pages/MessengerPage'
 import PlayerProfilePage from './pages/PlayerProfilePage'
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
         <Route path="/bank" element={<BankPage />} />
+        <Route path="/court" element={<CourtPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/messenger" element={<MessengerPage />} />
         <Route path="/player/:nickname" element={<PlayerProfilePage />} />
