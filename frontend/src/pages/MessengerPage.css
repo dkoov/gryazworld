@@ -164,6 +164,9 @@
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
 }
+.msg-thread-head-link { cursor: pointer; transition: background 0.15s ease; }
+.msg-thread-head-link:hover { background: rgba(139, 92, 246, 0.06); }
+.msg-thread-head-link:hover .msg-thread-name { text-decoration: underline; }
 .msg-thread-name { font-size: 13px; font-weight: 700; }
 
 .msg-thread-body {

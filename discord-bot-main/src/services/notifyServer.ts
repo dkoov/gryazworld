@@ -1,6 +1,7 @@
 import http from "http";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from "discord.js";
 import { ExtendedClient } from "../structures/Client";
+import { recordFineMessage, getFineMessage, removeFineMessage } from "./finesStore";
 
 const PORT = Number(process.env.NOTIFY_PORT ?? 5050);
 const NOTIFICATIONS_CHANNEL_ID = process.env.FINES_NOTIFY_CHANNEL_ID ?? "1522965883738128455";
@@ -58,13 +59,15 @@ async function handleFine(client: ExtendedClient, data: any): Promise<void> {
     .setFooter({ text: `Выдал: ${data.issued_by ?? "?"} • #${data.fine_id}` })
     .setTimestamp();
 
-  // канал уведомлений: пингуем оштрафованного игрока
+  // канал уведомлений: пингуем оштрафованного игрока (allowedMentions -- чтобы пинг точно доходил)
   const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
   if (notifyChannel) {
     const content = data.discord_id ? `<@${data.discord_id}>` : undefined;
-    await notifyChannel.send({ content, embeds: [embed] }).catch((e) =>
-      console.error("[Notify] fine -> уведомления:", e)
-    );
+    await notifyChannel.send({
+      content,
+      embeds: [embed],
+      allowedMentions: data.discord_id ? { users: [String(data.discord_id)] } : undefined,
+    }).catch((e) => console.error("[Notify] fine -> уведомления:", e));
   }
 
   // канал сби-штрафы: пингуем полицейского, который выписал штраф, + кнопка подтверждения
@@ -77,9 +80,17 @@ async function handleFine(client: ExtendedClient, data: any): Promise<void> {
         .setStyle(ButtonStyle.Success)
     );
     const content = data.issued_by_discord_id ? `<@${data.issued_by_discord_id}>` : undefined;
-    await sbiChannel.send({ content, embeds: [embed], components: [row] }).catch((e) =>
-      console.error("[Notify] fine -> сби-штрафы:", e)
-    );
+    try {
+      const sent = await sbiChannel.send({
+        content,
+        embeds: [embed],
+        components: [row],
+        allowedMentions: data.issued_by_discord_id ? { users: [String(data.issued_by_discord_id)] } : undefined,
+      });
+      if (data.fine_id != null) recordFineMessage(Number(data.fine_id), sbiChannel.id, sent.id);
+    } catch (e) {
+      console.error("[Notify] fine -> сби-штрафы:", e);
+    }
   }
 
   // если штраф выдан по результату рассмотрения иска -- отчитываемся прямо в тред дела и закрываем его
@@ -132,9 +143,34 @@ async function handleFinePaid(client: ExtendedClient, data: any): Promise<void> 
   const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
   if (notifyChannel) {
     const content = data.discord_id ? `<@${data.discord_id}>` : undefined;
-    await notifyChannel.send({ content, embeds: [embed] }).catch((e) =>
-      console.error("[Notify] fine_paid:", e)
-    );
+    await notifyChannel.send({
+      content,
+      embeds: [embed],
+      allowedMentions: data.discord_id ? { users: [String(data.discord_id)] } : undefined,
+    }).catch((e) => console.error("[Notify] fine_paid:", e));
+  }
+
+  // сами подтверждаем оплату в сби-канале -- убираем кнопку, чтобы полицейский не жал её вручную
+  if (data.fine_id != null) {
+    const ref = getFineMessage(Number(data.fine_id));
+    if (ref) {
+      try {
+        const channel = await getChannel(client, ref.channelId);
+        const message = await channel?.messages.fetch(ref.messageId).catch(() => null);
+        if (message) {
+          const original = message.embeds[0]
+            ? EmbedBuilder.from(message.embeds[0])
+            : new EmbedBuilder().setTitle("Штраф");
+          original.setColor(0x2ecc71);
+          original.addFields({ name: "Статус", value: "✅ Оплачено на сайте -- подтверждено автоматически" });
+          await message.edit({ embeds: [original], components: [] });
+        }
+      } catch (e) {
+        console.error("[Notify] авто-подтверждение оплаты в сби-канале:", e);
+      } finally {
+        removeFineMessage(Number(data.fine_id));
+      }
+    }
   }
 }
 

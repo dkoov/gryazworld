@@ -186,7 +186,11 @@ export default function MessengerPage() {
 
           {active && (
             <>
-              <div className="msg-thread-head">
+              <div
+                className="msg-thread-head msg-thread-head-link"
+                onClick={() => navigate(`/player/${encodeURIComponent(active)}`)}
+                title="Открыть профиль игрока"
+              >
                 <img className="msg-avatar" src={mcHead(active)} alt="" />
                 <div className="msg-thread-name">{active}</div>
               </div>
