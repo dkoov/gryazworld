@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Crown, Gem, ArrowRight, Receipt } from 'lucide-react'
+import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
 import './BankPage.css'
+
+const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzwhmfizw/image/upload'
+const CLOUDINARY_PRESET = 'gryazworld'
 
 function mcHead(nickname, size = 64) {
   return `https://mc-heads.net/avatar/${encodeURIComponent(nickname)}/${size}`
@@ -77,8 +80,14 @@ export default function BankPage() {
   const [invoices, setInvoices] = useState([])
   const [invoiceBusyId, setInvoiceBusyId] = useState(null)
 
+  const [canInvoice, setCanInvoice] = useState(false)
+  const [isIchoPlus, setIsIchoPlus] = useState(false)
+
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
+  const [editImageUrl, setEditImageUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
+  const imageInputRef = useRef(null)
 
   const [accessInfo, setAccessInfo] = useState(null)
   const [accessNick, setAccessNick] = useState('')
@@ -117,6 +126,9 @@ export default function BankPage() {
       .catch(e => setLoadError(e.message))
       .finally(() => setLoading(false))
     loadInvoices()
+    apiFetch('/web/bank/permissions')
+      .then(p => { setCanInvoice(!!p.can_invoice); setIsIchoPlus(!!p.is_ichoplus) })
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -147,8 +159,30 @@ export default function BankPage() {
     if (!activeAccount) return
     setEditLabel(activeAccount.label || '')
     setEditHideBalance(activeAccount.hide_balance)
+    setEditImageUrl(activeAccount.image_url || '')
     setModal('edit')
     setFormError('')
+  }
+
+  async function handleImagePick(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !isIchoPlus) return
+    setImageUploading(true)
+    setFormError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('upload_preset', CLOUDINARY_PRESET)
+      const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.secure_url) setEditImageUrl(data.secure_url)
+      else throw new Error(data.error?.message || 'Ошибка загрузки')
+    } catch (err) {
+      setFormError('Ошибка: ' + err.message)
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   function openAccess() {
@@ -224,13 +258,25 @@ export default function BankPage() {
     }
   }
 
+  async function cancelInvoice(id) {
+    setInvoiceBusyId(id)
+    try {
+      await apiFetch(`/web/bank/invoices/${id}`, { method: 'DELETE' })
+      loadInvoices()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setInvoiceBusyId(null)
+    }
+  }
+
   async function submitEdit() {
     setFormError('')
     setBusy(true)
     try {
       await apiFetch(`/web/bank/accounts/${activeAccount.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ label: editLabel.trim(), hide_balance: editHideBalance }),
+        body: JSON.stringify({ label: editLabel.trim(), hide_balance: editHideBalance, image_url: editImageUrl }),
       })
       closeModal()
       loadAccounts()
@@ -371,7 +417,10 @@ export default function BankPage() {
       <div className="bank-layout">
         <div className="bank-left">
           {activeAccount && (
-            <div className="bank-card">
+            <div
+              className={`bank-card ${activeAccount.image_url ? 'has-image' : ''}`}
+              style={activeAccount.image_url ? { backgroundImage: `url(${activeAccount.image_url})` } : undefined}
+            >
               <div className="bank-card-top">
                 <div>{activeAccount.label || (activeAccount.is_primary ? 'Основная карта' : 'Карта')}</div>
                 <div>I-Bank</div>
@@ -389,9 +438,6 @@ export default function BankPage() {
           <div className="bank-actions">
             <div className="bank-action-row" onClick={() => openTransfer('transfer')}>
               <span className="bank-action-icon">⇄</span>Перевод денег
-            </div>
-            <div className="bank-action-row" onClick={() => openTransfer('invoice')}>
-              <span className="bank-action-icon"><Receipt size={14} /></span>Выставить счёт
             </div>
             {activeAccount?.is_owner && (
               <>
@@ -412,7 +458,10 @@ export default function BankPage() {
             )}
             {otherAccounts.map(a => (
               <div key={a.id} className="bank-other-row" onClick={() => setActiveId(a.id)}>
-                <div className={`bank-other-preview ${a.is_primary ? 'primary' : ''}`} />
+                <div
+                  className={`bank-other-preview ${a.is_primary ? 'primary' : ''} ${a.image_url ? 'has-image' : ''}`}
+                  style={a.image_url ? { backgroundImage: `url(${a.image_url})` } : undefined}
+                />
                 <div className="bank-other-info">
                   <div className="bank-other-name">{a.label || (a.is_primary ? 'Основная карта' : 'Карта')}</div>
                   <div className="bank-other-owner">{a.is_owner ? '' : a.owner_nickname}</div>
@@ -450,6 +499,7 @@ export default function BankPage() {
                         {formatDateTime(inv.created_at)}
                         {inv.status === 'paid' && <span className="bank-invoice-status paid">оплачен</span>}
                         {inv.status === 'declined' && <span className="bank-invoice-status declined">отклонён</span>}
+                        {inv.status === 'cancelled' && <span className="bank-invoice-status declined">отменён</span>}
                         {inv.status === 'pending' && !inv.outgoing && <span className="bank-invoice-status pending">ожидает оплаты</span>}
                         {inv.status === 'pending' && inv.outgoing && <span className="bank-invoice-status pending">выставлен</span>}
                       </div>
@@ -471,6 +521,17 @@ export default function BankPage() {
                             onClick={() => declineInvoice(inv.id)}
                           >
                             Отклонить
+                          </button>
+                        </div>
+                      )}
+                      {inv.status === 'pending' && inv.outgoing && (
+                        <div className="bank-invoice-actions">
+                          <button
+                            className="bank-invoice-decline"
+                            disabled={invoiceBusyId === inv.id}
+                            onClick={() => cancelInvoice(inv.id)}
+                          >
+                            Удалить счёт
                           </button>
                         </div>
                       )}
@@ -533,17 +594,22 @@ export default function BankPage() {
           >
             Перевести
           </div>
-          <div
-            className={`bt-tab ${transferMode === 'invoice' ? 'active' : ''}`}
-            onClick={() => { setTransferMode('invoice'); setFormError('') }}
-          >
-            Выставить счёт
-          </div>
+          {canInvoice && (
+            <div
+              className={`bt-tab ${transferMode === 'invoice' ? 'active' : ''}`}
+              onClick={() => { setTransferMode('invoice'); setFormError('') }}
+            >
+              <Receipt size={13} className="bt-tab-icon" /> Выставить счёт
+            </div>
+          )}
         </div>
 
         {transferFromAccount && (() => {
           const cardEl = (
-            <div className="bt-preview-card">
+            <div
+              className={`bt-preview-card ${transferFromAccount.image_url ? 'has-image' : ''}`}
+              style={transferFromAccount.image_url ? { backgroundImage: `url(${transferFromAccount.image_url})` } : undefined}
+            >
               <div className="bank-card-top">
                 <span>{transferFromAccount.label || (transferFromAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
                 <span>I-Bank</span>
@@ -653,7 +719,10 @@ export default function BankPage() {
       <Modal open={modal === 'edit'} onClose={closeModal}>
         <h2>Редактировать карту</h2>
         {activeAccount && (
-          <div className="bank-card bank-edit-card-preview">
+          <div
+            className={`bank-card bank-edit-card-preview ${editImageUrl ? 'has-image' : ''}`}
+            style={editImageUrl ? { backgroundImage: `url(${editImageUrl})` } : undefined}
+          >
             <div className="bank-card-top">
               <span>{editLabel || (activeAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
               <span>I-Bank</span>
@@ -674,6 +743,45 @@ export default function BankPage() {
             <div className="bank-toggle-thumb" />
           </div>
         </div>
+
+        <div className="bank-image-row">
+          <div className="bank-image-row-label">
+            Картинка карты
+            {!isIchoPlus && <span className="bank-image-plus-badge"><Lock size={11} /> IchoPlus</span>}
+          </div>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImagePick}
+          />
+          {isIchoPlus ? (
+            <div className="bank-image-actions">
+              <button
+                type="button"
+                className="btn btn-outline bank-image-pick-btn"
+                disabled={imageUploading}
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <ImagePlus size={14} /> {imageUploading ? 'Загрузка...' : editImageUrl ? 'Заменить' : 'Загрузить'}
+              </button>
+              {editImageUrl && (
+                <button
+                  type="button"
+                  className="btn btn-ghost bank-image-clear-btn"
+                  disabled={imageUploading}
+                  onClick={() => setEditImageUrl('')}
+                >
+                  <X size={14} /> Убрать
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bank-image-locked">Своя картинка карты доступна подписчикам IchoPlus</div>
+          )}
+        </div>
+
         {formError && <p className="bank-transfer-error">{formError}</p>}
         {!activeAccount?.is_primary && (
           <button className="bank-delete-card-btn" disabled={busy} onClick={submitDeleteCard}>

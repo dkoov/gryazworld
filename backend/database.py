@@ -62,6 +62,7 @@ class BankAccount(Base):
     is_primary = Column(Boolean, default=False, nullable=False)  # тот самый счёт, с которым работает vzBank в игре
     hide_balance = Column(Boolean, default=False, nullable=False)  # личная настройка отображения, не влияет на доступ
     balance = Column(Float, default=0.0, nullable=False)
+    image_url = Column(String, nullable=True)  # своя картинка карты, только для IchoPlus
     created_at = Column(DateTime, default=datetime.utcnow)
 
     player = relationship("Player", back_populates="bank_accounts")

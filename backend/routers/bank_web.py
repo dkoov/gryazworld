@@ -5,10 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import charsystem_client
 from auth import CurrentUser, current_user
-from database import get_db, Player, BankAccount, BankAccountAccess, Transaction, Invoice
+from database import get_db, Player, BankAccount, BankAccountAccess, Transaction, Invoice, Subscription
 
 router = APIRouter(prefix="/web/bank", tags=["bank-web"])
+
+INVOICE_ROLES = {"banker", "судья", "police"}
 
 
 async def _resolve_self(user: CurrentUser, db: AsyncSession) -> Player:
@@ -17,6 +20,24 @@ async def _resolve_self(user: CurrentUser, db: AsyncSession) -> Player:
     if player is None:
         raise HTTPException(status_code=404, detail="Сначала привяжи Minecraft-аккаунт")
     return player
+
+
+async def _can_issue_invoices(player: Player) -> bool:
+    if not player.uuid or player.uuid.startswith("web-") or player.uuid.startswith("manual:"):
+        return False
+    roles = await charsystem_client.get_player_roles(player.uuid)
+    return any(r.lower() in INVOICE_ROLES for r in roles)
+
+
+async def _has_ichoplus(player: Player, db: AsyncSession) -> bool:
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.player_id == player.id,
+            Subscription.sku.like("ichoplus_%"),
+            Subscription.expires_at > datetime.utcnow(),
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def _own_accounts(player_id: int, db: AsyncSession) -> list[BankAccount]:
@@ -59,6 +80,15 @@ def _account_label(account: BankAccount, owner_nickname: str) -> str:
     return "Основная карта" if account.is_primary else "Карта"
 
 
+@router.get("/permissions")
+async def get_permissions(user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    me = await _resolve_self(user, db)
+    return {
+        "can_invoice": await _can_issue_invoices(me),
+        "is_ichoplus": await _has_ichoplus(me, db),
+    }
+
+
 @router.get("/accounts")
 async def list_accounts(user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
     me = await _resolve_self(user, db)
@@ -84,6 +114,7 @@ async def list_accounts(user: CurrentUser = Depends(current_user), db: AsyncSess
             "is_primary": a.is_primary,
             "is_owner": a.player_id == me.id,
             "owner_nickname": owners[a.player_id].nickname if a.player_id in owners else None,
+            "image_url": a.image_url,
         }
         for a in accounts
     ]
@@ -118,6 +149,7 @@ async def create_account(
 class UpdateAccountRequest(BaseModel):
     label: str | None = None
     hide_balance: bool | None = None
+    image_url: str | None = None
 
 
 @router.patch("/accounts/{account_id}")
@@ -134,6 +166,10 @@ async def update_account(
         account.label = data.label.strip()[:40] or None
     if data.hide_balance is not None:
         account.hide_balance = data.hide_balance
+    if data.image_url is not None:
+        if data.image_url and not await _has_ichoplus(me, db):
+            raise HTTPException(status_code=403, detail="Своя картинка карты доступна только с IchoPlus")
+        account.image_url = data.image_url.strip()[:500] or None
 
     await db.commit()
     return {"status": "ok"}
@@ -364,6 +400,9 @@ async def create_invoice(
         raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
 
     me = await _resolve_self(user, db)
+    if not await _can_issue_invoices(me):
+        raise HTTPException(status_code=403, detail="Выставлять счета могут только Банкир, Судья и Полицейский")
+
     account = await _get_account_for(account_id, me, db)
 
     debtor_result = await db.execute(
@@ -487,6 +526,27 @@ async def decline_invoice(
         raise HTTPException(status_code=400, detail="Счёт уже закрыт")
 
     invoice.status = "declined"
+    invoice.resolved_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/invoices/{invoice_id}")
+async def cancel_invoice(
+    invoice_id: int, user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+):
+    me = await _resolve_self(user, db)
+
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+    if invoice.creditor_player_id != me.id:
+        raise HTTPException(status_code=403, detail="Это не твой счёт")
+    if invoice.status != "pending":
+        raise HTTPException(status_code=400, detail="Счёт уже закрыт")
+
+    invoice.status = "cancelled"
     invoice.resolved_at = datetime.utcnow()
     await db.commit()
     return {"status": "ok"}
