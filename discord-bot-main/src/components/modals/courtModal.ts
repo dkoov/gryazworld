@@ -7,6 +7,7 @@ import {
   SeparatorBuilder,
 } from "discord.js";
 import { Modal } from "../../types";
+import { createClaim } from "../../services/courtClient";
 
 const modal: Modal = {
   customId: "court_modal",
@@ -59,6 +60,18 @@ const modal: Modal = {
       flags: MessageFlags.SuppressNotifications,
       allowedMentions: { parse: [] },
     });
+
+    try {
+      await createClaim({
+        plaintiff_discord_id: interaction.user.id,
+        defendant_text: defendant,
+        subject,
+        description,
+        thread_url: thread.url,
+      });
+    } catch (error) {
+      console.error("[court] не удалось зарегистрировать иск на сайте:", error);
+    }
 
     await interaction.editReply({
       content: `Ваш иск зарегистрирован: ${thread.url}`,

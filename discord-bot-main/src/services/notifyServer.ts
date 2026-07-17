@@ -16,6 +16,16 @@ async function getChannel(client: ExtendedClient, id: string): Promise<TextChann
   return channel ?? null;
 }
 
+/** Треды (частные обсуждения исков) не всегда в кеше -- ищем так же, как обычный канал. */
+async function getThreadSendable(client: ExtendedClient, id: string) {
+  let channel = client.channels.cache.get(id);
+  if (!channel) {
+    channel = await client.channels.fetch(id).catch(() => null) ?? undefined;
+  }
+  if (channel && channel.isTextBased() && "send" in channel) return channel;
+  return null;
+}
+
 function fineFields(data: any): { name: string; value: string; inline?: boolean }[] {
   const fields = [
     { name: "Игрок", value: String(data.player ?? "?"), inline: true },
@@ -61,6 +71,38 @@ async function handleFine(client: ExtendedClient, data: any): Promise<void> {
     await sbiChannel.send({ content, embeds: [embed], components: [row] }).catch((e) =>
       console.error("[Notify] fine -> сби-штрафы:", e)
     );
+  }
+
+  // если штраф выдан по результату рассмотрения иска -- отчитываемся прямо в тред дела
+  if (data.claim_thread_id) {
+    const thread = await getThreadSendable(client, String(data.claim_thread_id));
+    if (thread) {
+      await thread.send({ embeds: [embed] }).catch((e) =>
+        console.error("[Notify] fine -> тред иска:", e)
+      );
+    }
+  }
+}
+
+async function handleClaimDismissed(client: ExtendedClient, data: any): Promise<void> {
+  const embed = new EmbedBuilder()
+    .setTitle("Иск отклонён")
+    .setColor(0x95a5a6)
+    .addFields({ name: "Суть иска", value: String(data.subject ?? "?"), inline: false })
+    .setFooter({ text: `Рассмотрел: ${data.resolved_by ?? "?"} • #${data.claim_id}` })
+    .setTimestamp();
+  if (data.comment) {
+    embed.addFields({ name: "Комментарий", value: String(data.comment), inline: false });
+  }
+
+  if (data.claim_thread_id) {
+    const thread = await getThreadSendable(client, String(data.claim_thread_id));
+    if (thread) {
+      const content = data.plaintiff_discord_id ? `<@${data.plaintiff_discord_id}>` : undefined;
+      await thread.send({ content, embeds: [embed] }).catch((e) =>
+        console.error("[Notify] claim_dismissed -> тред иска:", e)
+      );
+    }
   }
 }
 
@@ -152,6 +194,9 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "fine_overdue":
             await handleWarn(client, data, true);
+            break;
+          case "claim_dismissed":
+            await handleClaimDismissed(client, data);
             break;
           case "chat":
             await handleChat(client, data);
