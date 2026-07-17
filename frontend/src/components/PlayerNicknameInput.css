@@ -1,0 +1,45 @@
+.pni-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.pni-wrap input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pni-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 40;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+  animation: dropdownIn 0.15s ease;
+}
+
+.pni-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.pni-suggestion:hover { background: rgba(139, 92, 246, 0.12); }
+
+.pni-suggestion-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  flex: none;
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
+import PlayerNicknameInput from '../components/PlayerNicknameInput'
 import './BankPage.css'
 
 function mcHead(nickname, size = 64) {
@@ -404,14 +405,26 @@ export default function BankPage() {
       </div>
 
       <Modal open={modal === 'transfer'} onClose={closeModal}>
-        <h2>Перевести деньги</h2>
+        <div className="bank-modal-hero">
+          <div className="bank-modal-hero-icon">◆</div>
+          <h2>Перевести деньги</h2>
+        </div>
         <div className="inp-group">
           <label>Ник игрока</label>
-          <input type="text" value={transferNick} onChange={e => setTransferNick(e.target.value)} placeholder="Введите ник игрока" />
+          <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Введите ник игрока" />
         </div>
         <div className="inp-group">
           <label>Сумма</label>
-          <input type="number" value={transferAmount} onChange={e => setTransferAmount(e.target.value)} placeholder="0" />
+          <div className="bank-amount-input-wrap">
+            <span className="bank-amount-icon">◆</span>
+            <input
+              className="bank-amount-input"
+              type="number"
+              value={transferAmount}
+              onChange={e => setTransferAmount(e.target.value)}
+              placeholder="0"
+            />
+          </div>
         </div>
         <div className="inp-group">
           <label>Комментарий</label>
@@ -421,7 +434,7 @@ export default function BankPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="btn btn-primary" disabled={busy} onClick={submitTransfer}>
-            {busy ? 'Отправка...' : `Перевести ◆ ${transferAmount || 0}`}
+            {busy ? 'Отправка...' : <>Перевести <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}
           </button>
         </div>
       </Modal>
@@ -452,14 +465,16 @@ export default function BankPage() {
 
       <Modal open={modal === 'access'} onClose={closeModal}>
         <h2>Настройки доступа</h2>
-        <div className="inp-group">
-          <input
-            type="text"
+        <div className="inp-group bank-access-add-row">
+          <PlayerNicknameInput
             value={accessNick}
-            onChange={e => setAccessNick(e.target.value)}
+            onChange={setAccessNick}
             placeholder="Ник игрока..."
-            onKeyDown={e => e.key === 'Enter' && submitGrantAccess()}
+            onSubmit={submitGrantAccess}
           />
+          <button className="btn btn-outline" disabled={busy || !accessNick.trim()} onClick={submitGrantAccess}>
+            Добавить
+          </button>
         </div>
         {formError && <p className="bank-transfer-error">{formError}</p>}
         {accessInfo === null ? (

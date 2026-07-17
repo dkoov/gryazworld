@@ -329,6 +329,44 @@
   margin: 0;
 }
 
+.bank-modal-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.bank-modal-hero-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--pink));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex: none;
+}
+.bank-modal-hero h2 { margin: 0; }
+
+.bank-amount-input-wrap { position: relative; }
+.bank-amount-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent2);
+  font-size: 14px;
+  pointer-events: none;
+}
+.bank-amount-input { padding-left: 34px !important; }
+
+.bank-btn-diamond { color: inherit; opacity: 0.85; }
+
+.bank-access-add-row { display: flex; gap: 10px; align-items: flex-start; }
+.bank-access-add-row .pni-wrap { margin: 0; }
+
 /* modal form inputs (self-contained so BankPage doesn't depend on other pages' CSS) */
 .inp-group { margin-bottom: 16px; }
 .inp-group label {

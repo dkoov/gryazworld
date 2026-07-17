@@ -456,11 +456,13 @@ async def public_player_profile(
 
     characters = None
     role_name = None
+    roles = []
     if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
         meta = await charsystem_client.get_player_meta(player.uuid)
         if meta is not None:
             characters = meta["characters"]
             role_name = meta["role_name"]
+        roles = await charsystem_client.get_player_roles(player.uuid)
 
     return {
         "nickname": player.nickname,
@@ -484,6 +486,7 @@ async def public_player_profile(
         "communities": communities_list,
         "characters": characters,
         "role_name": role_name,
+        "roles": roles,
         "likes_count": likes_count,
         "liked_by_me": liked_by_me,
         "discord_id": player.discord_id,
@@ -1062,6 +1065,21 @@ async def list_invites(
         {"nickname": i.invited_nickname, "created_at": i.created_at.isoformat() if i.created_at else None}
         for i in invites
     ]
+
+
+@router.get("/players/search")
+async def search_players_public(q: str = "", db: AsyncSession = Depends(get_db)):
+    """Лёгкий публичный поиск ников для автодополнения (мессенджер, перевод в банке)."""
+    q = q.strip()
+    if len(q) < 2:
+        return []
+    result = await db.execute(
+        select(Player.nickname)
+        .where(Player.nickname.ilike(f"%{q}%"), Player.discord_id.isnot(None))
+        .order_by(Player.nickname)
+        .limit(8)
+    )
+    return [r[0] for r in result.all()]
 
 
 @router.get("/all-linked-players")

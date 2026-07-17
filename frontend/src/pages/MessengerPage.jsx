@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
+import PlayerNicknameInput from '../components/PlayerNicknameInput'
 import './MessengerPage.css'
 
 function mcHead(nickname, size = 64) {
@@ -132,12 +133,11 @@ export default function MessengerPage() {
       <div className="msg-layout">
         <div className="msg-list-col">
           <div className="msg-new-row">
-            <input
-              type="text"
-              placeholder="Написать игроку..."
+            <PlayerNicknameInput
               value={newNick}
-              onChange={e => setNewNick(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && startNew()}
+              onChange={setNewNick}
+              placeholder="Написать игроку..."
+              onSubmit={startNew}
             />
             <button onClick={startNew}>→</button>
           </div>

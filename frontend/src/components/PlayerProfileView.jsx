@@ -1,4 +1,7 @@
 import { useState, lazy, Suspense } from 'react'
+import DiscordIcon from './DiscordIcon'
+import VkIcon from './VkIcon'
+import TwitchIcon from './TwitchIcon'
 import './PlayerProfileView.css'
 
 const SkinViewer = lazy(() => import('./SkinViewer'))
@@ -73,6 +76,7 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
   const shownChars = characters ? (showAllChars ? characters : characters.slice(0, 3)) : []
   const communities = profile.communities || []
   const shownCommunities = showAllCommunities ? communities : communities.slice(0, 2)
+  const roles = profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role_name || 'Игрок']
 
   return (
     <div className="pv-layout">
@@ -102,18 +106,23 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
         )}
 
         <div className="pv-social-list">
-          {profile.discord_id && (
+          {profile.discord_id ? (
             <a className="pv-social-row pv-social-discord" href={`https://discord.com/users/${profile.discord_id}`} target="_blank" rel="noreferrer">
-              <span className="pv-social-icon">◆</span>
+              <span className="pv-social-icon"><DiscordIcon size={16} color="#5865F2" /></span>
               <span>{profile.nickname}</span>
             </a>
+          ) : (
+            <div className="pv-social-row pv-social-inactive">
+              <span className="pv-social-icon"><DiscordIcon size={16} color="currentColor" /></span>
+              <span>Подключить Discord</span>
+            </div>
           )}
           <div className="pv-social-row pv-social-inactive">
-            <span className="pv-social-icon">▲</span>
+            <span className="pv-social-icon"><VkIcon size={16} color="currentColor" /></span>
             <span>Подключить ВКонтакте</span>
           </div>
           <div className="pv-social-row pv-social-inactive">
-            <span className="pv-social-icon">●</span>
+            <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
             <span>Подключить Twitch</span>
           </div>
         </div>
@@ -142,7 +151,9 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
         </div>
 
         <div className="pv-role-row">
-          <span className="pv-role-badge">{profile.role_name || 'Игрок'}</span>
+          {roles.map(r => (
+            <span key={r} className="pv-role-badge">{r}</span>
+          ))}
         </div>
 
         <div className="pv-card">

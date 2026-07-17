@@ -21,7 +21,7 @@ export default function CabinetPage() {
   const navigate = useNavigate()
   const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
-  const [account, setAccount] = useState(null) // /web/me: balance, fines, linked
+  const [account, setAccount] = useState(null) // /web/me: fines, linked
   const [richProfile, setRichProfile] = useState(null) // /web/player/{nick}: shared view data
   const [alerts, setAlerts] = useState([])
   const [linkNick, setLinkNick] = useState('')
@@ -257,10 +257,6 @@ export default function CabinetPage() {
             showSkinViewer={true}
             extraActions={
               <div className="cab-extra">
-                <div className="cab-extra-row">
-                  <span>Баланс</span>
-                  <strong>{Math.round(account?.balance ?? 0)} алм.</strong>
-                </div>
                 <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
               </div>
             }
