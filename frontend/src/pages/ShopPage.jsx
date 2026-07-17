@@ -25,6 +25,7 @@ export default function ShopPage() {
 
   return (
     <section className="section">
+    <div className="shop-container">
       <div className="section-label">Магазин</div>
       <div className="section-title">Услуги и подписки</div>
       <p className="section-sub">Дополнительные товары для уже зарегистрированных игроков.</p>
@@ -126,6 +127,7 @@ export default function ShopPage() {
           <FaqItem q="Зачем платить за доступ?" a="Платный доступ отсеивает гриферов. Сервер существует на деньги от проходок, а не донат-привилегии." />
         </div>
       </div>
+    </div>
     </section>
   )
 }

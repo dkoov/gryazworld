@@ -1,3 +1,8 @@
+.shop-container {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
 .shop-block {
   margin-top: 56px;
 }
