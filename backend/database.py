@@ -175,6 +175,20 @@ class Message(Base):
     read_at = Column(DateTime, nullable=True)
 
 
+class Invoice(Base):
+    # "Выставить счёт" -- владелец счёта просит другого игрока заплатить
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=False)  # куда пойдут деньги
+    creditor_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    debtor_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    comment = Column(String, nullable=True)
+    status = Column(String, default="pending", nullable=False)  # pending, paid, declined
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
 class PlayerIP(Base):
     __tablename__ = "player_ips"
 

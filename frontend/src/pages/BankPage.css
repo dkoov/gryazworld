@@ -240,8 +240,64 @@
   transition: color 0.15s ease;
 }
 .bank-access-row button:hover { color: var(--danger); }
+.bank-owner-crown { color: #fbbf24; flex: none; }
 
 .bank-right { animation: fadeUp 0.5s ease both; animation-delay: 0.05s; }
+
+/* ── Счета ─────────────────────────────────────────────────────────────── */
+.bank-invoices-block {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 16px 18px;
+  margin-bottom: 24px;
+}
+.bank-invoices-title { margin-bottom: 12px; }
+.bank-invoices-list { display: flex; flex-direction: column; gap: 4px; }
+.bank-invoice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.bank-invoice-row:last-child { border-bottom: none; }
+.bank-invoice-info { flex: 1; min-width: 0; }
+.bank-invoice-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.bank-invoice-status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.bank-invoice-status.pending { background: rgba(251, 191, 36, 0.14); color: #fbbf24; }
+.bank-invoice-status.paid { background: rgba(75, 200, 100, 0.14); color: var(--green2); }
+.bank-invoice-status.declined { background: var(--danger-bg); color: var(--danger); }
+.bank-invoice-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.bank-invoice-actions { display: flex; gap: 6px; }
+.bank-invoice-pay,
+.bank-invoice-decline {
+  border: none;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bank-invoice-pay { background: var(--accent); color: #fff; }
+.bank-invoice-pay:hover { filter: brightness(1.08); }
+.bank-invoice-decline { background: transparent; border: 1px solid var(--border2); color: var(--muted); }
+.bank-invoice-decline:hover { color: var(--danger); border-color: var(--danger); }
+.bank-invoice-pay:disabled,
+.bank-invoice-decline:disabled { opacity: 0.5; cursor: default; }
 
 .bank-history-head {
   display: flex;
@@ -348,7 +404,6 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .bt-tab.active { background: var(--accent); color: #fff; }
-.bt-tab.disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* ── Перевод: превью карт с стрелкой ──────────────────────────────────── */
 .bt-preview-row {

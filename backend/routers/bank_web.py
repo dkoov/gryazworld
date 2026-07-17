@@ -6,7 +6,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import CurrentUser, current_user
-from database import get_db, Player, BankAccount, BankAccountAccess, Transaction
+from database import get_db, Player, BankAccount, BankAccountAccess, Transaction, Invoice
 
 router = APIRouter(prefix="/web/bank", tags=["bank-web"])
 
@@ -341,5 +341,152 @@ async def revoke_access(
             BankAccountAccess.account_id == account_id, BankAccountAccess.player_id == player_id
         )
     )
+    await db.commit()
+    return {"status": "ok"}
+
+
+# ─── Счета ("Выставить счёт") ────────────────────────────────────────────────
+
+class CreateInvoiceRequest(BaseModel):
+    debtor_nickname: str
+    amount: float
+    comment: str = ""
+
+
+@router.post("/accounts/{account_id}/invoices")
+async def create_invoice(
+    account_id: int,
+    data: CreateInvoiceRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
+
+    me = await _resolve_self(user, db)
+    account = await _get_account_for(account_id, me, db)
+
+    debtor_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == data.debtor_nickname.strip().lower())
+    )
+    debtor = debtor_result.scalar_one_or_none()
+    if not debtor:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+    if debtor.id == me.id:
+        raise HTTPException(status_code=400, detail="Нельзя выставить счёт самому себе")
+
+    invoice = Invoice(
+        account_id=account.id,
+        creditor_player_id=me.id,
+        debtor_player_id=debtor.id,
+        amount=data.amount,
+        comment=data.comment.strip()[:350],
+    )
+    db.add(invoice)
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.get("/invoices")
+async def list_invoices(user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    me = await _resolve_self(user, db)
+
+    result = await db.execute(
+        select(Invoice)
+        .where(or_(Invoice.creditor_player_id == me.id, Invoice.debtor_player_id == me.id))
+        .order_by(Invoice.created_at.desc())
+        .limit(100)
+    )
+    invoices = result.scalars().all()
+    if not invoices:
+        return []
+
+    player_ids = {i.creditor_player_id for i in invoices} | {i.debtor_player_id for i in invoices}
+    players_result = await db.execute(select(Player).where(Player.id.in_(player_ids)))
+    players = {p.id: p for p in players_result.scalars().all()}
+
+    account_ids = {i.account_id for i in invoices}
+    accounts_result = await db.execute(select(BankAccount).where(BankAccount.id.in_(account_ids)))
+    accounts_by_id = {a.id: a for a in accounts_result.scalars().all()}
+
+    out = []
+    for i in invoices:
+        outgoing = i.creditor_player_id == me.id  # выставил я -- жду оплаты
+        counterparty_id = i.debtor_player_id if outgoing else i.creditor_player_id
+        counterparty = players.get(counterparty_id)
+        account = accounts_by_id.get(i.account_id)
+        out.append({
+            "id": i.id,
+            "outgoing": outgoing,
+            "counterparty": counterparty.nickname if counterparty else None,
+            "account_label": _account_label(account, "") if account else None,
+            "amount": i.amount,
+            "comment": i.comment,
+            "status": i.status,
+            "created_at": i.created_at.isoformat(),
+        })
+    return out
+
+
+@router.post("/invoices/{invoice_id}/pay")
+async def pay_invoice(
+    invoice_id: int, user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+):
+    me = await _resolve_self(user, db)
+
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+    if invoice.debtor_player_id != me.id:
+        raise HTTPException(status_code=403, detail="Это не твой счёт для оплаты")
+    if invoice.status != "pending":
+        raise HTTPException(status_code=400, detail="Счёт уже закрыт")
+
+    my_primary_result = await db.execute(
+        select(BankAccount).where(BankAccount.player_id == me.id, BankAccount.is_primary == True)  # noqa: E712
+    )
+    my_primary = my_primary_result.scalar_one_or_none()
+    if my_primary is None:
+        raise HTTPException(status_code=400, detail="У тебя нет счёта для оплаты")
+    if my_primary.balance < invoice.amount:
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
+
+    creditor_account_result = await db.execute(select(BankAccount).where(BankAccount.id == invoice.account_id))
+    creditor_account = creditor_account_result.scalar_one_or_none()
+    if creditor_account is None:
+        raise HTTPException(status_code=400, detail="Счёт получателя не найден")
+
+    my_primary.balance -= invoice.amount
+    creditor_account.balance += invoice.amount
+    invoice.status = "paid"
+    invoice.resolved_at = datetime.utcnow()
+
+    db.add(Transaction(
+        from_player_id=me.id, to_player_id=invoice.creditor_player_id,
+        from_account_id=my_primary.id, to_account_id=creditor_account.id,
+        amount=invoice.amount, type="invoice_payment", comment=invoice.comment,
+    ))
+    await db.commit()
+    return {"status": "ok", "balance": my_primary.balance}
+
+
+@router.post("/invoices/{invoice_id}/decline")
+async def decline_invoice(
+    invoice_id: int, user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+):
+    me = await _resolve_self(user, db)
+
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+    if invoice.debtor_player_id != me.id:
+        raise HTTPException(status_code=403, detail="Это не твой счёт")
+    if invoice.status != "pending":
+        raise HTTPException(status_code=400, detail="Счёт уже закрыт")
+
+    invoice.status = "declined"
+    invoice.resolved_at = datetime.utcnow()
     await db.commit()
     return {"status": "ok"}

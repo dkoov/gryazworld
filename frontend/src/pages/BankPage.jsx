@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Crown } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
@@ -18,6 +19,11 @@ const TX_LABELS = {
   withdraw: 'Снятие со счёта',
   transfer: 'Перевод',
   fine_payment: 'Оплата штрафа',
+  invoice_payment: 'Оплата счёта',
+}
+
+function formatDateTime(iso) {
+  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
 function useCountUp(target, duration = 700) {
@@ -60,12 +66,16 @@ export default function BankPage() {
   const [formError, setFormError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const [transferMode, setTransferMode] = useState('transfer') // transfer | invoice
   const [transferNick, setTransferNick] = useState('')
   const [transferAmount, setTransferAmount] = useState('')
   const [transferComment, setTransferComment] = useState('')
   const [transferFromId, setTransferFromId] = useState(null)
   const [fromDropdownOpen, setFromDropdownOpen] = useState(false)
   const fromDropdownRef = useRef(null)
+
+  const [invoices, setInvoices] = useState([])
+  const [invoiceBusyId, setInvoiceBusyId] = useState(null)
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -95,6 +105,10 @@ export default function BankPage() {
     })
   }
 
+  function loadInvoices() {
+    apiFetch('/web/bank/invoices').then(setInvoices).catch(() => {})
+  }
+
   useEffect(() => {
     if (!getDiscordUser()) { navigate('/cabinet'); return }
     setLoading(true)
@@ -102,6 +116,7 @@ export default function BankPage() {
       .then(() => setLoadError(''))
       .catch(e => setLoadError(e.message))
       .finally(() => setLoading(false))
+    loadInvoices()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -119,7 +134,8 @@ export default function BankPage() {
     setFormError('')
   }
 
-  function openTransfer() {
+  function openTransfer(mode = 'transfer') {
+    setTransferMode(mode)
     setTransferNick(''); setTransferAmount(''); setTransferComment('')
     setTransferFromId(activeId)
     setFromDropdownOpen(false)
@@ -160,17 +176,51 @@ export default function BankPage() {
     const fromId = transferFromAccount?.id
     setBusy(true)
     try {
-      await apiFetch(`/web/bank/accounts/${fromId}/transfer`, {
-        method: 'POST',
-        body: JSON.stringify({ to_nickname: transferNick.trim(), amount: amt, comment: transferComment.trim() }),
-      })
+      if (transferMode === 'invoice') {
+        await apiFetch(`/web/bank/accounts/${fromId}/invoices`, {
+          method: 'POST',
+          body: JSON.stringify({ debtor_nickname: transferNick.trim(), amount: amt, comment: transferComment.trim() }),
+        })
+        loadInvoices()
+      } else {
+        await apiFetch(`/web/bank/accounts/${fromId}/transfer`, {
+          method: 'POST',
+          body: JSON.stringify({ to_nickname: transferNick.trim(), amount: amt, comment: transferComment.trim() }),
+        })
+        loadAccounts()
+        loadTxs(fromId)
+      }
       closeModal()
-      loadAccounts()
-      loadTxs(fromId)
     } catch (e) {
       setFormError(e.message)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function payInvoice(id) {
+    setInvoiceBusyId(id)
+    try {
+      await apiFetch(`/web/bank/invoices/${id}/pay`, { method: 'POST' })
+      loadInvoices()
+      loadAccounts()
+      if (activeId) loadTxs(activeId)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setInvoiceBusyId(null)
+    }
+  }
+
+  async function declineInvoice(id) {
+    setInvoiceBusyId(id)
+    try {
+      await apiFetch(`/web/bank/invoices/${id}/decline`, { method: 'POST' })
+      loadInvoices()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setInvoiceBusyId(null)
     }
   }
 
@@ -375,6 +425,54 @@ export default function BankPage() {
         </div>
 
         <div className="bank-right">
+          {invoices.length > 0 && (
+            <div className="bank-invoices-block">
+              <div className="bank-history-title bank-invoices-title">Счета</div>
+              <div className="bank-invoices-list">
+                {invoices.map(inv => (
+                  <div key={inv.id} className={`bank-invoice-row status-${inv.status}`}>
+                    <img className="bank-tx-avatar" src={mcHead(inv.counterparty || '?', 64)} alt="" />
+                    <div className="bank-invoice-info">
+                      <div className="bank-tx-name">
+                        {inv.outgoing ? `Счёт для ${inv.counterparty}` : `Счёт от ${inv.counterparty}`}
+                        {inv.account_label ? ` — ${inv.account_label}` : ''}
+                      </div>
+                      {inv.comment && <div className="bank-tx-comment">{inv.comment}</div>}
+                      <div className="bank-invoice-meta">
+                        {formatDateTime(inv.created_at)}
+                        {inv.status === 'paid' && <span className="bank-invoice-status paid">оплачен</span>}
+                        {inv.status === 'declined' && <span className="bank-invoice-status declined">отклонён</span>}
+                        {inv.status === 'pending' && !inv.outgoing && <span className="bank-invoice-status pending">ожидает оплаты</span>}
+                        {inv.status === 'pending' && inv.outgoing && <span className="bank-invoice-status pending">выставлен</span>}
+                      </div>
+                    </div>
+                    <div className="bank-invoice-right">
+                      <div className="bank-tx-amount">◆ {Math.round(inv.amount)}</div>
+                      {inv.status === 'pending' && !inv.outgoing && (
+                        <div className="bank-invoice-actions">
+                          <button
+                            className="bank-invoice-pay"
+                            disabled={invoiceBusyId === inv.id}
+                            onClick={() => payInvoice(inv.id)}
+                          >
+                            Оплатить
+                          </button>
+                          <button
+                            className="bank-invoice-decline"
+                            disabled={invoiceBusyId === inv.id}
+                            onClick={() => declineInvoice(inv.id)}
+                          >
+                            Отклонить
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bank-history-head">
             <div className="bank-history-title">История платежей</div>
             <div className="bank-history-count">{filtered.length}</div>
@@ -421,12 +519,35 @@ export default function BankPage() {
 
       <Modal open={modal === 'transfer'} onClose={closeModal} wide>
         <div className="bt-tabs">
-          <div className="bt-tab active">Перевести</div>
-          <div className="bt-tab disabled" title="Скоро">Выставить счёт</div>
+          <div
+            className={`bt-tab ${transferMode === 'transfer' ? 'active' : ''}`}
+            onClick={() => { setTransferMode('transfer'); setFormError('') }}
+          >
+            Перевести
+          </div>
+          <div
+            className={`bt-tab ${transferMode === 'invoice' ? 'active' : ''}`}
+            onClick={() => { setTransferMode('invoice'); setFormError('') }}
+          >
+            Выставить счёт
+          </div>
         </div>
 
         {transferFromAccount && (
           <div className="bt-preview-row">
+            {transferMode === 'invoice' && (
+              <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
+                {transferNick.trim() ? (
+                  <>
+                    <img src={mcHead(transferNick, 40)} alt="" />
+                    <span>{transferNick}</span>
+                  </>
+                ) : (
+                  <span className="bt-preview-placeholder">Игрок не выбран</span>
+                )}
+              </div>
+            )}
+            <div className="bt-preview-arrow">{transferMode === 'invoice' ? '←' : '→'}</div>
             <div className="bt-preview-card">
               <div className="bank-card-top">
                 <span>{transferFromAccount.label || (transferFromAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
@@ -437,17 +558,18 @@ export default function BankPage() {
                 <span>◆ {Math.round(transferFromAccount.balance)}</span>
               </div>
             </div>
-            <div className="bt-preview-arrow">→</div>
-            <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
-              {transferNick.trim() ? (
-                <>
-                  <img src={mcHead(transferNick, 40)} alt="" />
-                  <span>{transferNick}</span>
-                </>
-              ) : (
-                <span className="bt-preview-placeholder">Игрок не выбран</span>
-              )}
-            </div>
+            {transferMode === 'transfer' && (
+              <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
+                {transferNick.trim() ? (
+                  <>
+                    <img src={mcHead(transferNick, 40)} alt="" />
+                    <span>{transferNick}</span>
+                  </>
+                ) : (
+                  <span className="bt-preview-placeholder">Игрок не выбран</span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -482,7 +604,11 @@ export default function BankPage() {
         </div>
 
         <div className="inp-group">
-          <PlayerNicknameInput value={transferNick} onChange={setTransferNick} placeholder="Ник игрока" />
+          <PlayerNicknameInput
+            value={transferNick}
+            onChange={setTransferNick}
+            placeholder={transferMode === 'invoice' ? 'Кто оплатит счёт' : 'Ник игрока'}
+          />
         </div>
 
         <div className="inp-group">
@@ -512,7 +638,9 @@ export default function BankPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 14 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="btn btn-primary" disabled={busy || !transferNick.trim() || !transferAmount} onClick={submitTransfer}>
-            {busy ? 'Отправка...' : <>Перевести <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}
+            {busy
+              ? 'Отправка...'
+              : <>{transferMode === 'invoice' ? 'Выставить' : 'Перевести'} <span className="bank-btn-diamond">◆</span> {transferAmount || 0}</>}
           </button>
         </div>
       </Modal>
@@ -574,7 +702,8 @@ export default function BankPage() {
             <div className="bank-access-row">
               <div className="bank-access-info">
                 <img className="bank-access-avatar" src={mcHead(accessInfo.owner || '?', 48)} alt="" />
-                <span>👑 {accessInfo.owner}</span>
+                <Crown size={15} className="bank-owner-crown" />
+                <span>{accessInfo.owner}</span>
               </div>
             </div>
             {accessInfo.members.map(m => (
