@@ -16,7 +16,7 @@ from database import get_db, Player, Fine, Claim
 log = logging.getLogger(__name__)
 
 DISCORD_BOT_URL = "http://ichorix-bot-main:5050/discord/notify"
-COURT_ROLES = {"судья"}
+COURT_ROLES = {"судья", "police"}
 
 router = APIRouter(tags=["court"])
 
@@ -58,7 +58,7 @@ async def _can_review_claims(player: Player) -> bool:
 async def _require_reviewer(user: CurrentUser, db: AsyncSession) -> Player:
     me = await _resolve_self(user, db)
     if not await _can_review_claims(me):
-        raise HTTPException(status_code=403, detail="Рассматривать иски могут только Судья и администраторы")
+        raise HTTPException(status_code=403, detail="Рассматривать иски могут только Судья, Полицейский и администраторы")
     return me
 
 

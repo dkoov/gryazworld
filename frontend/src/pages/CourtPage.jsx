@@ -150,7 +150,7 @@ export default function CourtPage() {
         <h1 className="page-title">Суд</h1>
         <div className="court-denied">
           <div className="court-denied-title">Нет доступа</div>
-          <div className="court-denied-desc">Рассматривать иски могут только Судья и администраторы.</div>
+          <div className="court-denied-desc">Рассматривать иски могут только Судья, Полицейский и администраторы.</div>
           <button className="btn btn-primary" onClick={() => navigate('/')}>На главную</button>
         </div>
       </div>
