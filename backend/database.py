@@ -35,7 +35,7 @@ class Player(Base):
     whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
     is_admin = Column(Boolean, default=False, nullable=False)  # доступ к /admin (выдача игровых ролей)
 
-    bank_account = relationship("BankAccount", back_populates="player", uselist=False)
+    bank_accounts = relationship("BankAccount", back_populates="player")
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
     warn_records = relationship("Warn", foreign_keys="Warn.player_id", back_populates="player")
     subscriptions = relationship("Subscription", back_populates="player")
@@ -57,10 +57,24 @@ class BankAccount(Base):
     __tablename__ = "bank_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
-    player_id = Column(Integer, ForeignKey("players.id"), unique=True, nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    label = Column(String, nullable=True)  # своё название карты, задаётся владельцем
+    is_primary = Column(Boolean, default=False, nullable=False)  # тот самый счёт, с которым работает vzBank в игре
+    hide_balance = Column(Boolean, default=False, nullable=False)  # личная настройка отображения, не влияет на доступ
     balance = Column(Float, default=0.0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    player = relationship("Player", back_populates="bank_account")
+    player = relationship("Player", back_populates="bank_accounts")
+
+
+class BankAccountAccess(Base):
+    """Игрок, которому владелец счёта дал доступ (видеть баланс/историю, переводить со счёта)."""
+    __tablename__ = "bank_account_access"
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    granted_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Transaction(Base):
@@ -69,6 +83,8 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     from_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     to_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    from_account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=True)  # null для старых записей
+    to_account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=True)
     amount = Column(Float, nullable=False)
     type = Column(String, nullable=False)  # deposit, transfer, fine_payment
     comment = Column(String, nullable=True)

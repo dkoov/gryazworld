@@ -79,9 +79,8 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
     else:
         player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True, server=data.server)
         db.add(player)
-        await db.flush()
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
+        # банковский счёт больше не создаётся автоматически -- игрок должен обратиться к банкиру,
+        # у которого в игре есть /bank <ник> -> "Создать счёт"
         await db.commit()
         status = "created"
 

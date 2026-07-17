@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,16 +28,24 @@ async def _notify_discord(payload: dict):
 router = APIRouter(prefix="/mc/bank", tags=["bank"])
 
 
+async def get_primary_account(player_id: int, db: AsyncSession):
+    """Игровой плагин всегда работает только с ОСНОВНЫМ (is_primary) счётом игрока --
+    дополнительные карты существуют только на сайте."""
+    result = await db.execute(
+        select(BankAccount).where(BankAccount.player_id == player_id, BankAccount.is_primary == True)  # noqa: E712
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_player_and_account(uuid: str, db: AsyncSession):
     result = await db.execute(select(Player).where(Player.uuid == uuid))
     player = result.scalar_one_or_none()
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
-    account = result.scalar_one_or_none()
+    account = await get_primary_account(player.id, db)
     if account is None:
-        raise HTTPException(status_code=404, detail="Bank account not found")
+        raise HTTPException(status_code=404, detail="У вас ещё нет банковского счёта. Обратитесь к банкиру.")
 
     return player, account
 
@@ -59,10 +68,37 @@ class PayFineRequest(BaseModel):
     fine_id: int
 
 
+class CreateAccountRequest(BaseModel):
+    uuid: str
+    nickname: str
+
+
 @router.get("/{uuid}/balance", dependencies=[Depends(verify_plugin_secret)])
 async def get_balance(uuid: str, db: AsyncSession = Depends(get_db)):
     _, account = await get_player_and_account(uuid, db)
     return {"uuid": uuid, "balance": account.balance}
+
+
+@router.post("/create", dependencies=[Depends(verify_plugin_secret)])
+async def create_account(data: CreateAccountRequest, db: AsyncSession = Depends(get_db)):
+    """Банкир открывает игроку счёт (/bank <ник> в игре, когда счёта ещё нет)."""
+    result = await db.execute(select(Player).where(Player.uuid == data.uuid))
+    player = result.scalar_one_or_none()
+    if player is None:
+        player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True)
+        db.add(player)
+        await db.flush()
+
+    existing = await get_primary_account(player.id, db)
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="У игрока уже есть счёт")
+
+    account = BankAccount(player_id=player.id, balance=0.0, is_primary=True, created_at=datetime.utcnow())
+    db.add(account)
+    await db.commit()
+    await db.refresh(account)
+
+    return {"status": "ok", "balance": account.balance}
 
 
 @router.post("/deposit", dependencies=[Depends(verify_plugin_secret)])
@@ -75,6 +111,7 @@ async def deposit(data: DepositRequest, db: AsyncSession = Depends(get_db)):
 
     tx = Transaction(
         to_player_id=player.id,
+        to_account_id=account.id,
         amount=data.amount,
         type="deposit",
         comment=data.comment
@@ -104,6 +141,8 @@ async def transfer(data: TransferRequest, db: AsyncSession = Depends(get_db)):
     tx = Transaction(
         from_player_id=from_player.id,
         to_player_id=to_player.id,
+        from_account_id=from_account.id,
+        to_account_id=to_account.id,
         amount=data.amount,
         type="transfer",
         comment=data.comment
@@ -130,8 +169,7 @@ async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
     if not player:
         raise HTTPException(404, "Игрок не найден")
 
-    account = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
-    account = account.scalar_one_or_none()
+    account = await get_primary_account(player.id, db)
     if not account:
         raise HTTPException(404, "Счёт не найден")
 
@@ -142,6 +180,7 @@ async def withdraw(data: WithdrawRequest, db: AsyncSession = Depends(get_db)):
 
     tx = Transaction(
         from_player_id=player.id,
+        from_account_id=account.id,
         amount=data.amount,
         type="withdraw",
         comment=data.comment,
@@ -172,6 +211,7 @@ async def pay_fine(data: PayFineRequest, db: AsyncSession = Depends(get_db)):
 
     tx = Transaction(
         from_player_id=player.id,
+        from_account_id=account.id,
         amount=fine.amount,
         type="fine_payment",
         comment=f"Fine #{fine.id}: {fine.reason}"

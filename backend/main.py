@@ -14,6 +14,7 @@ from database import init_db
 from routers import player, bank, fines, web, payments, portals
 from routers import admin
 from routers import messenger
+from routers import bank_web
 try:
     from routers import internal
 except ImportError:
@@ -165,6 +166,7 @@ app.include_router(warn_router)
 app.include_router(web.router)
 app.include_router(admin.router)
 app.include_router(messenger.router)
+app.include_router(bank_web.router)
 app.include_router(payments.router)
 app.include_router(portals.router)
 if internal is not None:
