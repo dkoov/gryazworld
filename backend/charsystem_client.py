@@ -65,6 +65,37 @@ async def get_player_meta(uuid: str) -> Optional[dict]:
         conn.close()
 
 
+async def get_skin(uuid: str, nickname: Optional[str] = None) -> Optional[dict]:
+    """Return {skinUrl, skinModel} for a player's custom vzSkins skin (set via /skin
+    in-game), or None if not set / game VPS unreachable. Falls back to lookup by
+    nickname when the uuid isn't found (covers manual:<nick> placeholder uuids)."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (skin): %s", e)
+        return None
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT skin_url, skin_model FROM vz_skins WHERE uuid = %s",
+                (uuid,),
+            )
+            row = await cur.fetchone()
+            if row is None and nickname:
+                await cur.execute(
+                    "SELECT skin_url, skin_model FROM vz_skins "
+                    "WHERE LOWER(player_name) = LOWER(%s) LIMIT 1",
+                    (nickname,),
+                )
+                row = await cur.fetchone()
+        if row is None or not row[0]:
+            return None
+        return {"skinUrl": row[0], "skinModel": row[1]}
+    finally:
+        conn.close()
+
+
 def _strip_section_codes(s: str) -> str:
     return s.replace("§", "").replace("&", "")
 

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import aiohttp
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Response
 from pydantic import BaseModel
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1212,3 +1212,51 @@ async def delete_community(
     await db.delete(comm)
     await db.commit()
     return {"status": "deleted", "community_id": community_id}
+
+
+@router.get("/skin/{nickname}")
+async def player_skin_meta(nickname: str, db: AsyncSession = Depends(get_db)):
+    """Metadata for the 3D skin viewer -- whether a custom vzSkins skin exists and its model."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    skin = None
+    if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
+        skin = await charsystem_client.get_skin(player.uuid, nickname=player.nickname)
+
+    return {
+        "hasCustomSkin": skin is not None,
+        "skinModel": skin["skinModel"] if skin else "classic",
+        "textureUrl": f"/web/skin/{player.nickname}/texture.png" if skin else None,
+    }
+
+
+@router.get("/skin/{nickname}/texture.png")
+async def player_skin_texture(nickname: str, db: AsyncSession = Depends(get_db)):
+    """Proxies the actual skin PNG from wherever it is hosted -- avoids client-side CORS
+    issues since arbitrary skin-url hosts may not send CORS headers."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None or not player.uuid or player.uuid.startswith("web-") or player.uuid.startswith("manual:"):
+        raise HTTPException(status_code=404, detail="Скин не найден")
+
+    skin = await charsystem_client.get_skin(player.uuid, nickname=player.nickname)
+    if skin is None or not skin.get("skinUrl"):
+        raise HTTPException(status_code=404, detail="Скин не найден")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(skin["skinUrl"], timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    raise HTTPException(status_code=502, detail="Не удалось загрузить скин")
+                data = await resp.read()
+    except aiohttp.ClientError:
+        raise HTTPException(status_code=502, detail="Не удалось загрузить скин")
+
+    return Response(content=data, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
