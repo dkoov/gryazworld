@@ -429,8 +429,12 @@ export default function BankPage() {
             <div className="bank-invoices-block">
               <div className="bank-history-title bank-invoices-title">Счета</div>
               <div className="bank-invoices-list">
-                {invoices.map(inv => (
-                  <div key={inv.id} className={`bank-invoice-row status-${inv.status}`}>
+                {invoices.map((inv, i) => (
+                  <div
+                    key={inv.id}
+                    className={`bank-invoice-row status-${inv.status}`}
+                    style={{ animationDelay: `${i * 0.04}s` }}
+                  >
                     <img className="bank-tx-avatar" src={mcHead(inv.counterparty || '?', 64)} alt="" />
                     <div className="bank-invoice-info">
                       <div className="bank-tx-name">
@@ -533,21 +537,8 @@ export default function BankPage() {
           </div>
         </div>
 
-        {transferFromAccount && (
-          <div className="bt-preview-row">
-            {transferMode === 'invoice' && (
-              <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
-                {transferNick.trim() ? (
-                  <>
-                    <img src={mcHead(transferNick, 40)} alt="" />
-                    <span>{transferNick}</span>
-                  </>
-                ) : (
-                  <span className="bt-preview-placeholder">Игрок не выбран</span>
-                )}
-              </div>
-            )}
-            <div className="bt-preview-arrow">{transferMode === 'invoice' ? '←' : '→'}</div>
+        {transferFromAccount && (() => {
+          const cardEl = (
             <div className="bt-preview-card">
               <div className="bank-card-top">
                 <span>{transferFromAccount.label || (transferFromAccount.is_primary ? 'Основная карта' : 'Карта')}</span>
@@ -558,20 +549,28 @@ export default function BankPage() {
                 <span>◆ {Math.round(transferFromAccount.balance)}</span>
               </div>
             </div>
-            {transferMode === 'transfer' && (
-              <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
-                {transferNick.trim() ? (
-                  <>
-                    <img src={mcHead(transferNick, 40)} alt="" />
-                    <span>{transferNick}</span>
-                  </>
-                ) : (
-                  <span className="bt-preview-placeholder">Игрок не выбран</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+          )
+          const targetEl = (
+            <div className={`bt-preview-target ${transferNick.trim() ? 'filled' : ''}`}>
+              {transferNick.trim() ? (
+                <>
+                  <img src={mcHead(transferNick, 40)} alt="" />
+                  <span>{transferNick}</span>
+                </>
+              ) : (
+                <span className="bt-preview-placeholder">Игрок не выбран</span>
+              )}
+            </div>
+          )
+          const isInvoice = transferMode === 'invoice'
+          return (
+            <div className="bt-preview-row" key={transferMode}>
+              {isInvoice ? targetEl : cardEl}
+              <div className={`bt-preview-arrow ${isInvoice ? 'flipped' : ''}`}>→</div>
+              {isInvoice ? cardEl : targetEl}
+            </div>
+          )
+        })()}
 
         <div className="bt-select-row" ref={fromDropdownRef}>
           <div
