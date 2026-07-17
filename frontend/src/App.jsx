@@ -1,4 +1,4 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import HomePage from './pages/HomePage'
 import ShopPage from './pages/ShopPage'
@@ -8,6 +8,7 @@ import CommunitiesPage from './pages/CommunitiesPage'
 import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
 import CabinetPage from './pages/CabinetPage'
+import BankPage from './pages/BankPage'
 import PlayerProfilePage from './pages/PlayerProfilePage'
 import OfertaPage from './pages/OfertaPage'
 import PaymentReturnPage from './pages/PaymentReturnPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/c/:slug" element={<Navigate to="/" replace />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/cabinet" element={<CabinetPage />} />
+        <Route path="/bank" element={<BankPage />} />
         <Route path="/player/:nickname" element={<PlayerProfilePage />} />
         <Route path="/oferta" element={<OfertaPage />} />
         <Route path="/payment/return" element={<PaymentReturnPage />} />

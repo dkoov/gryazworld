@@ -4,7 +4,6 @@ import { Landmark, MessageCircle, Users } from 'lucide-react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
 import Modal from './Modal'
-import BankTab from './BankTab'
 import './Nav.css'
 
 const THEME_KEY = 'ichorix_theme'
@@ -25,7 +24,6 @@ export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
-  const [bankOpen, setBankOpen] = useState(false)
   const [comingSoon, setComingSoon] = useState(null) // null | { title, desc }
   const menuRef = useRef(null)
 
@@ -61,11 +59,6 @@ export default function Nav() {
     window.dispatchEvent(new Event('auth-change'))
   }
 
-  function openBank() {
-    if (mcNick) setBankOpen(true)
-    else navigate('/cabinet')
-  }
-
   function openComingSoon(title, desc) {
     setComingSoon({ title, desc })
   }
@@ -93,7 +86,7 @@ export default function Nav() {
       <div className="nav-right">
         {user && (
           <>
-            <button className="nav-feature-btn nav-feature-bank" title="Банк" onClick={openBank}>
+            <button className="nav-feature-btn nav-feature-bank" title="Банк" onClick={() => navigate('/bank')}>
               <Landmark size={16} strokeWidth={2.3} />
             </button>
             <button
@@ -191,12 +184,6 @@ export default function Nav() {
           )}
         </div>
       )}
-
-      {/* Банк — модалка поверх любой страницы */}
-      <Modal open={bankOpen} onClose={() => setBankOpen(false)} wide>
-        <h2>Банк</h2>
-        {mcNick && <BankTab nickname={mcNick} />}
-      </Modal>
 
       {/* Мессенджер / Общины — заглушка "скоро" */}
       <Modal open={!!comingSoon} onClose={() => setComingSoon(null)}>

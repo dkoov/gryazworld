@@ -1,4 +1,44 @@
-.bank-tab {
+.bank-page {
+  width: 100%;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 60px 24px 96px;
+}
+
+.bank-page .page-title { margin-bottom: 28px; }
+
+.bank-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 0;
+}
+
+.bank-page-error {
+  max-width: 420px;
+  margin: 80px auto 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+}
+.bank-page-error-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+}
+.bank-page-error-desc {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.bank-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 24px;
@@ -11,6 +51,11 @@
   gap: 14px;
 }
 
+@keyframes bankCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .bank-card {
   border-radius: 14px;
   overflow: hidden;
@@ -21,6 +66,12 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  animation: bankCardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.bank-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(139, 92, 246, 0.25);
 }
 .bank-card-top {
   display: flex;
@@ -41,9 +92,10 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .bank-card-balance {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #fff;
+  font-variant-numeric: tabular-nums;
 }
 
 .bank-actions {
@@ -51,6 +103,8 @@
   border-radius: 12px;
   background: var(--surface);
   overflow: hidden;
+  animation: fadeUp 0.5s ease both;
+  animation-delay: 0.08s;
 }
 .bank-action-row {
   padding: 13px 16px;
@@ -60,10 +114,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, padding-left 0.15s ease;
 }
-.bank-action-row:hover { background: rgba(255,255,255,0.03); }
-.bank-action-icon { color: var(--accent2); }
+.bank-action-row:hover {
+  background: rgba(139, 92, 246, 0.08);
+  padding-left: 20px;
+}
+.bank-action-icon { color: var(--accent2); transition: transform 0.2s ease; }
+.bank-action-row:hover .bank-action-icon { transform: translateX(2px); }
+
+.bank-right { animation: fadeUp 0.5s ease both; animation-delay: 0.05s; }
 
 .bank-history-head {
   display: flex;
@@ -85,6 +145,23 @@
   border-radius: 10px;
 }
 
+.bank-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  margin-bottom: 22px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.bank-search:focus { border-color: var(--accent); }
+.bank-search::placeholder { color: var(--muted2); }
+
 .bank-empty {
   text-align: center;
   padding: 40px;
@@ -104,9 +181,14 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 13px 0;
+  padding: 13px 10px;
+  margin: 0 -10px;
+  border-radius: 10px;
   border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+  animation: fadeUp 0.4s ease both;
 }
+.bank-tx-row:hover { background: rgba(139, 92, 246, 0.05); }
 .bank-tx-info { display: flex; gap: 10px; }
 .bank-tx-avatar {
   width: 34px;
@@ -127,7 +209,7 @@
   margin: 0;
 }
 
-/* modal form inputs (self-contained so BankTab doesn't depend on other pages' CSS) */
+/* modal form inputs (self-contained so BankPage doesn't depend on other pages' CSS) */
 .inp-group { margin-bottom: 16px; }
 .inp-group label {
   display: block;
@@ -150,6 +232,7 @@
   transition: border-color 0.2s;
   border-radius: var(--radius);
   resize: vertical;
+  box-sizing: border-box;
 }
 .inp-group input:focus,
 .inp-group textarea:focus { border-color: var(--accent); }
@@ -157,5 +240,5 @@
 .inp-group textarea::placeholder { color: var(--muted2); }
 
 @media (max-width: 720px) {
-  .bank-tab { grid-template-columns: 1fr; }
+  .bank-layout { grid-template-columns: 1fr; }
 }
