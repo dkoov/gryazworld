@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Siren, Gem, Clock } from 'lucide-react'
 import {
   apiFetch,
   getDiscordUser,
@@ -16,6 +17,16 @@ import {
 import DiscordIcon from '../components/DiscordIcon'
 import PlayerProfileView from '../components/PlayerProfileView'
 import './CabinetPage.css'
+
+function fineDeadlineInfo(deadline) {
+  if (!deadline) return { text: 'Без срока', urgent: false }
+  const diff = new Date(deadline) - new Date()
+  if (diff <= 0) return { text: 'Срок истёк', urgent: true }
+  const hours = Math.floor(diff / 1000 / 60 / 60)
+  const minutes = Math.floor((diff / 1000 / 60) % 60)
+  const text = hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
+  return { text, urgent: hours < 3 }
+}
 
 export default function CabinetPage() {
   const navigate = useNavigate()
@@ -264,28 +275,31 @@ export default function CabinetPage() {
 
           {account?.active_fines?.length > 0 && (
             <div className="pv-card cab-fines-card">
-              <div className="pv-section-title">Активные штрафы</div>
+              <div className="pv-section-title cab-fines-title">
+                <Siren size={14} className="cab-fines-title-icon" />
+                Активные штрафы
+                <span className="cab-fines-count">{account.active_fines.length}</span>
+              </div>
               <div className="fines-list">
-                {account.active_fines.map(f => (
-                  <div key={f.id} className="fine-item">
-                    <div className="fine-main">
-                      <div className="fine-reason">{f.reason}</div>
-                      <div className="fine-meta">
-                        {f.deadline ? (() => {
-                          const diff = new Date(f.deadline) - new Date()
-                          if (diff <= 0) return 'Срок истёк'
-                          const hours = Math.floor(diff / 1000 / 60 / 60)
-                          const minutes = Math.floor((diff / 1000 / 60) % 60)
-                          return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
-                        })() : 'Без срока'}
+                {account.active_fines.map((f, i) => {
+                  const deadline = fineDeadlineInfo(f.deadline)
+                  return (
+                    <div key={f.id} className="fine-item" style={{ animationDelay: `${i * 0.05}s` }}>
+                      <div className="fine-icon"><Siren size={16} /></div>
+                      <div className="fine-main">
+                        <div className="fine-reason">{f.reason}</div>
+                        <div className={`fine-meta ${deadline.urgent ? 'urgent' : ''}`}>
+                          <Clock size={11} className="fine-meta-icon" />
+                          {deadline.text}
+                        </div>
+                      </div>
+                      <div className="fine-right">
+                        <div className="fine-amount"><Gem size={13} /> {Math.round(f.amount)}</div>
+                        <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
                       </div>
                     </div>
-                    <div className="fine-right">
-                      <div className="fine-amount">{f.amount} алмазов</div>
-                      <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
