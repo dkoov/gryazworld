@@ -10,6 +10,12 @@ const SkinViewer = lazy(() => import('./SkinViewer'))
 
 const DAY_MS = 86400000
 const MONTH_LABELS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
+const MONTH_FULL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+
+function formatHeatmapDate(dayKey) {
+  const d = new Date(dayKey + 'T00:00:00Z')
+  return `${MONTH_FULL[d.getUTCMonth()]} ${String(d.getUTCDate()).padStart(2, '0')}, ${d.getUTCFullYear()}`
+}
 
 function formatHours(seconds) {
   return (seconds / 3600).toFixed(1)
@@ -312,11 +318,15 @@ function Heatmap({ heatmap }) {
             {weeks.map((week, wi) => (
               <div key={wi} className="pv-heatmap-week">
                 {week.map(d => (
-                  <div
-                    key={d.day}
-                    className={`pv-heatmap-cell ${d.future ? 'pv-heatmap-future' : `pv-lvl-${levelFor(d.seconds)}`}`}
-                    title={d.future ? '' : `${d.day}: ${(d.seconds / 3600).toFixed(1)} ч.`}
-                  />
+                  <div key={d.day} className="pv-heatmap-cell-wrap">
+                    <div className={`pv-heatmap-cell ${d.future ? 'pv-heatmap-future' : `pv-lvl-${levelFor(d.seconds)}`}`} />
+                    {!d.future && (
+                      <div className="pv-heatmap-tooltip">
+                        <div className="pv-heatmap-tooltip-date">{formatHeatmapDate(d.day)}</div>
+                        <div className="pv-heatmap-tooltip-hours">{(d.seconds / 3600).toFixed(1)} ч.</div>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             ))}

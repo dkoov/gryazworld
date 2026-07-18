@@ -247,14 +247,48 @@
 .pv-heatmap-month-cell { width: 12px; font-size: 10px; color: var(--muted); overflow: visible; white-space: nowrap; }
 .pv-heatmap-grid { display: flex; gap: 3px; }
 .pv-heatmap-week { display: flex; flex-direction: column; gap: 3px; }
-.pv-heatmap-cell { width: 12px; height: 12px; border-radius: 2px; transition: transform 0.1s ease; }
-.pv-heatmap-cell:not(.pv-heatmap-future):hover { transform: scale(1.25); }
+.pv-heatmap-cell-wrap { position: relative; width: 12px; height: 12px; }
+.pv-heatmap-cell { width: 100%; height: 100%; border-radius: 3px; transition: transform 0.1s ease; }
+.pv-heatmap-cell-wrap:hover .pv-heatmap-cell:not(.pv-heatmap-future) { transform: scale(1.25); }
 .pv-heatmap-future { background: transparent; }
 .pv-lvl-0 { background: rgba(37,37,51,0.3); }
 .pv-lvl-1 { background: rgba(139,92,246,0.2); }
 .pv-lvl-2 { background: rgba(139,92,246,0.4); }
 .pv-lvl-3 { background: rgba(139,92,246,0.6); }
 .pv-lvl-4 { background: var(--accent); }
+
+.pv-heatmap-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: #1c1c26;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 30;
+}
+.pv-heatmap-cell-wrap:hover .pv-heatmap-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+.pv-heatmap-tooltip-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.pv-heatmap-tooltip-hours {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4ade80;
+  margin-top: 2px;
+}
 
 .pv-heatmap-legend {
   display: flex;
