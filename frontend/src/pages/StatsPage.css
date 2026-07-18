@@ -1,9 +1,10 @@
-﻿.stats-hero {
+.stats-hero {
   display: flex;
   align-items: flex-start;
   gap: 32px;
   margin-bottom: 48px;
   flex-wrap: wrap;
+  animation: fadeUp 0.5s ease both;
 }
 
 .server-avatar {
@@ -18,6 +19,11 @@
   overflow: hidden;
   flex-shrink: 0;
   box-shadow: 0 8px 28px rgba(139,92,246,0.18);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.server-avatar:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 34px rgba(139,92,246,0.28);
 }
 .server-avatar img {
   width: 100%;
@@ -50,6 +56,9 @@
   letter-spacing: 0.03em;
 }
 .ip-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 11px 18px;
   margin: 3px 3px 3px 0;
   border-radius: 999px;
@@ -86,11 +95,13 @@
   font-size: 16px;
   font-weight: 600;
   font-family: 'Manrope', sans-serif;
-  transition: all 0.2s;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
+.stats-tabs button:active { transform: scale(0.97); }
 .stats-tabs button.active {
-  background: var(--surface);
-  color: var(--text);
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
 }
 
 .server-cards {
@@ -102,28 +113,50 @@
 .server-cell {
   border: 1px solid var(--border);
   background: var(--surface);
-  padding: 16px 18px;
+  padding: 18px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-radius: 8px;
+  align-items: center;
+  gap: 14px;
+  border-radius: 12px;
+  animation: fadeUp 0.45s ease both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
+.server-cell:hover {
+  transform: translateY(-2px);
+  border-color: var(--border2);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+}
+.server-cell-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.server-cell-icon.total { background: rgba(139, 92, 246, 0.14); color: var(--accent2); }
+.server-cell-icon.builds { background: rgba(96, 165, 250, 0.14); color: #60a5fa; }
+.server-cell-icon.farms { background: rgba(74, 222, 128, 0.14); color: #4ade80; }
+.server-cell-body { min-width: 0; }
 .server-cell-name {
   font-family: 'Manrope', sans-serif;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
+  margin-bottom: 4px;
 }
 .server-cell-online {
   display: flex;
   align-items: center;
   gap: 8px;
   font-family: 'Manrope', sans-serif;
-  font-weight: 700;
-  font-size: 22px;
+  font-weight: 800;
+  font-size: 24px;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 640px) {
   .server-cards { grid-template-columns: 1fr; }
@@ -133,37 +166,41 @@
   display: flex;
   gap: 6px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 .server-tabs button {
   padding: 6px 16px;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   font-family: 'Manrope', sans-serif;
-  transition: all 0.2s;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .server-tabs button.active {
-  background: var(--surface);
-  color: var(--text);
+  background: rgba(139, 92, 246, 0.14);
+  color: var(--accent2);
+  border-color: rgba(139, 92, 246, 0.35);
 }
 
 .stats-search {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-family: 'Manrope', sans-serif;
   outline: none;
+  transition: border-color 0.2s ease;
 }
 .stats-search:focus { border-color: var(--accent); }
-.stats-search::placeholder { color: var(--muted); }
+.stats-search::placeholder { color: var(--muted2); }
 
 .players-grid {
   display: flex;
@@ -177,37 +214,56 @@
   gap: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 18px;
   min-width: 240px;
   flex: 1;
   max-width: 300px;
-  transition: border-color 0.2s;
-  cursor: default;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  animation: fadeUp 0.4s ease both;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
-.player-card:hover { border-color: var(--accent); }
+.player-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(139, 92, 246, 0.14);
+}
+.player-card.online { border-color: rgba(74, 222, 128, 0.3); }
+.player-card.online:hover { border-color: var(--accent); }
 
 .player-skin {
   width: 56px;
   height: 56px;
-  border-radius: 6px;
+  border-radius: 8px;
   image-rendering: pixelated;
   flex-shrink: 0;
+  background: var(--surface2);
 }
 
+.player-card-body { min-width: 0; }
+
 .player-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-server {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 400;
+  font-size: 10.5px;
+  color: var(--accent2);
+  font-weight: 700;
   margin-left: 2px;
+  background: rgba(139, 92, 246, 0.12);
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .online-dot {
@@ -216,13 +272,25 @@
   height: 8px;
   background: #4caf50;
   border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 rgba(76, 175, 80, 0.5);
+  animation: statsOnlinePulse 2s ease-in-out infinite;
+}
+@keyframes statsOnlinePulse {
+  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
 }
 
 .player-hours {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
+.player-hours-icon { opacity: 0.7; flex: none; }
 .player-hours strong {
   color: var(--text);
   font-weight: 700;
@@ -233,8 +301,7 @@
   text-align: center;
   color: var(--muted);
   font-size: 13px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px dashed var(--border2);
   width: 100%;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }

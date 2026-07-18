@@ -1,5 +1,6 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Users, Boxes, Sprout, Clock, Check, Copy } from 'lucide-react'
 import { apiFetch } from '../api'
 import './StatsPage.css'
 
@@ -28,6 +29,7 @@ export default function StatsPage() {
     .filter(p => tab === 'online' ? p.is_online : true)
     .filter(p => serverTab === 'all' || p.server === serverTab)
     .filter(p => p.nickname.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => (b.is_online - a.is_online) || (b.total_seconds - a.total_seconds))
 
   function copyIp() {
     navigator.clipboard.writeText('ichorix.ru').then(() => {
@@ -37,7 +39,7 @@ export default function StatsPage() {
   }
 
   return (
-    <section className="section">
+    <section className="section page-fade">
       <div className="section-label">Статистика</div>
 
       <div className="stats-hero">
@@ -49,29 +51,39 @@ export default function StatsPage() {
           <div className="ip-box">
             <span className="ip-text">ichorix.ru</span>
             <button className={`ip-copy ${copied ? 'copied' : ''}`} onClick={copyIp}>
-              {copied ? '\u2713 Скопировано' : 'Копировать'}
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? 'Скопировано' : 'Копировать'}
             </button>
           </div>
         </div>
       </div>
 
       <div className="server-cards">
-        <div className="server-cell">
-          <div className="server-cell-name">Всего онлайн</div>
-          <div className="server-cell-online">
-            <span className="online-dot" />{serverStats.online ?? 0}
+        <div className="server-cell" style={{ animationDelay: '0.02s' }}>
+          <div className="server-cell-icon total"><Users size={18} /></div>
+          <div className="server-cell-body">
+            <div className="server-cell-name">Всего онлайн</div>
+            <div className="server-cell-online">
+              <span className="online-dot" />{serverStats.online ?? 0}
+            </div>
           </div>
         </div>
-        <div className="server-cell">
-          <div className="server-cell-name">Мир построек</div>
-          <div className="server-cell-online">
-            <span className="online-dot" />{serverStats.servers?.gamegraz?.online ?? 0}
+        <div className="server-cell" style={{ animationDelay: '0.08s' }}>
+          <div className="server-cell-icon builds"><Boxes size={18} /></div>
+          <div className="server-cell-body">
+            <div className="server-cell-name">Мир построек</div>
+            <div className="server-cell-online">
+              <span className="online-dot" />{serverStats.servers?.gamegraz?.online ?? 0}
+            </div>
           </div>
         </div>
-        <div className="server-cell">
-          <div className="server-cell-name">Мир ферм</div>
-          <div className="server-cell-online">
-            <span className="online-dot" />{serverStats.servers?.farmserv?.online ?? 0}
+        <div className="server-cell" style={{ animationDelay: '0.14s' }}>
+          <div className="server-cell-icon farms"><Sprout size={18} /></div>
+          <div className="server-cell-body">
+            <div className="server-cell-name">Мир ферм</div>
+            <div className="server-cell-online">
+              <span className="online-dot" />{serverStats.servers?.farmserv?.online ?? 0}
+            </div>
           </div>
         </div>
       </div>
@@ -117,8 +129,8 @@ export default function StatsPage() {
             {tab === 'online' ? 'Никого нет онлайн' : 'Нет данных'}
           </div>
         ) : (
-          filtered.map(p => (
-            <PlayerCard key={p.nickname} player={p} />
+          filtered.map((p, i) => (
+            <PlayerCard key={p.nickname} player={p} delay={Math.min(i, 24) * 0.03} />
           ))
         )}
       </div>
@@ -135,18 +147,22 @@ function formatTime(total_seconds) {
   return `${(s / 3600).toFixed(1)} ч.`
 }
 
-function PlayerCard({ player }) {
+function PlayerCard({ player, delay }) {
   const skinUrl = `https://mc-heads.net/avatar/${player.nickname}/64`
 
   return (
-    <Link to={`/player/${encodeURIComponent(player.nickname)}`} className="player-card">
+    <Link
+      to={`/player/${encodeURIComponent(player.nickname)}`}
+      className={`player-card ${player.is_online ? 'online' : ''}`}
+      style={{ animationDelay: `${delay}s` }}
+    >
       <img
         src={skinUrl}
         alt={player.nickname}
         className="player-skin"
         onError={e => { e.target.src = 'https://mc-heads.net/avatar/Steve/64' }}
       />
-      <div>
+      <div className="player-card-body">
         <div className="player-name">
           {player.is_online && <span className="online-dot" />}
           {player.nickname}
@@ -155,7 +171,8 @@ function PlayerCard({ player }) {
           )}
         </div>
         <div className="player-hours">
-          Наиграл: <strong>{formatTime(player.total_seconds)}</strong>
+          <Clock size={11} className="player-hours-icon" />
+          <strong>{formatTime(player.total_seconds)}</strong>
         </div>
       </div>
     </Link>
