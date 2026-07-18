@@ -25,6 +25,8 @@ const TX_LABELS = {
   invoice_payment: 'Оплата счёта',
 }
 
+const FINE_REASON_PRESETS = ['Гриферство', 'Оскорбления', 'Спам', 'Читы', 'Нарушение правил']
+
 function formatDateTime(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
@@ -901,8 +903,26 @@ export default function BankPage() {
         </div>
       </Modal>
 
-      <Modal open={modal === 'fine'} onClose={closeModal}>
+      <Modal open={modal === 'fine'} onClose={closeModal} wide>
         <h2><Siren size={18} className="bank-fine-modal-icon" /> Выдать штраф</h2>
+
+        <div className="bt-preview-row">
+          <div className="bank-fine-preview-icon"><Siren size={22} /></div>
+          <div className="bt-preview-arrow flipped">
+            <ArrowRight size={18} className="bt-preview-arrow-icon" />
+          </div>
+          <div className={`bt-preview-target ${fineNick.trim() ? 'filled' : ''}`}>
+            {fineNick.trim() ? (
+              <>
+                <img src={mcHead(fineNick, 40)} alt="" />
+                <span>{fineNick}</span>
+              </>
+            ) : (
+              <span className="bt-preview-placeholder">Игрок не выбран</span>
+            )}
+          </div>
+        </div>
+
         <div className="inp-group">
           <PlayerNicknameInput
             value={fineNick}
@@ -913,6 +933,18 @@ export default function BankPage() {
         <div className="inp-group">
           <label>Причина</label>
           <input type="text" value={fineReason} onChange={e => setFineReason(e.target.value)} maxLength={200} />
+          <div className="bank-fine-reason-chips">
+            {FINE_REASON_PRESETS.map(r => (
+              <button
+                key={r}
+                type="button"
+                className={`bank-fine-reason-chip ${fineReason === r ? 'active' : ''}`}
+                onClick={() => setFineReason(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="inp-group">
           <div className="bank-amount-input-wrap right">
@@ -939,7 +971,9 @@ export default function BankPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
           <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
           <button className="bank-fine-submit-btn" disabled={fineBusy} onClick={submitFine}>
-            {fineBusy ? 'Отправка...' : 'Оштрафовать'}
+            {fineBusy
+              ? 'Отправка...'
+              : <>Оштрафовать <Gem size={13} className="bank-btn-diamond" /> {fineAmount || 0}</>}
           </button>
         </div>
       </Modal>
