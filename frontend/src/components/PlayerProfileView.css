@@ -240,15 +240,15 @@
   margin-top: 1px;
 }
 
-/* Heatmap */
-.pv-heatmap-scroll { overflow-x: auto; }
-.pv-heatmap { display: inline-flex; flex-direction: column; gap: 6px; }
-.pv-heatmap-months { display: flex; gap: 3px; }
-.pv-heatmap-month-cell { width: 12px; font-size: 10px; color: var(--muted); overflow: visible; white-space: nowrap; }
-.pv-heatmap-grid { display: flex; gap: 3px; }
-.pv-heatmap-week { display: flex; flex-direction: column; gap: 3px; }
-.pv-heatmap-cell-wrap { position: relative; width: 12px; height: 12px; }
-.pv-heatmap-cell { width: 100%; height: 100%; border-radius: 3px; transition: transform 0.1s ease; }
+/* Heatmap -- недели растягиваются на всю ширину карточки, скролл не нужен */
+.pv-heatmap-scroll { width: 100%; }
+.pv-heatmap { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.pv-heatmap-months { display: flex; gap: 2px; }
+.pv-heatmap-month-cell { flex: 1; min-width: 0; font-size: 10px; color: var(--muted); overflow: visible; white-space: nowrap; }
+.pv-heatmap-grid { display: flex; gap: 2px; width: 100%; }
+.pv-heatmap-week { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pv-heatmap-cell-wrap { position: relative; width: 100%; aspect-ratio: 1; }
+.pv-heatmap-cell { width: 100%; height: 100%; border-radius: 2px; transition: transform 0.1s ease; }
 .pv-heatmap-cell-wrap:hover .pv-heatmap-cell:not(.pv-heatmap-future) { transform: scale(1.25); }
 .pv-heatmap-future { background: transparent; }
 .pv-lvl-0 { background: rgba(37,37,51,0.3); }
