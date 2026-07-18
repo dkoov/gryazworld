@@ -1,13 +1,22 @@
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import CurrentUser, current_user
-from database import get_db, Player
+from database import get_db, Player, Subscription
 import charsystem_client
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/web/admin", tags=["admin"])
+
+# "Навсегда" -- не трогаем схему (expires_at NOT NULL), просто ставим дату в далёком будущем.
+FOREVER_DATE = datetime(2999, 1, 1)
 
 # Owner раздаёт право "*", которое автоматически делает игрока опом на серверах --
 # выдавать эту роль через веб-форму запрещено, что бы ни лежало в cs_roles.
@@ -93,4 +102,85 @@ async def revoke_role_endpoint(
 ):
     player = await _resolve_player(nickname, db)
     await charsystem_client.revoke_role(player.uuid, role_name)
+    return {"status": "ok"}
+
+
+async def _latest_ichoplus(player_id: int, db: AsyncSession) -> Optional[Subscription]:
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.player_id == player_id, Subscription.sku.like("ichoplus_%"))
+        .order_by(Subscription.expires_at.desc())
+    )
+    return result.scalars().first()
+
+
+@router.get("/player/{nickname}/subscription")
+async def get_player_subscription(
+    nickname: str, _admin: Player = Depends(require_admin), db: AsyncSession = Depends(get_db)
+):
+    player = await _resolve_player(nickname, db)
+    sub = await _latest_ichoplus(player.id, db)
+    active = bool(sub and sub.expires_at > datetime.utcnow())
+    return {
+        "active": active,
+        "expires_at": sub.expires_at.isoformat() if sub and active else None,
+        "forever": bool(active and sub.expires_at >= FOREVER_DATE),
+    }
+
+
+class GrantSubscriptionRequest(BaseModel):
+    months: Optional[int] = None
+    forever: bool = False
+
+
+@router.post("/player/{nickname}/subscription")
+async def grant_subscription(
+    nickname: str,
+    data: GrantSubscriptionRequest,
+    _admin: Player = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    player = await _resolve_player(nickname, db)
+
+    if data.forever:
+        expires_at = FOREVER_DATE
+    else:
+        if not data.months or data.months <= 0:
+            raise HTTPException(status_code=400, detail="Укажи количество месяцев или выбери «навсегда»")
+        current = await _latest_ichoplus(player.id, db)
+        base = max(datetime.utcnow(), current.expires_at) if current else datetime.utcnow()
+        expires_at = base + timedelta(days=30 * data.months)
+
+    db.add(Subscription(player_id=player.id, sku="ichoplus_admin", expires_at=expires_at))
+    await db.commit()
+
+    try:
+        await charsystem_client.grant_role(player.uuid, "IchoPlus")
+    except Exception:
+        log.exception("Failed to grant in-game IchoPlus role for player %s", player.id)
+
+    return {"status": "ok", "expires_at": expires_at.isoformat(), "forever": data.forever}
+
+
+@router.delete("/player/{nickname}/subscription")
+async def revoke_subscription(
+    nickname: str, _admin: Player = Depends(require_admin), db: AsyncSession = Depends(get_db)
+):
+    player = await _resolve_player(nickname, db)
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.player_id == player.id,
+            Subscription.sku.like("ichoplus_%"),
+            Subscription.expires_at > datetime.utcnow(),
+        )
+    )
+    for sub in result.scalars().all():
+        sub.expires_at = datetime.utcnow()
+    await db.commit()
+
+    try:
+        await charsystem_client.revoke_role(player.uuid, "IchoPlus")
+    except Exception:
+        log.exception("Failed to revoke in-game IchoPlus role for player %s", player.id)
+
     return {"status": "ok"}

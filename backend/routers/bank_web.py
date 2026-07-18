@@ -27,7 +27,7 @@ async def _has_ichoplus(player: Player, db: AsyncSession) -> bool:
             Subscription.expires_at > datetime.utcnow(),
         )
     )
-    return result.scalar_one_or_none() is not None
+    return result.scalars().first() is not None
 
 
 async def _own_accounts(player_id: int, db: AsyncSession) -> list[BankAccount]:

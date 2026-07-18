@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
 import './AdminPage.css'
 
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export default function AdminPage() {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
@@ -18,6 +22,10 @@ export default function AdminPage() {
   const [roleToAdd, setRoleToAdd] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const [subscription, setSubscription] = useState(null)
+  const [subBusy, setSubBusy] = useState(false)
+  const [subError, setSubError] = useState('')
 
   useEffect(() => {
     if (!getDiscordUser()) { navigate('/cabinet'); return }
@@ -49,6 +57,46 @@ export default function AdminPage() {
     apiFetch(`/web/admin/player/${encodeURIComponent(nickname)}/roles`)
       .then(d => setPlayerRoles(d.roles))
       .catch(e => setError(e.message))
+    loadSubscription(nickname)
+  }
+
+  function loadSubscription(nickname) {
+    setSubscription(null)
+    setSubError('')
+    apiFetch(`/web/admin/player/${encodeURIComponent(nickname)}/subscription`)
+      .then(setSubscription)
+      .catch(e => setSubError(e.message))
+  }
+
+  async function grantSubscription(months, forever) {
+    if (!selected) return
+    setSubBusy(true)
+    setSubError('')
+    try {
+      await apiFetch(`/web/admin/player/${encodeURIComponent(selected)}/subscription`, {
+        method: 'POST',
+        body: JSON.stringify({ months, forever }),
+      })
+      loadSubscription(selected)
+    } catch (e) {
+      setSubError(e.message)
+    } finally {
+      setSubBusy(false)
+    }
+  }
+
+  async function revokeSubscription() {
+    if (!selected) return
+    setSubBusy(true)
+    setSubError('')
+    try {
+      await apiFetch(`/web/admin/player/${encodeURIComponent(selected)}/subscription`, { method: 'DELETE' })
+      loadSubscription(selected)
+    } catch (e) {
+      setSubError(e.message)
+    } finally {
+      setSubBusy(false)
+    }
   }
 
   async function grantRole() {
@@ -177,6 +225,31 @@ export default function AdminPage() {
                       Выдать
                     </button>
                   </div>
+
+                  <div className="admin-section-label">IchoPlus</div>
+                  {subError && <div className="admin-error">{subError}</div>}
+                  {subscription === null ? (
+                    <div className="admin-empty">Загрузка...</div>
+                  ) : (
+                    <>
+                      <div className={`admin-sub-status ${subscription.active ? 'active' : ''}`}>
+                        {subscription.active
+                          ? (subscription.forever
+                              ? 'Активна — навсегда'
+                              : `Активна до ${formatDate(subscription.expires_at)}`)
+                          : 'Не активна'}
+                      </div>
+                      <div className="admin-sub-actions">
+                        <button className="admin-sub-btn" disabled={subBusy} onClick={() => grantSubscription(1, false)}>+1 месяц</button>
+                        <button className="admin-sub-btn" disabled={subBusy} onClick={() => grantSubscription(2, false)}>+2 месяца</button>
+                        <button className="admin-sub-btn" disabled={subBusy} onClick={() => grantSubscription(3, false)}>+3 месяца</button>
+                        <button className="admin-sub-btn forever" disabled={subBusy} onClick={() => grantSubscription(null, true)}>Навсегда</button>
+                        {subscription.active && (
+                          <button className="admin-sub-btn revoke" disabled={subBusy} onClick={revokeSubscription}>Снять</button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
