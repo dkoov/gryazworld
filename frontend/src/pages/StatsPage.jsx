@@ -156,24 +156,22 @@ function PlayerCard({ player, delay }) {
       className={`player-card ${player.is_online ? 'online' : ''}`}
       style={{ animationDelay: `${delay}s` }}
     >
-      <img
-        src={skinUrl}
-        alt={player.nickname}
-        className="player-skin"
-        onError={e => { e.target.src = 'https://mc-heads.net/avatar/Steve/64' }}
-      />
-      <div className="player-card-body">
-        <div className="player-name">
-          {player.is_online && <span className="online-dot" />}
-          {player.nickname}
-          {player.is_online && player.server && (
-            <span className="player-server">{player.server}</span>
-          )}
-        </div>
-        <div className="player-hours">
-          <Clock size={11} className="player-hours-icon" />
-          <strong>{formatTime(player.total_seconds)}</strong>
-        </div>
+      {player.is_online && player.server && (
+        <span className="player-server">{player.server}</span>
+      )}
+      <div className="player-skin-wrap">
+        <img
+          src={skinUrl}
+          alt={player.nickname}
+          className="player-skin"
+          onError={e => { e.target.src = 'https://mc-heads.net/avatar/Steve/64' }}
+        />
+        {player.is_online && <span className="online-dot" />}
+      </div>
+      <div className="player-name">{player.nickname}</div>
+      <div className="player-hours">
+        <Clock size={11} className="player-hours-icon" />
+        <strong>{formatTime(player.total_seconds)}</strong>
       </div>
     </Link>
   )
