@@ -1,5 +1,6 @@
 import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Clock, Calendar, CalendarDays, Flame } from 'lucide-react'
 import DiscordIcon from './DiscordIcon'
 import VkIcon from './VkIcon'
 import TwitchIcon from './TwitchIcon'
@@ -165,11 +166,35 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
 
         <div className="pv-card">
           <div className="pv-section-title">Статистика</div>
-          <div className="pv-stats-inline">
-            <span>Наиграл: <b>{formatHours(profile.total_seconds)} ч.</b></span>
-            <span>Месяц: <b>{formatHours(profile.playtime_month)} ч.</b></span>
-            <span>Неделя: <b>{formatHours(profile.playtime_week)} ч.</b></span>
-            <span>Сегодня: <b>{formatHours(profile.playtime_today)} ч.</b></span>
+          <div className="pv-stats-grid">
+            <div className="pv-stat-cell" style={{ animationDelay: '0.02s' }}>
+              <div className="pv-stat-icon total"><Clock size={15} /></div>
+              <div className="pv-stat-body">
+                <div className="pv-stat-label">Всего</div>
+                <div className="pv-stat-value">{formatHours(profile.total_seconds)} ч.</div>
+              </div>
+            </div>
+            <div className="pv-stat-cell" style={{ animationDelay: '0.06s' }}>
+              <div className="pv-stat-icon month"><Calendar size={15} /></div>
+              <div className="pv-stat-body">
+                <div className="pv-stat-label">Месяц</div>
+                <div className="pv-stat-value">{formatHours(profile.playtime_month)} ч.</div>
+              </div>
+            </div>
+            <div className="pv-stat-cell" style={{ animationDelay: '0.1s' }}>
+              <div className="pv-stat-icon week"><CalendarDays size={15} /></div>
+              <div className="pv-stat-body">
+                <div className="pv-stat-label">Неделя</div>
+                <div className="pv-stat-value">{formatHours(profile.playtime_week)} ч.</div>
+              </div>
+            </div>
+            <div className="pv-stat-cell" style={{ animationDelay: '0.14s' }}>
+              <div className="pv-stat-icon today"><Flame size={15} /></div>
+              <div className="pv-stat-body">
+                <div className="pv-stat-label">Сегодня</div>
+                <div className="pv-stat-value">{formatHours(profile.playtime_today)} ч.</div>
+              </div>
+            </div>
           </div>
 
           <Heatmap heatmap={profile.heatmap || []} />
@@ -297,6 +322,15 @@ function Heatmap({ heatmap }) {
             ))}
           </div>
         </div>
+      </div>
+      <div className="pv-heatmap-legend">
+        <span>Меньше</span>
+        <span className="pv-heatmap-cell pv-lvl-0" />
+        <span className="pv-heatmap-cell pv-lvl-1" />
+        <span className="pv-heatmap-cell pv-lvl-2" />
+        <span className="pv-heatmap-cell pv-lvl-3" />
+        <span className="pv-heatmap-cell pv-lvl-4" />
+        <span>Больше</span>
       </div>
     </div>
   )

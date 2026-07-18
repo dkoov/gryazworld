@@ -189,18 +189,55 @@
 }
 
 /* Stats */
-.pv-stats-inline {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 20px;
-  row-gap: 4px;
-  font-size: 0.82rem;
-  color: var(--muted);
-  margin-bottom: 18px;
+.pv-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
 }
-.pv-stats-inline b {
-  color: var(--text);
+.pv-stat-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid rgba(139,92,246,0.1);
+  border-radius: var(--radius);
+  animation: fadeUp 0.4s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.pv-stat-cell:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139,92,246,0.3);
+  box-shadow: 0 10px 22px rgba(139,92,246,0.12);
+}
+.pv-stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.pv-stat-icon.total { background: rgba(139, 92, 246, 0.14); color: var(--accent); }
+.pv-stat-icon.month { background: rgba(96, 165, 250, 0.14); color: #60a5fa; }
+.pv-stat-icon.week { background: rgba(74, 222, 128, 0.14); color: #4ade80; }
+.pv-stat-icon.today { background: rgba(251, 146, 60, 0.14); color: #fb923c; }
+.pv-stat-body { min-width: 0; }
+.pv-stat-label {
+  font-size: 0.68rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.pv-stat-value {
+  font-family: 'Manrope', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 1px;
 }
 
 /* Heatmap */
@@ -210,13 +247,24 @@
 .pv-heatmap-month-cell { width: 12px; font-size: 10px; color: var(--muted); overflow: visible; white-space: nowrap; }
 .pv-heatmap-grid { display: flex; gap: 3px; }
 .pv-heatmap-week { display: flex; flex-direction: column; gap: 3px; }
-.pv-heatmap-cell { width: 12px; height: 12px; border-radius: 2px; }
+.pv-heatmap-cell { width: 12px; height: 12px; border-radius: 2px; transition: transform 0.1s ease; }
+.pv-heatmap-cell:not(.pv-heatmap-future):hover { transform: scale(1.25); }
 .pv-heatmap-future { background: transparent; }
 .pv-lvl-0 { background: rgba(37,37,51,0.3); }
 .pv-lvl-1 { background: rgba(139,92,246,0.2); }
 .pv-lvl-2 { background: rgba(139,92,246,0.4); }
 .pv-lvl-3 { background: rgba(139,92,246,0.6); }
 .pv-lvl-4 { background: var(--accent); }
+
+.pv-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.pv-heatmap-legend .pv-heatmap-cell { width: 11px; height: 11px; }
 
 /* Subscription */
 .pv-sub-row {
