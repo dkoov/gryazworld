@@ -12,6 +12,7 @@
 .modal {
   background: var(--surface);
   border: 1px solid var(--border2);
+  border-radius: 18px;
   padding: 44px;
   max-width: 420px;
   width: 100%;

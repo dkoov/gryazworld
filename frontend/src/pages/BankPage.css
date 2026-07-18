@@ -721,30 +721,6 @@
   animation: btRowIn 0.3s ease both;
 }
 
-.bank-fine-reason-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-.bank-fine-reason-chip {
-  border: 1px solid var(--border2);
-  background: var(--surface2);
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.bank-fine-reason-chip:hover { border-color: var(--danger); color: var(--danger); }
-.bank-fine-reason-chip.active {
-  background: var(--danger-bg);
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 @media (max-width: 720px) {
   .bank-layout { grid-template-columns: 1fr; }
 }

@@ -25,8 +25,6 @@ const TX_LABELS = {
   invoice_payment: 'Оплата счёта',
 }
 
-const FINE_REASON_PRESETS = ['Гриферство', 'Оскорбления', 'Спам', 'Читы', 'Нарушение правил']
-
 function formatDateTime(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
@@ -933,18 +931,6 @@ export default function BankPage() {
         <div className="inp-group">
           <label>Причина</label>
           <input type="text" value={fineReason} onChange={e => setFineReason(e.target.value)} maxLength={200} />
-          <div className="bank-fine-reason-chips">
-            {FINE_REASON_PRESETS.map(r => (
-              <button
-                key={r}
-                type="button"
-                className={`bank-fine-reason-chip ${fineReason === r ? 'active' : ''}`}
-                onClick={() => setFineReason(r)}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="inp-group">
           <div className="bank-amount-input-wrap right">
