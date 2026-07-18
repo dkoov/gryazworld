@@ -490,6 +490,7 @@ async def public_player_profile(
         "likes_count": likes_count,
         "liked_by_me": liked_by_me,
         "discord_id": player.discord_id,
+        "is_admin": player.is_admin,
     }
 
 

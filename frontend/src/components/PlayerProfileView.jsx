@@ -4,6 +4,7 @@ import { Clock, Calendar, CalendarDays, Flame } from 'lucide-react'
 import DiscordIcon from './DiscordIcon'
 import VkIcon from './VkIcon'
 import TwitchIcon from './TwitchIcon'
+import { getRoleStyle } from '../roleColors'
 import './PlayerProfileView.css'
 
 const SkinViewer = lazy(() => import('./SkinViewer'))
@@ -85,7 +86,10 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
   const shownChars = characters ? (showAllChars ? characters : characters.slice(0, 3)) : []
   const communities = profile.communities || []
   const shownCommunities = showAllCommunities ? communities : communities.slice(0, 2)
-  const roles = profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role_name || 'Игрок']
+  const baseRoles = profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role_name || 'Игрок']
+  const roles = profile.is_admin
+    ? ['Администратор', ...baseRoles.filter(r => r.toLowerCase() !== 'администратор')]
+    : baseRoles
 
   return (
     <div className="pv-layout">
@@ -165,9 +169,18 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
         </div>
 
         <div className="pv-role-row">
-          {roles.map(r => (
-            <span key={r} className="pv-role-badge">{r}</span>
-          ))}
+          {roles.map(r => {
+            const style = getRoleStyle(r)
+            return (
+              <span
+                key={r}
+                className="pv-role-badge"
+                style={{ color: style.color, background: style.bg, borderColor: style.color }}
+              >
+                {r}
+              </span>
+            )
+          })}
         </div>
 
         <div className="pv-card">

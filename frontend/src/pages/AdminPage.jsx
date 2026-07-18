@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, getDiscordUser } from '../api'
+import { getRoleStyle } from '../roleColors'
 import './AdminPage.css'
 
 function formatDate(iso) {
@@ -204,12 +205,19 @@ export default function AdminPage() {
                     <div className="admin-empty">Ролей нет</div>
                   ) : (
                     <div className="admin-roles-list">
-                      {playerRoles.map(r => (
-                        <div key={r} className="admin-role-chip">
+                      {playerRoles.map(r => {
+                        const style = getRoleStyle(r)
+                        return (
+                        <div
+                          key={r}
+                          className="admin-role-chip"
+                          style={{ color: style.color, background: style.bg, borderColor: style.color }}
+                        >
                           {r}
                           <button disabled={busy} onClick={() => revokeRole(r)} title="Снять роль">×</button>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
 
