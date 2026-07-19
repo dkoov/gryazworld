@@ -6,7 +6,7 @@ import aiohttp
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import CurrentUser, current_user, verify_plugin_secret, SESSION_SECRET, JWT_ALG
@@ -320,6 +320,14 @@ async def close_poll_admin(
 @admin_router.delete("/{poll_id}")
 async def delete_poll(poll_id: int, _admin: Player = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     poll = await _get_poll(poll_id, db)
+    # SQLite не включает PRAGMA foreign_keys по умолчанию, поэтому ondelete="CASCADE"
+    # в модели ничего не каскадирует сам по себе -- удаляем детей вручную, иначе
+    # осиротевшие PollVote/PollCandidate "прилипают" к следующему опросу, переиспользующему тот же id.
+    candidate_ids_result = await db.execute(select(PollCandidate.id).where(PollCandidate.poll_id == poll_id))
+    candidate_ids = [row[0] for row in candidate_ids_result.all()]
+    if candidate_ids:
+        await db.execute(delete(PollVote).where(PollVote.candidate_id.in_(candidate_ids)))
+    await db.execute(delete(PollCandidate).where(PollCandidate.poll_id == poll_id))
     await db.delete(poll)
     await db.commit()
     return {"status": "ok"}

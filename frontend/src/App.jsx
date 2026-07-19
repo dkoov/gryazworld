@@ -5,6 +5,7 @@ import ShopPage from './pages/ShopPage'
 import WikiPage from './pages/WikiPage'
 import StatsPage from './pages/StatsPage'
 import IchorbecsPage from './pages/IchorbecsPage'
+import VotePage from './pages/VotePage'
 import CommunitiesPage from './pages/CommunitiesPage'
 import CommunityPage from './pages/CommunityPage'
 import MapPage from './pages/MapPage'
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/wiki" element={<WikiPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/ichorbecs" element={<IchorbecsPage />} />
+        <Route path="/vote" element={<VotePage />} />
         {/* HIDDEN: до решения команды — общины скрыты, роуты редиректят на главную.
             Компоненты CommunitiesPage/CommunityPage оставлены рабочими в кодовой базе.
         <Route path="/communities" element={<CommunitiesPage />} />

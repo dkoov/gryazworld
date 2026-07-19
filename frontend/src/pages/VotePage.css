@@ -1,0 +1,290 @@
+.vote-page { max-width: 900px; }
+
+.vote-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.vote-empty-big {
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 60px 24px;
+}
+
+.vote-error {
+  background: var(--danger-bg);
+  border: 1px solid rgba(200,75,75,0.25);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+/* ── Список голосований ───────────────────────────────────────────────── */
+
+.vote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.vote-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  cursor: pointer;
+  animation: fadeUp 0.4s ease both;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.vote-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 16px 30px rgba(139, 92, 246, 0.14);
+}
+
+.vote-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.vote-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.vote-badge.open { background: rgba(46, 204, 113, 0.14); color: #2ecc71; }
+.vote-badge.closed { background: rgba(255,255,255,0.06); color: var(--muted); }
+.vote-badge.voted { background: rgba(139, 92, 246, 0.14); color: var(--accent); }
+
+.vote-card-title {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 15.5px;
+  margin-bottom: 14px;
+  line-height: 1.3;
+}
+
+.vote-card-cands {
+  display: flex;
+  align-items: center;
+  gap: -6px;
+  margin-bottom: 14px;
+}
+.vote-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  image-rendering: pixelated;
+  background: var(--surface2);
+  border: 2px solid var(--surface);
+  margin-left: -8px;
+}
+.vote-card-avatar:first-child { margin-left: 0; }
+.vote-card-more {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.vote-card-footer {
+  display: flex;
+  gap: 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.vote-card-footer span { display: flex; align-items: center; gap: 4px; }
+
+/* ── Детали голосования ───────────────────────────────────────────────── */
+
+.vote-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+.vote-back:hover { color: var(--accent); }
+
+.vote-detail {
+  animation: fadeUp 0.4s ease both;
+}
+
+.vote-detail-head h2 {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+
+.vote-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.vote-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.vote-detail-body {
+  display: flex;
+  gap: 36px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.vote-donut {
+  position: relative;
+  flex: none;
+  margin: 0 auto;
+}
+.vote-donut-ring {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.vote-donut-hole {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.vote-donut-total {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  color: var(--text);
+}
+.vote-donut-hole small {
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vote-candidates {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vote-cand-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.vote-cand-row.voted { border-color: var(--accent); }
+
+.vote-cand-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  opacity: 0.14;
+  transition: width 0.5s ease;
+}
+
+.vote-cand-avatar {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  image-rendering: pixelated;
+  background: var(--surface2);
+  flex: none;
+}
+
+.vote-cand-name {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vote-cand-winner-icon { color: #ffd700; flex: none; }
+.vote-cand-voted-icon { color: var(--accent); flex: none; }
+
+.vote-cand-stats {
+  position: relative;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  flex: none;
+}
+
+.vote-cand-btn {
+  position: relative;
+  flex: none;
+  border: 1px solid var(--accent);
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.vote-cand-btn:hover:not(:disabled) { background: var(--accent); color: #fff; transform: translateY(-1px); }
+.vote-cand-btn:disabled { opacity: 0.5; cursor: default; }
+
+.vote-login-hint,
+.vote-voted-hint {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  width: fit-content;
+}
+.vote-voted-hint { color: var(--accent); }
+
+@media (max-width: 560px) {
+  .vote-detail-body { flex-direction: column; align-items: center; }
+  .vote-cand-name { font-size: 12.5px; }
+}
