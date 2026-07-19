@@ -30,63 +30,32 @@
 .cab-extra-row strong { color: var(--gold); }
 .cab-logout-btn { width: 100%; }
 
-.cab-fines-card { width: 100%; max-width: 900px; margin: 0 auto; }
+.cab-fines-card {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.pv-card.cab-fines-card { border-color: rgba(220, 75, 75, 0.25); }
+.cab-fines-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cab-fines-title-icon { color: var(--danger); }
+.cab-fines-count {
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
 
-.cab-tabs-wrap {
+.cab-profile-wrap {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-.cab-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-}
-.cab-tab-btn {
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: 'Manrope', sans-serif;
-  cursor: pointer;
-  background: none;
-  border: none;
-  color: var(--muted);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.15s ease;
-}
-.cab-tab-btn:hover { color: var(--text); }
-.cab-tab-btn.active {
-  color: var(--text);
-  border-bottom-color: var(--accent2);
-}
-
-.cab-tab-content {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.cab-stub {
-  text-align: center;
-  padding: 80px 24px;
-  border: 1px dashed var(--border2);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-.cab-stub-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.cab-stub-desc {
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .page-title {
@@ -253,25 +222,53 @@
 }
 .fine-item {
   background: var(--surface2);
-  border: 1px solid rgba(200,75,75,0.2);
+  border: 1px solid rgba(220,75,75,0.2);
   border-radius: var(--radius);
   padding: 14px 18px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
+  animation: fadeUp 0.4s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
+.fine-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--danger);
+  box-shadow: 0 10px 24px rgba(220,75,75,0.14);
+}
+.fine-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.fine-main { flex: 1; min-width: 0; }
 .fine-reason {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 .fine-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.72rem;
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: 5px;
 }
+.fine-meta-icon { opacity: 0.75; flex: none; }
+.fine-meta.urgent { color: var(--danger); }
+.fine-meta.urgent .fine-meta-icon { opacity: 1; }
 .fine-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: 'Unbounded', sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
@@ -287,9 +284,21 @@
   border-radius: var(--radius);
 }
 
-.fine-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.fine-pay-btn { background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.fine-pay-btn:hover { opacity: 0.85; }
+.fine-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: none; }
+.fine-pay-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.fine-pay-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.fine-pay-btn:active { transform: translateY(0) scale(0.97); }
 
 @media (max-width: 600px) {
   .cab-card { padding: 24px 20px; }

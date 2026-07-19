@@ -5,6 +5,7 @@ import { sendApplicationMessage } from "../modules/application/applicationMessag
 import { sendSupportMessage } from "../modules/support/supportMessage";
 import { sendStaffMessage } from "../modules/staff/staffMessage";
 import { sendCourtMessage } from "../modules/court/courtMessage";
+import { startRoleSync } from "../services/roleSync";
 
 const event: Event<"clientReady"> = {
   name: "clientReady",
@@ -45,6 +46,8 @@ const event: Event<"clientReady"> = {
     await sendSupportMessage(client);
     await sendStaffMessage(client);
     await sendCourtMessage(client);
+
+    startRoleSync(client);
   },
 };
 

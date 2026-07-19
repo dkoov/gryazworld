@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily, Message
 import charsystem_client
 
 import os
@@ -30,6 +30,31 @@ async def _notify_ichorix(payload: dict):
 
 # Хранит результаты confirm-auth до опроса плагина: token -> "confirmed" | "denied"
 _auth_results: Dict[str, str] = {}
+
+
+async def _deliver_pending_messages(player: Player, db: AsyncSession):
+    """При заходе игрока -- догоняем сообщения с сайта, которые пришли, пока он был оффлайн
+    (delivered_ingame=False), максимум 20 штук, от старых к новым."""
+    result = await db.execute(
+        select(Message)
+        .where(Message.to_player_id == player.id, Message.delivered_ingame.is_(False))
+        .order_by(Message.created_at.asc())
+        .limit(20)
+    )
+    backlog = result.scalars().all()
+    if not backlog:
+        return
+
+    sender_ids = {m.from_player_id for m in backlog}
+    senders_result = await db.execute(select(Player).where(Player.id.in_(sender_ids)))
+    senders_by_id = {p.id: p.nickname for p in senders_result.scalars().all()}
+
+    for m in backlog:
+        sender_nickname = senders_by_id.get(m.from_player_id, "?")
+        ok = await charsystem_client.push_private_message(player.uuid, sender_nickname, m.text)
+        if ok:
+            m.delivered_ingame = True
+    await db.commit()
 
 
 async def _notify_discord(payload: dict):
@@ -79,11 +104,12 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
     else:
         player = Player(uuid=data.uuid, nickname=data.nickname, is_online=True, server=data.server)
         db.add(player)
-        await db.flush()
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
+        # банковский счёт больше не создаётся автоматически -- игрок должен обратиться к банкиру,
+        # у которого в игре есть /bank <ник> -> "Создать счёт"
         await db.commit()
         status = "created"
+
+    await _deliver_pending_messages(player, db)
 
     asyncio.ensure_future(_notify_discord({
         "type": "join",
@@ -116,6 +142,19 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
         daily = PlaytimeDaily(player_id=player.id, day=today, seconds=0)
         db.add(daily)
     daily.seconds += data.session_seconds
+
+    server_daily_result = await db.execute(
+        select(PlaytimeServerDaily).where(
+            PlaytimeServerDaily.player_id == player.id,
+            PlaytimeServerDaily.server == data.server,
+            PlaytimeServerDaily.day == today,
+        )
+    )
+    server_daily = server_daily_result.scalar_one_or_none()
+    if server_daily is None:
+        server_daily = PlaytimeServerDaily(player_id=player.id, server=data.server, day=today, seconds=0)
+        db.add(server_daily)
+    server_daily.seconds += data.session_seconds
 
     await db.commit()
 

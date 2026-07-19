@@ -1,4 +1,4 @@
-.nav {
+﻿.nav {
   position: fixed;
   top: 0;
   left: 0;
@@ -9,7 +9,7 @@
   justify-content: space-between;
   padding: 0 40px;
   height: 62px;
-  background: rgba(10, 9, 18, 0.85);
+  background: rgba(var(--bg-rgb), 0.85);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
 }
@@ -21,10 +21,9 @@
 }
 .nav-logo img {
   height: 34px;
-  width: 34px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: auto;
   display: block;
+  border-radius: 9px;
 }
 
 .nav-links {
@@ -54,7 +53,7 @@
 }
 
 .nav-links li a.active {
-  color: #fff;
+  color: var(--text);
   background: rgba(139, 92, 246, 0.15);
 }
 
@@ -64,60 +63,33 @@
   gap: 8px;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.25);
-  color: var(--green2);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--green2);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.nav-icon-btn {
-  width: 36px;
-  height: 36px;
+.nav-feature-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
   border-radius: 9px;
-  background: rgba(255,255,255,0.04);
   border: none;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--muted);
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-.nav-icon-btn:hover {
-  background: rgba(139,92,246,0.15);
-  transform: translateY(-1px);
+.nav-feature-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
 }
-.nav-icon {
-  display: block;
-  border: 1.5px solid var(--muted);
-}
-.nav-icon-bank {
-  width: 13px; height: 16px;
-  border-top: none;
-  clip-path: polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);
-}
-.nav-icon-msg {
-  width: 15px; height: 12px;
-  border-radius: 4px;
-}
-.nav-icon-communities {
-  width: 13px; height: 13px;
+.nav-feature-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  background: #f87171;
+  border: 2px solid var(--bg);
 }
 
 .user-menu-wrap { position: relative; }

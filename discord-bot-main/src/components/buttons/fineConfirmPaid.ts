@@ -1,6 +1,7 @@
 import { MessageFlags, EmbedBuilder } from "discord.js";
 import { Button } from "../../types";
 import { markFinePaid } from "../../services/finesClient";
+import { removeFineMessage } from "../../services/finesStore";
 
 const button: Button = {
   customId: "fine_paid_",
@@ -31,6 +32,7 @@ const button: Button = {
     });
 
     await interaction.update({ embeds: [embed], components: [] });
+    removeFineMessage(fineId);
   },
 };
 

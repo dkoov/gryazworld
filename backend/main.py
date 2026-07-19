@@ -12,6 +12,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from database import init_db
 from routers import player, bank, fines, web, payments, portals
+from routers import admin
+from routers import messenger
+from routers import bank_web
+from routers import court
 try:
     from routers import internal
 except ImportError:
@@ -142,7 +146,8 @@ app.add_middleware(
     limits=[
         ("/web/payments/create", 5, 60),
         ("/web/payments/webhook", 60, 60),
-        ("/web/", 30, 60),
+        ("/web/players/search", 90, 30),
+        ("/web/", 120, 60),
         ("/mc/", 100, 60),
         ("/auth/", 10, 60),
     ],
@@ -161,6 +166,10 @@ app.include_router(bank.router)
 app.include_router(fines.router)
 app.include_router(warn_router)
 app.include_router(web.router)
+app.include_router(admin.router)
+app.include_router(messenger.router)
+app.include_router(bank_web.router)
+app.include_router(court.router)
 app.include_router(payments.router)
 app.include_router(portals.router)
 if internal is not None:

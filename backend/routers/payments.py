@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Payment as YooPayment
 
 from auth import CurrentUser, current_user
+import charsystem_client
 from database import Order, Payment, Player, Subscription, get_db
 from products import get_product
 from yookassa_client import (
@@ -236,6 +237,11 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
                     expires_at=base + timedelta(days=days),
                 )
             )
+            if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
+                try:
+                    await charsystem_client.grant_role(player.uuid, "IchoPlus")
+                except Exception:
+                    log.exception("Failed to grant in-game IchoPlus role for player %s", player.id)
 
     await db.commit()
     await _notify_discord(

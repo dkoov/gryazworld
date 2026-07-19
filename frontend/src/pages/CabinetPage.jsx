@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Siren, Gem, Clock } from 'lucide-react'
 import {
   apiFetch,
   getDiscordUser,
@@ -15,23 +16,23 @@ import {
 } from '../api'
 import DiscordIcon from '../components/DiscordIcon'
 import PlayerProfileView from '../components/PlayerProfileView'
-import BankTab from '../components/BankTab'
 import './CabinetPage.css'
 
-const TABS = [
-  { key: 'profile', label: 'Профиль' },
-  { key: 'bank', label: 'Банк' },
-  { key: 'messenger', label: 'Мессенджер' },
-  { key: 'communities', label: 'Общины' },
-]
+function fineDeadlineInfo(deadline) {
+  if (!deadline) return { text: 'Без срока', urgent: false }
+  const diff = new Date(deadline) - new Date()
+  if (diff <= 0) return { text: 'Срок истёк', urgent: true }
+  const hours = Math.floor(diff / 1000 / 60 / 60)
+  const minutes = Math.floor((diff / 1000 / 60) % 60)
+  const text = hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
+  return { text, urgent: hours < 3 }
+}
 
 export default function CabinetPage() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = TABS.some(t => t.key === searchParams.get('tab')) ? searchParams.get('tab') : 'profile'
   const [screen, setScreen] = useState('login') // login | loading | link | profile
   const [user, setUser] = useState(null)
-  const [account, setAccount] = useState(null) // /web/me: balance, fines, linked
+  const [account, setAccount] = useState(null) // /web/me: fines, linked
   const [richProfile, setRichProfile] = useState(null) // /web/player/{nick}: shared view data
   const [alerts, setAlerts] = useState([])
   const [linkNick, setLinkNick] = useState('')
@@ -192,7 +193,7 @@ export default function CabinetPage() {
   }
 
   return (
-    <div className="cabinet">
+    <div className="cabinet page-fade">
       <div className="alert-box">
         {alerts.map(a => (
           <div key={a.id} className={`alert alert-${a.type}`}>{a.msg}</div>
@@ -258,84 +259,48 @@ export default function CabinetPage() {
         </div>
       )}
 
-      {/* Profile screen — вкладки: Профиль / Банк / Мессенджер / Общины */}
+      {/* Profile screen */}
       {screen === 'profile' && user && richProfile && (
-        <div className="cab-tabs-wrap">
-          <div className="cab-tabs">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                className={`cab-tab-btn ${activeTab === t.key ? 'active' : ''}`}
-                onClick={() => setSearchParams(t.key === 'profile' ? {} : { tab: t.key })}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <div className="cab-profile-wrap">
+          <PlayerProfileView
+            profile={richProfile}
+            isSelf={true}
+            showSkinViewer={true}
+            extraActions={
+              <div className="cab-extra">
+                <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
+              </div>
+            }
+          />
 
-          {activeTab === 'profile' && (
-            <>
-              <PlayerProfileView
-                profile={richProfile}
-                isSelf={true}
-                extraActions={
-                  <div className="cab-extra">
-                    <div className="cab-extra-row">
-                      <span>Баланс</span>
-                      <strong>{Math.round(account?.balance ?? 0)} алм.</strong>
-                    </div>
-                    <button className="btn btn-danger cab-logout-btn" onClick={logout}>Выйти</button>
-                  </div>
-                }
-              />
-
-              {account?.active_fines?.length > 0 && (
-                <div className="pv-card cab-fines-card">
-                  <div className="pv-section-title">Активные штрафы</div>
-                  <div className="fines-list">
-                    {account.active_fines.map(f => (
-                      <div key={f.id} className="fine-item">
-                        <div className="fine-main">
-                          <div className="fine-reason">{f.reason}</div>
-                          <div className="fine-meta">
-                            {f.deadline ? (() => {
-                              const diff = new Date(f.deadline) - new Date()
-                              if (diff <= 0) return 'Срок истёк'
-                              const hours = Math.floor(diff / 1000 / 60 / 60)
-                              const minutes = Math.floor((diff / 1000 / 60) % 60)
-                              return hours > 0 ? `Осталось: ${hours} ч. ${minutes} мин.` : `Осталось: ${minutes} мин.`
-                            })() : 'Без срока'}
-                          </div>
-                        </div>
-                        <div className="fine-right">
-                          <div className="fine-amount">{f.amount} алмазов</div>
-                          <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
+          {account?.active_fines?.length > 0 && (
+            <div className="pv-card cab-fines-card">
+              <div className="pv-section-title cab-fines-title">
+                <Siren size={14} className="cab-fines-title-icon" />
+                Активные штрафы
+                <span className="cab-fines-count">{account.active_fines.length}</span>
+              </div>
+              <div className="fines-list">
+                {account.active_fines.map((f, i) => {
+                  const deadline = fineDeadlineInfo(f.deadline)
+                  return (
+                    <div key={f.id} className="fine-item" style={{ animationDelay: `${i * 0.05}s` }}>
+                      <div className="fine-icon"><Siren size={16} /></div>
+                      <div className="fine-main">
+                        <div className="fine-reason">{f.reason}</div>
+                        <div className={`fine-meta ${deadline.urgent ? 'urgent' : ''}`}>
+                          <Clock size={11} className="fine-meta-icon" />
+                          {deadline.text}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === 'bank' && (
-            <div className="cab-tab-content">
-              <BankTab nickname={richProfile.nickname} />
-            </div>
-          )}
-
-          {activeTab === 'messenger' && (
-            <div className="cab-tab-content cab-stub">
-              <div className="cab-stub-title">Мессенджер скоро появится</div>
-              <div className="cab-stub-desc">Прямые сообщения между игроками в разработке. Загляните позже.</div>
-            </div>
-          )}
-
-          {activeTab === 'communities' && (
-            <div className="cab-tab-content cab-stub">
-              <div className="cab-stub-title">Общины скоро появятся</div>
-              <div className="cab-stub-desc">Раздел общин пока в разработке.</div>
+                      <div className="fine-right">
+                        <div className="fine-amount"><Gem size={13} /> {Math.round(f.amount)}</div>
+                        <button className="fine-pay-btn" onClick={() => payFine(f.id)}>Оплатить</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>

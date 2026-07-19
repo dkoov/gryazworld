@@ -65,6 +65,170 @@ async def get_player_meta(uuid: str) -> Optional[dict]:
         conn.close()
 
 
+async def get_skin(uuid: str, nickname: Optional[str] = None) -> Optional[dict]:
+    """Return {skinUrl, skinModel} for a player's custom vzSkins skin (set via /skin
+    in-game), or None if not set / game VPS unreachable. Falls back to lookup by
+    nickname when the uuid isn't found (covers manual:<nick> placeholder uuids)."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (skin): %s", e)
+        return None
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT skin_url, skin_model FROM vz_skins WHERE uuid = %s",
+                (uuid,),
+            )
+            row = await cur.fetchone()
+            if row is None and nickname:
+                await cur.execute(
+                    "SELECT skin_url, skin_model FROM vz_skins "
+                    "WHERE LOWER(player_name) = LOWER(%s) LIMIT 1",
+                    (nickname,),
+                )
+                row = await cur.fetchone()
+        if row is None or not row[0]:
+            return None
+        return {"skinUrl": row[0], "skinModel": row[1]}
+    finally:
+        conn.close()
+
+
+async def get_roles() -> list[str]:
+    """All role names defined in cs_roles (includes Owner -- callers that expose this
+    to the web admin panel must filter it out themselves)."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (roles): %s", e)
+        return []
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT name FROM cs_roles ORDER BY name")
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+async def get_player_roles(uuid: str) -> list[str]:
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (player roles): %s", e)
+        return []
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT role_name FROM cs_player_roles WHERE uuid = %s ORDER BY sort DESC, role_name",
+                (uuid,),
+            )
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+async def get_all_player_roles() -> dict[str, list[str]]:
+    """Bulk: {uuid: [role_name, ...]} for every player who has at least one role.
+    Used by the Discord role-sync job -- one query instead of one per player."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (all player roles): %s", e)
+        return {}
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT uuid, role_name FROM cs_player_roles")
+            rows = await cur.fetchall()
+        result: dict[str, list[str]] = {}
+        for uuid, role_name in rows:
+            result.setdefault(uuid, []).append(role_name)
+        return result
+    finally:
+        conn.close()
+
+
+async def grant_role(uuid: str, role_name: str) -> None:
+    """Add a role in cs_player_roles and make it the displayed primary role
+    (cs_players.role_name) -- mirrors what /role give does in-game."""
+    conn = await _connect()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT IGNORE INTO cs_player_roles (uuid, role_name, sort) VALUES (%s, %s, 0)",
+                (uuid, role_name),
+            )
+            await cur.execute(
+                "UPDATE cs_players SET role_name = %s WHERE uuid = %s",
+                (role_name, uuid),
+            )
+        await conn.commit()
+    finally:
+        conn.close()
+
+
+async def revoke_role(uuid: str, role_name: str) -> None:
+    """Remove a role from cs_player_roles. If it was the displayed primary role,
+    fall back to any other role the player still has, or clear it."""
+    conn = await _connect()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM cs_player_roles WHERE uuid = %s AND role_name = %s",
+                (uuid, role_name),
+            )
+            await cur.execute(
+                "SELECT role_name FROM cs_players WHERE uuid = %s",
+                (uuid,),
+            )
+            row = await cur.fetchone()
+            if row is not None and row[0] == role_name:
+                await cur.execute(
+                    "SELECT role_name FROM cs_player_roles WHERE uuid = %s ORDER BY sort DESC, role_name LIMIT 1",
+                    (uuid,),
+                )
+                remaining = await cur.fetchone()
+                await cur.execute(
+                    "UPDATE cs_players SET role_name = %s WHERE uuid = %s",
+                    (remaining[0] if remaining else None, uuid),
+                )
+        await conn.commit()
+    finally:
+        conn.close()
+
+
+async def push_private_message(target_uuid: str, from_name: str, message: str) -> bool:
+    """Кладёт личное сообщение в очередь доставки in-game (cs_pm_bus). Каждый из 4 игровых
+    серверов (через vzCharSystem NetworkManager) сам заберёт его, если игрок online именно там.
+    Возвращает False, если игровой VPS недоступен -- сообщение на сайте всё равно уже сохранено."""
+    name = _strip_section_codes(from_name)[:32]
+    text = _strip_section_codes(message)[:512]
+    payload = f"§8[§dЛС§8] §f{name}§d: §f{text}"
+
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (pm bus): %s", e)
+        return False
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO cs_pm_bus (target_uuid, from_name, payload) VALUES (%s, %s, %s)",
+                (target_uuid, name, payload),
+            )
+        await conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def _strip_section_codes(s: str) -> str:
     return s.replace("§", "").replace("&", "")
 

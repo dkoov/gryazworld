@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import aiohttp
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Response
 from pydantic import BaseModel
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ from auth import (
     issue_session_token,
     resolve_actor_discord_id,
 )
-from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily, Transaction
+from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily, PlaytimeServerDaily, Transaction
 import charsystem_client
 
 
@@ -228,9 +228,7 @@ async def link_account(
             discord_id=discord_id,
         )
         db.add(player)
-        await db.flush()
-        account = BankAccount(player_id=player.id, balance=0.0)
-        db.add(account)
+        # банковский счёт больше не создаётся автоматически -- см. /mc/bank/create (банкир)
     else:
         player.discord_id = discord_id
 
@@ -261,7 +259,7 @@ async def get_me(
         return {"linked": False}
 
     bank_result = await db.execute(
-        select(BankAccount).where(BankAccount.player_id == player.id)
+        select(BankAccount).where(BankAccount.player_id == player.id, BankAccount.is_primary == True)  # noqa: E712
     )
     bank = bank_result.scalar_one_or_none()
     balance = bank.balance if bank else 0.0
@@ -279,6 +277,7 @@ async def get_me(
         "uuid": player.uuid,
         "nickname": player.nickname,
         "discord_id": player.discord_id,
+        "is_admin": player.is_admin,
         "total_seconds": player.total_seconds,
         "hours": hours,
         "minutes": minutes,
@@ -339,116 +338,6 @@ async def web_pay_fine(
     return {"status": "ok", "fine_id": fine.id, "balance": account.balance}
 
 
-# ─── Bank (веб-версия, для личного кабинета) ─────────────────────────────────
-
-async def _get_own_player_account(user: CurrentUser, db: AsyncSession):
-    player_result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
-    player = player_result.scalar_one_or_none()
-    if not player:
-        raise HTTPException(status_code=404, detail="Игрок не найден")
-    account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
-    account = account_result.scalar_one_or_none()
-    if not account:
-        raise HTTPException(status_code=404, detail="Счёт не найден")
-    return player, account
-
-
-@router.get("/bank/me")
-async def bank_me(
-    user: CurrentUser = Depends(current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    player, account = await _get_own_player_account(user, db)
-    return {"nickname": player.nickname, "balance": account.balance}
-
-
-@router.get("/bank/transactions")
-async def bank_transactions(
-    user: CurrentUser = Depends(current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    player, _ = await _get_own_player_account(user, db)
-
-    tx_result = await db.execute(
-        select(Transaction)
-        .where(or_(Transaction.from_player_id == player.id, Transaction.to_player_id == player.id))
-        .order_by(Transaction.created_at.desc())
-        .limit(100)
-    )
-    txs = tx_result.scalars().all()
-
-    counterparty_ids = {t.from_player_id for t in txs} | {t.to_player_id for t in txs}
-    counterparty_ids.discard(None)
-    counterparty_ids.discard(player.id)
-    names = {}
-    if counterparty_ids:
-        players_result = await db.execute(select(Player).where(Player.id.in_(counterparty_ids)))
-        names = {p.id: p.nickname for p in players_result.scalars().all()}
-
-    result = []
-    for t in txs:
-        outgoing = t.from_player_id == player.id
-        counterparty_id = t.to_player_id if outgoing else t.from_player_id
-        result.append({
-            "id": t.id,
-            "type": t.type,
-            "amount": t.amount,
-            "outgoing": outgoing,
-            "comment": t.comment,
-            "counterparty": names.get(counterparty_id) if counterparty_id else None,
-            "created_at": t.created_at.isoformat(),
-        })
-    return result
-
-
-class BankTransferRequest(BaseModel):
-    to_nickname: str
-    amount: float
-    comment: str = ""
-
-
-@router.post("/bank/transfer")
-async def bank_transfer(
-    data: BankTransferRequest,
-    user: CurrentUser = Depends(current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
-
-    from_player, from_account = await _get_own_player_account(user, db)
-
-    to_result = await db.execute(
-        select(Player).where(func.lower(Player.nickname) == data.to_nickname.strip().lower())
-    )
-    to_player = to_result.scalar_one_or_none()
-    if not to_player:
-        raise HTTPException(status_code=404, detail="Игрок не найден")
-    if to_player.id == from_player.id:
-        raise HTTPException(status_code=400, detail="Нельзя перевести самому себе")
-
-    to_account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == to_player.id))
-    to_account = to_account_result.scalar_one_or_none()
-    if not to_account:
-        raise HTTPException(status_code=404, detail="У получателя нет счёта")
-
-    if from_account.balance < data.amount:
-        raise HTTPException(status_code=400, detail="Недостаточно средств")
-
-    from_account.balance -= data.amount
-    to_account.balance += data.amount
-
-    tx = Transaction(
-        from_player_id=from_player.id,
-        to_player_id=to_player.id,
-        amount=data.amount,
-        type="transfer",
-        comment=data.comment,
-    )
-    db.add(tx)
-    await db.commit()
-
-    return {"status": "ok", "balance": from_account.balance}
 
 
 @router.get("/server-stats")
@@ -468,6 +357,16 @@ async def server_stats(db: AsyncSession = Depends(get_db)):
         servers[server]["players"].append(nickname)
 
     total_online = sum(s["online"] for s in servers.values())
+
+    playtime_result = await db.execute(
+        select(PlaytimeServerDaily.server, func.sum(PlaytimeServerDaily.seconds)).group_by(PlaytimeServerDaily.server)
+    )
+    for server, seconds in playtime_result.all():
+        servers.setdefault(server, {"online": 0, "players": []})
+        servers[server]["total_seconds"] = seconds or 0
+    for s in servers.values():
+        s.setdefault("total_seconds", 0)
+
     return {"online": total_online, "servers": servers}
 
 
@@ -521,6 +420,13 @@ async def public_player_profile(
     daily_rows = daily_result.scalars().all()
     heatmap = [{"day": r.day, "seconds": r.seconds} for r in sorted(daily_rows, key=lambda r: r.day)]
 
+    by_server_result = await db.execute(
+        select(PlaytimeServerDaily.server, func.sum(PlaytimeServerDaily.seconds))
+        .where(PlaytimeServerDaily.player_id == player.id)
+        .group_by(PlaytimeServerDaily.server)
+    )
+    playtime_by_server = {server: seconds or 0 for server, seconds in by_server_result.all()}
+
     warns_result = await db.execute(
         select(Warn).where(Warn.player_id == player.id).order_by(Warn.created_at.desc())
     )
@@ -567,11 +473,13 @@ async def public_player_profile(
 
     characters = None
     role_name = None
+    roles = []
     if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
         meta = await charsystem_client.get_player_meta(player.uuid)
         if meta is not None:
             characters = meta["characters"]
             role_name = meta["role_name"]
+        roles = await charsystem_client.get_player_roles(player.uuid)
 
     return {
         "nickname": player.nickname,
@@ -583,6 +491,7 @@ async def public_player_profile(
         "playtime_week": _sum_seconds_since(daily_rows, week_ago),
         "playtime_month": _sum_seconds_since(daily_rows, month_ago),
         "heatmap": heatmap,
+        "playtime_by_server": playtime_by_server,
         "warns": [
             {
                 "reason": w.reason,
@@ -595,9 +504,11 @@ async def public_player_profile(
         "communities": communities_list,
         "characters": characters,
         "role_name": role_name,
+        "roles": roles,
         "likes_count": likes_count,
         "liked_by_me": liked_by_me,
         "discord_id": player.discord_id,
+        "is_admin": player.is_admin,
     }
 
 
@@ -1175,6 +1086,21 @@ async def list_invites(
     ]
 
 
+@router.get("/players/search")
+async def search_players_public(q: str = "", db: AsyncSession = Depends(get_db)):
+    """Лёгкий публичный поиск ников для автодополнения (мессенджер, перевод в банке)."""
+    q = q.strip()
+    if len(q) < 2:
+        return []
+    result = await db.execute(
+        select(Player.nickname)
+        .where(Player.nickname.ilike(f"%{q}%"), Player.discord_id.isnot(None))
+        .order_by(Player.nickname)
+        .limit(8)
+    )
+    return [r[0] for r in result.all()]
+
+
 @router.get("/all-linked-players")
 async def get_all_linked_players(
     user: CurrentUser = Depends(current_user),
@@ -1212,3 +1138,51 @@ async def delete_community(
     await db.delete(comm)
     await db.commit()
     return {"status": "deleted", "community_id": community_id}
+
+
+@router.get("/skin/{nickname}")
+async def player_skin_meta(nickname: str, db: AsyncSession = Depends(get_db)):
+    """Metadata for the 3D skin viewer -- whether a custom vzSkins skin exists and its model."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    skin = None
+    if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
+        skin = await charsystem_client.get_skin(player.uuid, nickname=player.nickname)
+
+    return {
+        "hasCustomSkin": skin is not None,
+        "skinModel": skin["skinModel"] if skin else "classic",
+        "textureUrl": f"/web/skin/{player.nickname}/texture.png" if skin else None,
+    }
+
+
+@router.get("/skin/{nickname}/texture.png")
+async def player_skin_texture(nickname: str, db: AsyncSession = Depends(get_db)):
+    """Proxies the actual skin PNG from wherever it is hosted -- avoids client-side CORS
+    issues since arbitrary skin-url hosts may not send CORS headers."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None or not player.uuid or player.uuid.startswith("web-") or player.uuid.startswith("manual:"):
+        raise HTTPException(status_code=404, detail="Скин не найден")
+
+    skin = await charsystem_client.get_skin(player.uuid, nickname=player.nickname)
+    if skin is None or not skin.get("skinUrl"):
+        raise HTTPException(status_code=404, detail="Скин не найден")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(skin["skinUrl"], timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    raise HTTPException(status_code=502, detail="Не удалось загрузить скин")
+                data = await resp.read()
+    except aiohttp.ClientError:
+        raise HTTPException(status_code=502, detail="Не удалось загрузить скин")
+
+    return Response(content=data, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})

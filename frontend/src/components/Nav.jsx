@@ -1,7 +1,9 @@
-import { NavLink, Link, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
+import { Landmark, MessageCircle, Users, Scale } from 'lucide-react'
 import { getDiscordUser, clearDiscordUser, clearSessionToken, getAvatarUrl, apiFetch } from '../api'
 import DiscordIcon from './DiscordIcon'
+import Modal from './Modal'
 import './Nav.css'
 
 const THEME_KEY = 'ichorix_theme'
@@ -19,9 +21,13 @@ export default function Nav() {
   const navigate = useNavigate()
   const [user, setUser] = useState(getDiscordUser())
   const [mcNick, setMcNick] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [canReviewClaims, setCanReviewClaims] = useState(false)
+  const [unreadMsgs, setUnreadMsgs] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
+  const [comingSoon, setComingSoon] = useState(null) // null | { title, desc }
   const menuRef = useRef(null)
 
   useEffect(() => { applyTheme(theme) }, [theme])
@@ -35,8 +41,23 @@ export default function Nav() {
   useEffect(() => {
     if (!user) return
     apiFetch('/web/me')
-      .then(p => { if (p.nickname) setMcNick(p.nickname) })
+      .then(p => { if (p.nickname) setMcNick(p.nickname); setIsAdmin(!!p.is_admin) })
       .catch(() => {})
+    apiFetch('/web/court/permissions')
+      .then(p => setCanReviewClaims(!!p.can_review))
+      .catch(() => {})
+  }, [user])
+
+  useEffect(() => {
+    if (!user) { setUnreadMsgs(0); return }
+    const load = () => {
+      apiFetch('/web/messenger/unread-count')
+        .then(d => setUnreadMsgs(d.count || 0))
+        .catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
   }, [user])
 
   useEffect(() => {
@@ -56,17 +77,16 @@ export default function Nav() {
     window.dispatchEvent(new Event('auth-change'))
   }
 
-  function goCabinetTab(tab) {
-    setUserMenuOpen(false)
-    navigate(tab ? `/cabinet?tab=${tab}` : '/cabinet')
+  function openComingSoon(title, desc) {
+    setComingSoon({ title, desc })
   }
 
   return (
     <>
     <nav className="nav">
-      <Link to="/" className="nav-logo">
-        <img src="/logo-circle.png" alt="Ichorix" />
-      </Link>
+      <div className="nav-logo" onClick={() => navigate('/')}>
+        <img src="/logo.png" alt="Ichorix" />
+      </div>
 
       {/* Десктоп ссылки */}
       <ul className="nav-links">
@@ -84,14 +104,24 @@ export default function Nav() {
       <div className="nav-right">
         {user && (
           <>
-            <button className="nav-icon-btn" title="Банк" onClick={() => goCabinetTab('bank')}>
-              <span className="nav-icon nav-icon-bank" />
+            <button className="nav-feature-btn" title="Банк" onClick={() => navigate('/bank')}>
+              <Landmark size={18} strokeWidth={1.75} />
             </button>
-            <button className="nav-icon-btn" title="Сообщения" onClick={() => goCabinetTab('messenger')}>
-              <span className="nav-icon nav-icon-msg" />
+            {canReviewClaims && (
+              <button className="nav-feature-btn" title="Суд" onClick={() => navigate('/court')}>
+                <Scale size={18} strokeWidth={1.75} />
+              </button>
+            )}
+            <button className="nav-feature-btn" title="Сообщения" onClick={() => navigate('/messenger')}>
+              <MessageCircle size={18} strokeWidth={1.75} />
+              {unreadMsgs > 0 && <span className="nav-feature-badge" />}
             </button>
-            <button className="nav-icon-btn" title="Общины" onClick={() => goCabinetTab('communities')}>
-              <span className="nav-icon nav-icon-communities" />
+            <button
+              className="nav-feature-btn"
+              title="Общины"
+              onClick={() => openComingSoon('Общины', 'Раздел общин пока в разработке.')}
+            >
+              <Users size={18} strokeWidth={1.75} />
             </button>
           </>
         )}
@@ -109,7 +139,7 @@ export default function Nav() {
                   <img src={getAvatarUrl(user)} alt="" className="user-dropdown-avatar" />
                   <div>
                     <div className="user-dropdown-name">{mcNick || user.global_name || user.username}</div>
-                    <div className="user-dropdown-link" onClick={() => goCabinetTab()}>Открыть профиль →</div>
+                    <div className="user-dropdown-link" onClick={() => { setUserMenuOpen(false); navigate('/cabinet') }}>Открыть профиль →</div>
                   </div>
                 </div>
                 <div className="user-dropdown-row">
@@ -122,6 +152,9 @@ export default function Nav() {
                   </div>
                 </div>
                 <div className="user-dropdown-item" onClick={() => navigate('/shop')}>Магазин</div>
+                {isAdmin && (
+                  <div className="user-dropdown-item" onClick={() => { setUserMenuOpen(false); navigate('/admin') }}>Админ-панель</div>
+                )}
                 <div className="user-dropdown-item danger" onClick={logout}>Выйти из аккаунта</div>
               </div>
             )}
@@ -174,6 +207,12 @@ export default function Nav() {
           )}
         </div>
       )}
+
+      {/* Мессенджер / Общины — заглушка "скоро" */}
+      <Modal open={!!comingSoon} onClose={() => setComingSoon(null)}>
+        <h2>{comingSoon?.title}</h2>
+        <p>{comingSoon?.desc}</p>
+      </Modal>
     </>
   )
 }

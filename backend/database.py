@@ -33,8 +33,9 @@ class Player(Base):
     has_access = Column(Boolean, default=False, nullable=False)
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
     whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
+    is_admin = Column(Boolean, default=False, nullable=False)  # доступ к /admin (выдача игровых ролей)
 
-    bank_account = relationship("BankAccount", back_populates="player", uselist=False)
+    bank_accounts = relationship("BankAccount", back_populates="player")
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
     warn_records = relationship("Warn", foreign_keys="Warn.player_id", back_populates="player")
     subscriptions = relationship("Subscription", back_populates="player")
@@ -56,10 +57,25 @@ class BankAccount(Base):
     __tablename__ = "bank_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
-    player_id = Column(Integer, ForeignKey("players.id"), unique=True, nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    label = Column(String, nullable=True)  # своё название карты, задаётся владельцем
+    is_primary = Column(Boolean, default=False, nullable=False)  # тот самый счёт, с которым работает vzBank в игре
+    hide_balance = Column(Boolean, default=False, nullable=False)  # личная настройка отображения, не влияет на доступ
     balance = Column(Float, default=0.0, nullable=False)
+    image_url = Column(String, nullable=True)  # своя картинка карты, только для IchoPlus
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    player = relationship("Player", back_populates="bank_account")
+    player = relationship("Player", back_populates="bank_accounts")
+
+
+class BankAccountAccess(Base):
+    """Игрок, которому владелец счёта дал доступ (видеть баланс/историю, переводить со счёта)."""
+    __tablename__ = "bank_account_access"
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    granted_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Transaction(Base):
@@ -68,6 +84,8 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     from_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     to_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    from_account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=True)  # null для старых записей
+    to_account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=True)
     amount = Column(Float, nullable=False)
     type = Column(String, nullable=False)  # deposit, transfer, fine_payment
     comment = Column(String, nullable=True)
@@ -101,6 +119,24 @@ class Warn(Base):
 
     player = relationship("Player", foreign_keys=[player_id], back_populates="warn_records")
 
+
+class Claim(Base):
+    # "Иск" -- жалоба через Discord-бота, рассматривается Судьёй/Админом на сайте
+    __tablename__ = "claims"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plaintiff_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    plaintiff_discord_id = Column(String, nullable=True)
+    defendant_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    defendant_text = Column(String, nullable=False)  # ник/упоминание как ввёл истец в Discord
+    subject = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    thread_url = Column(String, nullable=True)  # ссылка на приватный тред в Discord
+    status = Column(String, default="pending", nullable=False)  # pending, approved, dismissed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(String, nullable=True)  # ник судьи/админа
+    fine_id = Column(Integer, ForeignKey("fines.id"), nullable=True)
 
 class Community(Base):
     __tablename__ = "communities"
@@ -147,6 +183,32 @@ class CommunityInvite(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    from_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    to_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+    delivered_ingame = Column(Boolean, default=False, nullable=False)
+
+
+class Invoice(Base):
+    # "Выставить счёт" -- владелец счёта просит другого игрока заплатить
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=False)  # куда пойдут деньги
+    creditor_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    debtor_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    comment = Column(String, nullable=True)
+    status = Column(String, default="pending", nullable=False)  # pending, paid, declined
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
 class PlayerIP(Base):
     __tablename__ = "player_ips"
 
@@ -177,6 +239,20 @@ class PlaytimeDaily(Base):
 
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    day = Column(String, nullable=False)  # YYYY-MM-DD (UTC)
+    seconds = Column(Integer, default=0, nullable=False)
+
+
+class PlaytimeServerDaily(Base):
+    """То же самое, что PlaytimeDaily, но с разбивкой по конкретному серверу сети (лобби/билды/фермы/бинго)."""
+    __tablename__ = "playtime_server_daily"
+    __table_args__ = (
+        UniqueConstraint("player_id", "server", "day", name="uq_playtime_server_day"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    server = Column(String, nullable=False)
     day = Column(String, nullable=False)  # YYYY-MM-DD (UTC)
     seconds = Column(Integer, default=0, nullable=False)
 
