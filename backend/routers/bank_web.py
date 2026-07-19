@@ -283,8 +283,6 @@ async def account_transfer(
     to_player = to_result.scalar_one_or_none()
     if not to_player:
         raise HTTPException(status_code=404, detail="Игрок не найден")
-    if to_player.id == from_account.player_id and to_player.id == me.id:
-        raise HTTPException(status_code=400, detail="Нельзя перевести самому себе")
 
     if data.to_account_id is not None:
         to_account_result = await db.execute(

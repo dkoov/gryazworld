@@ -94,6 +94,7 @@ export default function Nav() {
         <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
+        <li><NavLink to="/ichorbecs">Ichorbecs</NavLink></li>
         {/* HIDDEN: до решения команды
         <li><NavLink to="/communities">Общины</NavLink></li>
         */}
@@ -197,6 +198,7 @@ export default function Nav() {
             <li><NavLink to="/shop">Магазин</NavLink></li>
             <li><NavLink to="/wiki">Wiki</NavLink></li>
             <li><NavLink to="/stats">Статистика</NavLink></li>
+        <li><NavLink to="/ichorbecs">Ichorbecs</NavLink></li>
             {/* HIDDEN: до решения команды
             <li><NavLink to="/communities">Общины</NavLink></li>
             */}
