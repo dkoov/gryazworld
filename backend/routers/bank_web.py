@@ -239,6 +239,29 @@ class AccountTransferRequest(BaseModel):
     to_nickname: str
     amount: float
     comment: str = ""
+    to_account_id: int | None = None
+
+
+@router.get("/player/{nickname}/cards")
+async def player_cards_for_transfer(
+    nickname: str, user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+):
+    """Список карт другого игрока для выбора получателя перевода -- без баланса,
+    только то, что нужно, чтобы отличить одну карту от другой."""
+    await _resolve_self(user, db)  # только для авторизованных пользователей сайта
+
+    to_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == nickname.strip().lower())
+    )
+    to_player = to_result.scalar_one_or_none()
+    if not to_player:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    accounts = await _own_accounts(to_player.id, db)
+    return [
+        {"id": a.id, "label": _account_label(a, to_player.nickname), "is_primary": a.is_primary}
+        for a in accounts
+    ]
 
 
 @router.post("/accounts/{account_id}/transfer")
@@ -263,12 +286,20 @@ async def account_transfer(
     if to_player.id == from_account.player_id and to_player.id == me.id:
         raise HTTPException(status_code=400, detail="Нельзя перевести самому себе")
 
-    to_account_result = await db.execute(
-        select(BankAccount).where(BankAccount.player_id == to_player.id, BankAccount.is_primary == True)  # noqa: E712
-    )
-    to_account = to_account_result.scalar_one_or_none()
-    if not to_account:
-        raise HTTPException(status_code=404, detail="У получателя нет счёта")
+    if data.to_account_id is not None:
+        to_account_result = await db.execute(
+            select(BankAccount).where(BankAccount.id == data.to_account_id, BankAccount.player_id == to_player.id)
+        )
+        to_account = to_account_result.scalar_one_or_none()
+        if not to_account:
+            raise HTTPException(status_code=404, detail="Карта получателя не найдена")
+    else:
+        to_account_result = await db.execute(
+            select(BankAccount).where(BankAccount.player_id == to_player.id, BankAccount.is_primary == True)  # noqa: E712
+        )
+        to_account = to_account_result.scalar_one_or_none()
+        if not to_account:
+            raise HTTPException(status_code=404, detail="У получателя нет счёта")
     if to_account.id == from_account.id:
         raise HTTPException(status_code=400, detail="Нельзя перевести на этот же счёт")
 

@@ -3,7 +3,7 @@ import { ExtendedClient } from "../structures/Client";
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL ?? "http://backend:8000";
 const API_KEY = process.env.INTERNAL_API_KEY ?? "";
 const GUILD_ID = process.env.GUILD_ID ?? "";
-const SYNC_INTERVAL_MS = 3 * 60 * 1000;
+const SYNC_INTERVAL_MS = 20 * 1000;
 
 /** Minecraft-роль (cs_roles.name) -> Discord-роль. Owner намеренно не синкается. */
 const MC_TO_DISCORD_ROLE: Record<string, string> = {
