@@ -9,6 +9,7 @@ from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db, Player, AuthSession, DiscordAuthRequest, IpBan
+import charsystem_client
 
 DISCORD_AUTH_API_KEY = os.getenv("DISCORD_AUTH_API_KEY", "")
 
@@ -280,3 +281,24 @@ async def whitelist_list(db: AsyncSession = Depends(get_db)):
     )
     players = result.scalars().all()
     return {"players": [p.nickname for p in players]}
+
+
+# ── 12. GET /internal/discord/role-sync ────────────────────────────────────────
+
+@router.get("/discord/role-sync", dependencies=[Depends(verify_api_key)])
+async def discord_role_sync(db: AsyncSession = Depends(get_db)):
+    """Для периодической синхронизации Minecraft-ролей -> Discord-роли (discord-bot-main).
+    Отдаёт {discord_id: [role_name, ...]} для всех привязанных игроков с реальным uuid."""
+    result = await db.execute(
+        select(Player.uuid, Player.discord_id).where(Player.discord_id != None, Player.uuid != None)  # noqa: E711
+    )
+    rows = result.all()
+
+    all_roles = await charsystem_client.get_all_player_roles()
+
+    out = []
+    for uuid_, discord_id in rows:
+        if uuid_.startswith("web-") or uuid_.startswith("manual:"):
+            continue
+        out.append({"discord_id": discord_id, "roles": all_roles.get(uuid_, [])})
+    return out

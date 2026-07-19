@@ -133,6 +133,27 @@ async def get_player_roles(uuid: str) -> list[str]:
         conn.close()
 
 
+async def get_all_player_roles() -> dict[str, list[str]]:
+    """Bulk: {uuid: [role_name, ...]} for every player who has at least one role.
+    Used by the Discord role-sync job -- one query instead of one per player."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (all player roles): %s", e)
+        return {}
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT uuid, role_name FROM cs_player_roles")
+            rows = await cur.fetchall()
+        result: dict[str, list[str]] = {}
+        for uuid, role_name in rows:
+            result.setdefault(uuid, []).append(role_name)
+        return result
+    finally:
+        conn.close()
+
+
 async def grant_role(uuid: str, role_name: str) -> None:
     """Add a role in cs_player_roles and make it the displayed primary role
     (cs_players.role_name) -- mirrors what /role give does in-game."""
