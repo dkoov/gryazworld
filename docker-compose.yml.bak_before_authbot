@@ -50,13 +50,3 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
-  discord-bot-auth:
-    image: gryazworld-discord-bot-auth:latest
-    container_name: ichorix-auth-bot
-    restart: unless-stopped
-    env_file:
-      - ./discord-bot-auth/.env
-    depends_on:
-      backend:
-        condition: service_healthy
