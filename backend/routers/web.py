@@ -23,7 +23,7 @@ from auth import (
     issue_session_token,
     resolve_actor_discord_id,
 )
-from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily, Transaction
+from database import get_db, Player, BankAccount, Fine, Warn, Subscription, Community, CommunityMember, CommunityInvite, Like, PlaytimeDaily, PlaytimeServerDaily, Transaction, Claim
 import charsystem_client
 
 
@@ -357,6 +357,16 @@ async def server_stats(db: AsyncSession = Depends(get_db)):
         servers[server]["players"].append(nickname)
 
     total_online = sum(s["online"] for s in servers.values())
+
+    playtime_result = await db.execute(
+        select(PlaytimeServerDaily.server, func.sum(PlaytimeServerDaily.seconds)).group_by(PlaytimeServerDaily.server)
+    )
+    for server, seconds in playtime_result.all():
+        servers.setdefault(server, {"online": 0, "players": []})
+        servers[server]["total_seconds"] = seconds or 0
+    for s in servers.values():
+        s.setdefault("total_seconds", 0)
+
     return {"online": total_online, "servers": servers}
 
 
@@ -376,6 +386,71 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
         }
         for p in players
     ]
+
+
+@router.get("/stats/economy")
+async def economy_stats(db: AsyncSession = Depends(get_db)):
+    """Экономика сети + суд -- обороты банка, штрафы, иски. Публично, для страницы статистики."""
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+    total_balance = (await db.execute(select(func.coalesce(func.sum(BankAccount.balance), 0.0)))).scalar()
+    total_accounts = (await db.execute(select(func.count(BankAccount.id)))).scalar()
+
+    tx_total_row = (await db.execute(
+        select(func.count(Transaction.id), func.coalesce(func.sum(Transaction.amount), 0.0))
+    )).one()
+    tx_30d_row = (await db.execute(
+        select(func.count(Transaction.id), func.coalesce(func.sum(Transaction.amount), 0.0))
+        .where(Transaction.created_at >= thirty_days_ago)
+    )).one()
+
+    top_result = await db.execute(
+        select(BankAccount, Player.nickname)
+        .join(Player, Player.id == BankAccount.player_id)
+        .where(BankAccount.hide_balance == False)  # noqa: E712
+        .order_by(BankAccount.balance.desc())
+        .limit(10)
+    )
+    top_accounts = [
+        {
+            "nickname": nickname,
+            "label": account.label or ("Основная карта" if account.is_primary else "Карта"),
+            "balance": account.balance,
+        }
+        for account, nickname in top_result.all()
+    ]
+
+    fines_total_row = (await db.execute(
+        select(func.count(Fine.id), func.coalesce(func.sum(Fine.amount), 0.0))
+    )).one()
+    fines_paid_row = (await db.execute(
+        select(func.count(Fine.id), func.coalesce(func.sum(Fine.amount), 0.0)).where(Fine.status == "paid")
+    )).one()
+    fines_pending_row = (await db.execute(
+        select(func.count(Fine.id), func.coalesce(func.sum(Fine.amount), 0.0)).where(Fine.status == "pending")
+    )).one()
+
+    claims_by_status = dict((await db.execute(
+        select(Claim.status, func.count(Claim.id)).group_by(Claim.status)
+    )).all())
+
+    return {
+        "bank": {
+            "total_balance": total_balance,
+            "total_accounts": total_accounts,
+            "transactions_total": {"count": tx_total_row[0], "amount": tx_total_row[1]},
+            "transactions_30d": {"count": tx_30d_row[0], "amount": tx_30d_row[1]},
+            "top_accounts": top_accounts,
+        },
+        "court": {
+            "fines_total": {"count": fines_total_row[0], "amount": fines_total_row[1]},
+            "fines_paid": {"count": fines_paid_row[0], "amount": fines_paid_row[1]},
+            "fines_pending": {"count": fines_pending_row[0], "amount": fines_pending_row[1]},
+            "claims_pending": claims_by_status.get("pending", 0),
+            "claims_approved": claims_by_status.get("approved", 0),
+            "claims_dismissed": claims_by_status.get("dismissed", 0),
+        },
+    }
 
 
 # ─── Public player profile ───────────────────────────────────────────────────
@@ -409,6 +484,13 @@ async def public_player_profile(
     )
     daily_rows = daily_result.scalars().all()
     heatmap = [{"day": r.day, "seconds": r.seconds} for r in sorted(daily_rows, key=lambda r: r.day)]
+
+    by_server_result = await db.execute(
+        select(PlaytimeServerDaily.server, func.sum(PlaytimeServerDaily.seconds))
+        .where(PlaytimeServerDaily.player_id == player.id)
+        .group_by(PlaytimeServerDaily.server)
+    )
+    playtime_by_server = {server: seconds or 0 for server, seconds in by_server_result.all()}
 
     warns_result = await db.execute(
         select(Warn).where(Warn.player_id == player.id).order_by(Warn.created_at.desc())
@@ -474,6 +556,7 @@ async def public_player_profile(
         "playtime_week": _sum_seconds_since(daily_rows, week_ago),
         "playtime_month": _sum_seconds_since(daily_rows, month_ago),
         "heatmap": heatmap,
+        "playtime_by_server": playtime_by_server,
         "warns": [
             {
                 "reason": w.reason,

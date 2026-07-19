@@ -141,7 +141,7 @@ async def list_claims(user: CurrentUser = Depends(current_user), db: AsyncSessio
 
 class ApproveClaimRequest(BaseModel):
     defendant_nickname: Optional[str] = None
-    amount: float
+    amount: Optional[float] = None  # не обязателен -- можно признать иск обоснованным без штрафа
     reason: str
     comment: Optional[str] = None
 
@@ -154,8 +154,10 @@ async def approve_claim(
     db: AsyncSession = Depends(get_db),
 ):
     me = await _require_reviewer(user, db)
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Сумма должна быть положительной")
+    if data.amount is not None and data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Сумма штрафа должна быть положительной")
+    if not data.reason.strip():
+        raise HTTPException(status_code=400, detail="Укажи причину решения")
 
     result = await db.execute(select(Claim).where(Claim.id == claim_id))
     claim = result.scalar_one_or_none()
@@ -176,36 +178,54 @@ async def approve_claim(
     if defendant is None:
         raise HTTPException(status_code=400, detail="Не удалось определить ответчика -- укажи ник вручную")
 
-    fine = Fine(
-        player_id=defendant.id,
-        issued_by=me.nickname,
-        amount=data.amount,
-        reason=data.reason.strip()[:200],
-        comment=data.comment.strip()[:350] if data.comment else None,
-        status="pending",
-    )
-    db.add(fine)
+    fine = None
+    if data.amount:
+        fine = Fine(
+            player_id=defendant.id,
+            issued_by=me.nickname,
+            amount=data.amount,
+            reason=data.reason.strip()[:200],
+            comment=data.comment.strip()[:350] if data.comment else None,
+            status="pending",
+        )
+        db.add(fine)
+
     claim.status = "approved"
     claim.resolved_at = datetime.utcnow()
     claim.resolved_by = me.nickname
-    await db.flush()
-    claim.fine_id = fine.id
+    if fine is not None:
+        await db.flush()
+        claim.fine_id = fine.id
     await db.commit()
 
-    await _notify_discord({
-        "type": "fine",
-        "fine_id": fine.id,
-        "player": defendant.nickname,
-        "discord_id": defendant.discord_id,
-        "amount": fine.amount,
-        "reason": fine.reason,
-        "comment": fine.comment,
-        "issued_by": fine.issued_by,
-        "issued_by_discord_id": me.discord_id,
-        "claim_thread_id": _thread_id_from_url(claim.thread_url),
-    })
+    if fine is not None:
+        await _notify_discord({
+            "type": "fine",
+            "fine_id": fine.id,
+            "player": defendant.nickname,
+            "discord_id": defendant.discord_id,
+            "amount": fine.amount,
+            "reason": fine.reason,
+            "comment": fine.comment,
+            "issued_by": fine.issued_by,
+            "issued_by_discord_id": me.discord_id,
+            "claim_thread_id": _thread_id_from_url(claim.thread_url),
+        })
+    else:
+        await _notify_discord({
+            "type": "claim_approved",
+            "claim_id": claim.id,
+            "subject": claim.subject,
+            "player": defendant.nickname,
+            "discord_id": defendant.discord_id,
+            "reason": data.reason.strip()[:200],
+            "comment": data.comment.strip()[:350] if data.comment else None,
+            "issued_by": me.nickname,
+            "issued_by_discord_id": me.discord_id,
+            "claim_thread_id": _thread_id_from_url(claim.thread_url),
+        })
 
-    return {"status": "ok", "fine_id": fine.id}
+    return {"status": "ok", "fine_id": fine.id if fine is not None else None}
 
 
 class CreateFineRequest(BaseModel):

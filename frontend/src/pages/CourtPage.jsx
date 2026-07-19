@@ -95,8 +95,8 @@ export default function CourtPage() {
   async function submitApprove() {
     if (!claimModal) return
     setFormError('')
-    const amt = Number(amount)
-    if (!amt || amt <= 0) { setFormError('Введи сумму штрафа'); return }
+    const amt = amount.trim() ? Number(amount) : null
+    if (amt !== null && (!amt || amt <= 0)) { setFormError('Сумма штрафа должна быть положительной (или оставь поле пустым -- без штрафа)'); return }
     if (!reason.trim()) { setFormError('Введи причину'); return }
     setBusy(true)
     try {
@@ -237,7 +237,7 @@ export default function CourtPage() {
                   type="number"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
-                  placeholder="Сумма штрафа"
+                  placeholder="Сумма штрафа (необязательно)"
                 />
                 <span className="court-amount-icon"><Gem size={14} /></span>
               </div>
@@ -257,7 +257,7 @@ export default function CourtPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 14 }}>
               <button className="btn btn-ghost" onClick={closeReview}>Закрыть</button>
               <button className="court-dismiss-btn" disabled={busy} onClick={submitDismiss}>Отклонить иск</button>
-              <button className="btn btn-primary" disabled={busy} onClick={submitApprove}>Оштрафовать</button>
+              <button className="btn btn-primary" disabled={busy} onClick={submitApprove}>Одобрить иск</button>
             </div>
           </>
         )}

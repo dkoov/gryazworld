@@ -128,6 +128,33 @@ async function handleClaimDismissed(client: ExtendedClient, data: any): Promise<
   }
 }
 
+async function handleClaimApproved(client: ExtendedClient, data: any): Promise<void> {
+  const embed = new EmbedBuilder()
+    .setTitle("Иск одобрен (без штрафа)")
+    .setColor(0x3498db)
+    .addFields(
+      { name: "Суть иска", value: String(data.subject ?? "?"), inline: false },
+      { name: "Игрок", value: String(data.player ?? "?"), inline: true },
+      { name: "Причина решения", value: String(data.reason ?? "?"), inline: false }
+    )
+    .setFooter({ text: `Рассмотрел: ${data.issued_by ?? "?"} • #${data.claim_id}` })
+    .setTimestamp();
+  if (data.comment) {
+    embed.addFields({ name: "Комментарий", value: String(data.comment), inline: false });
+  }
+
+  if (data.claim_thread_id) {
+    const thread = await getThreadSendable(client, String(data.claim_thread_id));
+    if (thread) {
+      const content = data.discord_id ? `<@${data.discord_id}>` : undefined;
+      await thread.send({ content, embeds: [embed] }).catch((e) =>
+        console.error("[Notify] claim_approved -> тред иска:", e)
+      );
+      await archiveThread(thread);
+    }
+  }
+}
+
 async function handleFinePaid(client: ExtendedClient, data: any): Promise<void> {
   const embed = new EmbedBuilder()
     .setTitle("Штраф оплачен")
@@ -244,6 +271,9 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "claim_dismissed":
             await handleClaimDismissed(client, data);
+            break;
+          case "claim_approved":
+            await handleClaimApproved(client, data);
             break;
           case "chat":
             await handleChat(client, data);

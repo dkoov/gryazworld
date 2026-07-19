@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily
 import charsystem_client
 
 import os
@@ -115,6 +115,19 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
         daily = PlaytimeDaily(player_id=player.id, day=today, seconds=0)
         db.add(daily)
     daily.seconds += data.session_seconds
+
+    server_daily_result = await db.execute(
+        select(PlaytimeServerDaily).where(
+            PlaytimeServerDaily.player_id == player.id,
+            PlaytimeServerDaily.server == data.server,
+            PlaytimeServerDaily.day == today,
+        )
+    )
+    server_daily = server_daily_result.scalar_one_or_none()
+    if server_daily is None:
+        server_daily = PlaytimeServerDaily(player_id=player.id, server=data.server, day=today, seconds=0)
+        db.add(server_daily)
+    server_daily.seconds += data.session_seconds
 
     await db.commit()
 

@@ -9,6 +9,16 @@ import './PlayerProfileView.css'
 
 const SkinViewer = lazy(() => import('./SkinViewer'))
 
+const SERVER_NAMES = {
+  lobby: 'Лобби',
+  gamegraz: 'Мир построек',
+  farmserv: 'Мир ферм',
+  bingo: 'Бинго',
+}
+function serverLabel(id) {
+  return SERVER_NAMES[id] || id
+}
+
 const DAY_MS = 86400000
 const MONTH_LABELS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
 const MONTH_FULL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
@@ -215,6 +225,26 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
               </div>
             </div>
           </div>
+
+          {profile.playtime_by_server && Object.keys(profile.playtime_by_server).length > 0 && (
+            <div className="pv-server-breakdown">
+              {Object.entries(profile.playtime_by_server)
+                .sort((a, b) => b[1] - a[1])
+                .map(([server, seconds]) => {
+                  const max = Math.max(...Object.values(profile.playtime_by_server))
+                  const pct = max > 0 ? Math.round((seconds / max) * 100) : 0
+                  return (
+                    <div className="pv-server-row" key={server}>
+                      <span className="pv-server-row-name">{serverLabel(server)}</span>
+                      <div className="pv-server-row-bar">
+                        <div className="pv-server-row-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="pv-server-row-hours">{formatHours(seconds)} ч.</span>
+                    </div>
+                  )
+                })}
+            </div>
+          )}
 
           <Heatmap heatmap={profile.heatmap || []} />
         </div>

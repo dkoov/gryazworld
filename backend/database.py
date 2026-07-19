@@ -242,6 +242,20 @@ class PlaytimeDaily(Base):
     seconds = Column(Integer, default=0, nullable=False)
 
 
+class PlaytimeServerDaily(Base):
+    """То же самое, что PlaytimeDaily, но с разбивкой по конкретному серверу сети (лобби/билды/фермы/бинго)."""
+    __tablename__ = "playtime_server_daily"
+    __table_args__ = (
+        UniqueConstraint("player_id", "server", "day", name="uq_playtime_server_day"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    server = Column(String, nullable=False)
+    day = Column(String, nullable=False)  # YYYY-MM-DD (UTC)
+    seconds = Column(Integer, default=0, nullable=False)
+
+
 class PendingAuth(Base):
     __tablename__ = "pending_auths"
 
