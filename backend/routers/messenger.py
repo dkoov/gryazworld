@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,11 +12,14 @@ import charsystem_client
 router = APIRouter(prefix="/web/messenger", tags=["messenger"])
 
 
-def _deliver_ingame(recipient: Player, sender_nickname: str, text: str):
-    """Если получатель сейчас online в майне -- кладём сообщение в очередь доставки (cs_pm_bus).
-    Не блокирует ответ пользователю -- бэкграунд-таск, ошибки просто логируются внутри."""
+async def _deliver_ingame(recipient: Player, sender_nickname: str, text: str, msg: Message) -> None:
+    """Если получатель сейчас online в майне -- сразу пушим сообщение в очередь доставки (cs_pm_bus)
+    и помечаем msg.delivered_ingame. Если офлайн -- ничего не делаем: сообщение доставится
+    в майне при следующем заходе получателя (см. backlog-догон в /mc/player/join)."""
     if recipient.is_online and recipient.uuid and not recipient.uuid.startswith("web-") and not recipient.uuid.startswith("manual:"):
-        asyncio.ensure_future(charsystem_client.push_private_message(recipient.uuid, sender_nickname, text))
+        ok = await charsystem_client.push_private_message(recipient.uuid, sender_nickname, text)
+        if ok:
+            msg.delivered_ingame = True
 
 
 async def _resolve_self(user: CurrentUser, db: AsyncSession) -> Player:
@@ -155,7 +157,9 @@ async def send_message(
     await db.commit()
     await db.refresh(msg)
 
-    _deliver_ingame(other, me.nickname, text)
+    await _deliver_ingame(other, me.nickname, text, msg)
+    if msg.delivered_ingame:
+        await db.commit()
 
     return {"id": msg.id, "text": msg.text, "outgoing": True, "created_at": msg.created_at.isoformat()}
 
@@ -188,7 +192,10 @@ async def send_message_ingame(data: IngameSendRequest, db: AsyncSession = Depend
     msg = Message(from_player_id=sender.id, to_player_id=other.id, text=text)
     db.add(msg)
     await db.commit()
+    await db.refresh(msg)
 
-    _deliver_ingame(other, sender.nickname, text)
+    await _deliver_ingame(other, sender.nickname, text, msg)
+    if msg.delivered_ingame:
+        await db.commit()
 
     return {"status": "ok"}

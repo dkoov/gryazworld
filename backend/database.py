@@ -192,6 +192,7 @@ class Message(Base):
     text = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     read_at = Column(DateTime, nullable=True)
+    delivered_ingame = Column(Boolean, default=False, nullable=False)
 
 
 class Invoice(Base):
