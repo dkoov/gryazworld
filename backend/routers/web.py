@@ -308,7 +308,9 @@ async def web_pay_fine(
     if not player:
         raise HTTPException(status_code=404, detail="Игрок не найден")
 
-    account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    account_result = await db.execute(
+        select(BankAccount).where(BankAccount.player_id == player.id, BankAccount.is_primary == True)  # noqa: E712
+    )
     account = account_result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Счёт не найден")
