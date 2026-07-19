@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,10 +6,18 @@ from pydantic import BaseModel
 from sqlalchemy import select, func, update, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth import CurrentUser, current_user
+from auth import CurrentUser, current_user, verify_plugin_secret
 from database import get_db, Player, Message
+import charsystem_client
 
 router = APIRouter(prefix="/web/messenger", tags=["messenger"])
+
+
+def _deliver_ingame(recipient: Player, sender_nickname: str, text: str):
+    """Если получатель сейчас online в майне -- кладём сообщение в очередь доставки (cs_pm_bus).
+    Не блокирует ответ пользователю -- бэкграунд-таск, ошибки просто логируются внутри."""
+    if recipient.is_online and recipient.uuid and not recipient.uuid.startswith("web-") and not recipient.uuid.startswith("manual:"):
+        asyncio.ensure_future(charsystem_client.push_private_message(recipient.uuid, sender_nickname, text))
 
 
 async def _resolve_self(user: CurrentUser, db: AsyncSession) -> Player:
@@ -146,4 +155,40 @@ async def send_message(
     await db.commit()
     await db.refresh(msg)
 
+    _deliver_ingame(other, me.nickname, text)
+
     return {"id": msg.id, "text": msg.text, "outgoing": True, "created_at": msg.created_at.isoformat()}
+
+
+# ─── Из игры (/msg в майне -> тот же мессенджер сайта) ───────────────────────
+
+class IngameSendRequest(BaseModel):
+    from_uuid: str
+    to_nickname: str
+    text: str
+
+
+@router.post("/mc/send", dependencies=[Depends(verify_plugin_secret)])
+async def send_message_ingame(data: IngameSendRequest, db: AsyncSession = Depends(get_db)):
+    sender_result = await db.execute(select(Player).where(Player.uuid == data.from_uuid))
+    sender = sender_result.scalar_one_or_none()
+    if sender is None:
+        raise HTTPException(status_code=404, detail="Отправитель не найден")
+
+    other = await _resolve_by_nickname(data.to_nickname, db)
+    if other.id == sender.id:
+        raise HTTPException(status_code=400, detail="Нельзя написать самому себе")
+
+    text = data.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Пустое сообщение")
+    if len(text) > 2000:
+        text = text[:2000]
+
+    msg = Message(from_player_id=sender.id, to_player_id=other.id, text=text)
+    db.add(msg)
+    await db.commit()
+
+    _deliver_ingame(other, sender.nickname, text)
+
+    return {"status": "ok"}

@@ -203,6 +203,32 @@ async def revoke_role(uuid: str, role_name: str) -> None:
         conn.close()
 
 
+async def push_private_message(target_uuid: str, from_name: str, message: str) -> bool:
+    """Кладёт личное сообщение в очередь доставки in-game (cs_pm_bus). Каждый из 4 игровых
+    серверов (через vzCharSystem NetworkManager) сам заберёт его, если игрок online именно там.
+    Возвращает False, если игровой VPS недоступен -- сообщение на сайте всё равно уже сохранено."""
+    name = _strip_section_codes(from_name)[:32]
+    text = _strip_section_codes(message)[:512]
+    payload = f"§8[§dЛС§8] §f{name}§d: §f{text}"
+
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (pm bus): %s", e)
+        return False
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO cs_pm_bus (target_uuid, from_name, payload) VALUES (%s, %s, %s)",
+                (target_uuid, name, payload),
+            )
+        await conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def _strip_section_codes(s: str) -> str:
     return s.replace("§", "").replace("&", "")
 
