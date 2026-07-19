@@ -1,13 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Boxes, Sprout, Clock, Check, Copy, Gem, Scale, Receipt, Gavel } from 'lucide-react'
+import { Users, Boxes, Sprout, Clock, Check, Copy } from 'lucide-react'
 import { apiFetch } from '../api'
 import './StatsPage.css'
-
-function fmtAmount(n) {
-  const v = n ?? 0
-  return v === Math.floor(v) ? String(v) : v.toFixed(1)
-}
 
 function fmtHours(seconds) {
   return Math.floor((seconds ?? 0) / 3600)
@@ -16,7 +11,6 @@ function fmtHours(seconds) {
 export default function StatsPage() {
   const [players, setPlayers] = useState([])
   const [serverStats, setServerStats] = useState({ online: 0, servers: {} })
-  const [economy, setEconomy] = useState(null)
   const [tab, setTab] = useState('all')
   const [serverTab, setServerTab] = useState('all')
   const [search, setSearch] = useState('')
@@ -25,7 +19,6 @@ export default function StatsPage() {
   const load = useCallback(() => {
     apiFetch('/web/stats').then(setPlayers).catch(() => {})
     apiFetch('/web/server-stats').then(setServerStats).catch(() => {})
-    apiFetch('/web/stats/economy').then(setEconomy).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -100,62 +93,6 @@ export default function StatsPage() {
           </div>
         </div>
       </div>
-
-      {economy && (
-        <>
-          <div className="section-label economy-label">Экономика сети</div>
-          <div className="server-cards">
-            <div className="server-cell" style={{ animationDelay: '0.02s' }}>
-              <div className="server-cell-icon total"><Gem size={18} /></div>
-              <div className="server-cell-body">
-                <div className="server-cell-name">В обороте</div>
-                <div className="server-cell-online">{fmtAmount(economy.bank.total_balance)}</div>
-              </div>
-            </div>
-            <div className="server-cell" style={{ animationDelay: '0.06s' }}>
-              <div className="server-cell-icon builds"><Receipt size={18} /></div>
-              <div className="server-cell-body">
-                <div className="server-cell-name">Переводов за 30 дней</div>
-                <div className="server-cell-online">{economy.bank.transactions_30d.count}</div>
-              </div>
-            </div>
-            <div className="server-cell" style={{ animationDelay: '0.1s' }}>
-              <div className="server-cell-icon farms"><Gavel size={18} /></div>
-              <div className="server-cell-body">
-                <div className="server-cell-name">Штрафов выдано</div>
-                <div className="server-cell-online">{economy.court.fines_total.count}</div>
-              </div>
-            </div>
-            <div className="server-cell" style={{ animationDelay: '0.14s' }}>
-              <div className="server-cell-icon total"><Scale size={18} /></div>
-              <div className="server-cell-body">
-                <div className="server-cell-name">Открытых исков</div>
-                <div className="server-cell-online">{economy.court.claims_pending}</div>
-              </div>
-            </div>
-          </div>
-
-          {economy.bank.top_accounts.length > 0 && (
-            <div className="economy-top">
-              <div className="economy-top-title">Топ по балансу</div>
-              <div className="economy-top-list">
-                {economy.bank.top_accounts.map((a, i) => (
-                  <Link
-                    to={`/player/${encodeURIComponent(a.nickname)}`}
-                    className="economy-top-row"
-                    key={`${a.nickname}-${a.label}-${i}`}
-                  >
-                    <span className="economy-top-rank">#{i + 1}</span>
-                    <span className="economy-top-nick">{a.nickname}</span>
-                    <span className="economy-top-card">{a.label}</span>
-                    <span className="economy-top-balance">{fmtAmount(a.balance)}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       <div className="stats-controls">
         <div className="stats-tabs">

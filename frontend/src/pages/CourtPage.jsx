@@ -30,6 +30,7 @@ function ClaimRow({ c, i, onReview }) {
           {c.status === 'pending' && <span className="court-status pending">на рассмотрении</span>}
           {c.status === 'approved' && <span className="court-status approved">оштрафован</span>}
           {c.status === 'dismissed' && <span className="court-status dismissed">отклонён</span>}
+          {c.status === 'withdrawn' && <span className="court-status dismissed">отозван истцом</span>}
           {c.thread_url && (
             <a href={c.thread_url} target="_blank" rel="noreferrer" className="court-thread-link">
               <ExternalLink size={11} /> тред

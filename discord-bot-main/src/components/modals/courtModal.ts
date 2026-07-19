@@ -5,6 +5,9 @@ import {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from "discord.js";
 import { Modal } from "../../types";
 import { createClaim } from "../../services/courtClient";
@@ -55,23 +58,37 @@ const modal: Modal = {
       components: [container],
       flags: MessageFlags.IsComponentsV2,
     });
-    await thread.send({
-      content: `-# <@${interaction.user.id}>, ваш иск зарегистрирован. Верховный Судья добавит нужных участников через /add.`,
-      flags: MessageFlags.SuppressNotifications,
-      allowedMentions: { parse: [] },
-    });
 
+    let claimId: number | null = null;
     try {
-      await createClaim({
+      const result = await createClaim({
         plaintiff_discord_id: interaction.user.id,
         defendant_text: defendant,
         subject,
         description,
         thread_url: thread.url,
       });
+      claimId = result.claim_id;
     } catch (error) {
       console.error("[court] не удалось зарегистрировать иск на сайте:", error);
     }
+
+    const registeredMessage: Parameters<typeof thread.send>[0] = {
+      content: `-# <@${interaction.user.id}>, ваш иск зарегистрирован. Верховный Судья добавит нужных участников через /add.`,
+      flags: MessageFlags.SuppressNotifications,
+      allowedMentions: { parse: [] },
+    };
+    if (claimId !== null) {
+      registeredMessage.components = [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`court_withdraw_${claimId}`)
+            .setLabel("Отозвать иск")
+            .setStyle(ButtonStyle.Secondary)
+        ),
+      ];
+    }
+    await thread.send(registeredMessage);
 
     await interaction.editReply({
       content: `Ваш иск зарегистрирован: ${thread.url}`,

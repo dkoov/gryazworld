@@ -98,6 +98,29 @@ async def create_claim(data: CreateClaimRequest, db: AsyncSession = Depends(get_
     return {"status": "ok", "claim_id": claim.id}
 
 
+class WithdrawClaimRequest(BaseModel):
+    plaintiff_discord_id: str
+
+
+@router.post("/mc/claims/{claim_id}/withdraw", dependencies=[Depends(verify_plugin_secret)])
+async def withdraw_claim(claim_id: int, data: WithdrawClaimRequest, db: AsyncSession = Depends(get_db)):
+    """Истец отзывает свой ещё не рассмотренный иск (кнопка в треде Discord)."""
+    result = await db.execute(select(Claim).where(Claim.id == claim_id))
+    claim = result.scalar_one_or_none()
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Иск не найден")
+    if claim.status != "pending":
+        raise HTTPException(status_code=400, detail="Иск уже рассмотрен")
+    if claim.plaintiff_discord_id != data.plaintiff_discord_id:
+        raise HTTPException(status_code=403, detail="Отозвать иск может только истец")
+
+    claim.status = "withdrawn"
+    claim.resolved_at = datetime.utcnow()
+    claim.resolved_by = "истец"
+    await db.commit()
+    return {"status": "ok"}
+
+
 # ─── Рассмотрение на сайте (Судья / Админ) ───────────────────────────────────
 
 @router.get("/web/court/permissions")
