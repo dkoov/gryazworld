@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException
 from typing import Optional
 from pydantic import BaseModel
-from sqlalchemy import select, and_, delete
+from sqlalchemy import select, and_, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import get_db, Player, AuthSession, DiscordAuthRequest, IpBan
+from database import get_db, Player, AuthSession, DiscordAuthRequest, IpBan, PlaytimeDaily
 import charsystem_client
 
 DISCORD_AUTH_API_KEY = os.getenv("DISCORD_AUTH_API_KEY", "")
@@ -283,7 +283,24 @@ async def whitelist_list(db: AsyncSession = Depends(get_db)):
     return {"players": [p.nickname for p in players]}
 
 
-# ── 12. GET /internal/discord/role-sync ────────────────────────────────────────
+# ── 12. GET /internal/playtime/{discord_id} ──────────────────────────────────
+
+@router.get("/playtime/{discord_id}", dependencies=[Depends(verify_api_key)])
+async def get_total_playtime(discord_id: str, db: AsyncSession = Depends(get_db)):
+    """Суммарное наигранное время привязанного игрока (секунды), для выборов в Парламент."""
+    result = await db.execute(select(Player).where(Player.discord_id == discord_id))
+    player = result.scalar_one_or_none()
+    if player is None:
+        return {"seconds": 0}
+
+    total_result = await db.execute(
+        select(func.sum(PlaytimeDaily.seconds)).where(PlaytimeDaily.player_id == player.id)
+    )
+    total = total_result.scalar() or 0
+    return {"seconds": int(total)}
+
+
+# ── 13. GET /internal/discord/role-sync ────────────────────────────────────────
 
 @router.get("/discord/role-sync", dependencies=[Depends(verify_api_key)])
 async def discord_role_sync(db: AsyncSession = Depends(get_db)):
