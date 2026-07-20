@@ -283,7 +283,48 @@ async def whitelist_list(db: AsyncSession = Depends(get_db)):
     return {"players": [p.nickname for p in players]}
 
 
-# ── 12. GET /internal/playtime/{discord_id} ──────────────────────────────────
+# ── 12. POST /internal/whitelist/changenick ──────────────────────────────────
+
+class ChangeNickBody(BaseModel):
+    discordUserId: str
+    newNickname: str
+
+
+@router.post("/whitelist/changenick", dependencies=[Depends(verify_api_key)])
+async def whitelist_changenick(body: ChangeNickBody, db: AsyncSession = Depends(get_db)):
+    """Самостоятельное исправление ника в вайтлисте -- на случай опечатки в заявке,
+    из-за которой игрок физически не может зайти (whitelist_check матчит по нику)."""
+    result = await db.execute(select(Player).where(Player.discord_id == body.discordUserId))
+    player = result.scalar_one_or_none()
+    if player is None:
+        return {"ok": False, "error": "not_found"}
+    if not player.whitelisted:
+        return {"ok": False, "error": "not_whitelisted"}
+
+    new_nickname = body.newNickname.strip()
+    if not new_nickname:
+        return {"ok": False, "error": "bad_nickname"}
+
+    if new_nickname.lower() == player.nickname.lower():
+        return {"ok": False, "error": "same_nickname"}
+
+    taken_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == new_nickname.lower(), Player.id != player.id)
+    )
+    if taken_result.scalar_one_or_none() is not None:
+        return {"ok": False, "error": "nickname_taken"}
+
+    old_nickname = player.nickname
+    player.nickname = new_nickname
+    # плейсхолдер-uuid из manual: собран из старого ника -- обновляем вместе с ним
+    if player.uuid and player.uuid.startswith("manual:"):
+        player.uuid = f"manual:{new_nickname.lower()}"
+    await db.commit()
+
+    return {"ok": True, "oldNickname": old_nickname, "newNickname": new_nickname}
+
+
+# ── 13. GET /internal/playtime/{discord_id} ──────────────────────────────────
 
 @router.get("/playtime/{discord_id}", dependencies=[Depends(verify_api_key)])
 async def get_total_playtime(discord_id: str, db: AsyncSession = Depends(get_db)):
@@ -300,7 +341,7 @@ async def get_total_playtime(discord_id: str, db: AsyncSession = Depends(get_db)
     return {"seconds": int(total)}
 
 
-# ── 13. GET /internal/discord/role-sync ────────────────────────────────────────
+# ── 14. GET /internal/discord/role-sync ────────────────────────────────────────
 
 @router.get("/discord/role-sync", dependencies=[Depends(verify_api_key)])
 async def discord_role_sync(db: AsyncSession = Depends(get_db)):

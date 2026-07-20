@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily, Message
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily, Message, Subscription
 import charsystem_client
 
 import os
@@ -68,6 +68,25 @@ async def _notify_discord(payload: dict):
         import logging
         logging.getLogger(__name__).warning("Не удалось отправить уведомление в Discord: %s", e)
 
+
+async def _grant_pending_subscriptions(player: Player, db: AsyncSession):
+    """Если игроку заранее выдали IchoPlus (до того как он привязал реальный игровой аккаунт --
+    подписка уже лежит в базе на его player_id), при первом же реальном заходе выдаём игровую роль."""
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.player_id == player.id,
+            Subscription.sku.like("ichoplus_%"),
+            Subscription.expires_at > datetime.utcnow(),
+        )
+    )
+    if result.scalars().first() is not None:
+        try:
+            await charsystem_client.grant_role(player.uuid, "IchoPlus")
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("Не удалось выдать IchoPlus при заходе игрока %s", player.nickname)
+
+
 router = APIRouter(prefix="/mc/player", tags=["player"])
 
 
@@ -110,6 +129,7 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         status = "created"
 
     await _deliver_pending_messages(player, db)
+    await _grant_pending_subscriptions(player, db)
 
     asyncio.ensure_future(_notify_discord({
         "type": "join",
