@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import verify_plugin_secret
-from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily, Message
+from database import get_db, Player, BankAccount, PlayerIP, PendingAuth, PlaytimeDaily, PlaytimeServerDaily, Message, Subscription, PendingGameRole
 import charsystem_client
 
 import os
@@ -68,6 +68,40 @@ async def _notify_discord(payload: dict):
         import logging
         logging.getLogger(__name__).warning("Не удалось отправить уведомление в Discord: %s", e)
 
+
+async def _grant_pending_subscriptions(player: Player, db: AsyncSession):
+    """Если игроку заранее выдали IchoPlus (до того как он привязал реальный игровой аккаунт --
+    подписка уже лежит в базе на его player_id), при первом же реальном заходе выдаём игровую роль."""
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.player_id == player.id,
+            Subscription.sku.like("ichoplus_%"),
+            Subscription.expires_at > datetime.utcnow(),
+        )
+    )
+    if result.scalars().first() is not None:
+        try:
+            await charsystem_client.grant_role(player.uuid, "IchoPlus")
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("Не удалось выдать IchoPlus при заходе игрока %s", player.nickname)
+
+
+async def _grant_pending_game_roles(player: Player, db: AsyncSession):
+    """Аналог _grant_pending_subscriptions для игровых ролей (Хелпер, Модератор и т.п.),
+    назначенных игроку до того, как у него появился реальный uuid -- см. PendingGameRole."""
+    result = await db.execute(select(PendingGameRole).where(PendingGameRole.player_id == player.id))
+    pending = result.scalars().all()
+    for p in pending:
+        try:
+            await charsystem_client.grant_role(player.uuid, p.role_name)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Не удалось выдать отложенную роль %s при заходе игрока %s", p.role_name, player.nickname
+            )
+
+
 router = APIRouter(prefix="/mc/player", tags=["player"])
 
 
@@ -94,6 +128,8 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         )
         player = nick_result.scalar_one_or_none()
 
+    was_online = bool(player.is_online) if player is not None else False
+
     if player is not None:
         player.uuid = data.uuid
         player.nickname = data.nickname
@@ -110,12 +146,18 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         status = "created"
 
     await _deliver_pending_messages(player, db)
+    await _grant_pending_subscriptions(player, db)
+    await _grant_pending_game_roles(player, db)
 
-    asyncio.ensure_future(_notify_discord({
-        "type": "join",
-        "nickname": data.nickname,
-        "server": data.server,
-    }))
+    # Уведомляем в Discord только при заходе в СЕТЬ (был оффлайн), а не при переходе
+    # между внутренними серверами (лобби/фарм/игра и т.д.) -- иначе один игрок спамит
+    # отдельным "зашёл" на каждый хоп между серверами сети.
+    if not was_online:
+        asyncio.ensure_future(_notify_discord({
+            "type": "join",
+            "nickname": data.nickname,
+            "server": data.server,
+        }))
     return {"status": status, "uuid": data.uuid, "nickname": data.nickname}
 
 
@@ -129,7 +171,11 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
 
     nickname = player.nickname
     player.total_seconds += data.session_seconds
-    if player.server is None or player.server == data.server:
+    # Реально вышел из сети, только если это тот же сервер, на котором он числится
+    # (или сервер вовсе не задан) -- иначе это просто переход на другой сервер сети,
+    # где join уже успел (или вот-вот) обновить player.server.
+    left_network = player.server is None or player.server == data.server
+    if left_network:
         player.is_online = False
         player.server = None
 
@@ -158,11 +204,12 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
 
     await db.commit()
 
-    asyncio.ensure_future(_notify_discord({
-        "type": "quit",
-        "nickname": nickname,
-        "server": data.server,
-    }))
+    if left_network:
+        asyncio.ensure_future(_notify_discord({
+            "type": "quit",
+            "nickname": nickname,
+            "server": data.server,
+        }))
     return {
         "status": "ok",
         "uuid": data.uuid,
@@ -217,6 +264,36 @@ async def discord_chat_relay(data: DiscordChatRelayRequest):
     ok = await charsystem_client.publish_chat_message(data.username, data.message)
     if not ok:
         raise HTTPException(status_code=502, detail="Игровой сервер недоступен")
+    return {"status": "ok"}
+
+
+anticheat_router = APIRouter(prefix="/mc/anticheat", tags=["anticheat"])
+
+
+class XrayAlertRequest(BaseModel):
+    nickname: str
+    count: int
+    window_minutes: int
+    server: str
+    world: str
+    x: int
+    y: int
+    z: int
+
+
+@anticheat_router.post("/xray-alert", dependencies=[Depends(verify_plugin_secret)])
+async def xray_alert(data: XrayAlertRequest):
+    asyncio.ensure_future(_notify_discord({
+        "type": "xray_alert",
+        "nickname": data.nickname,
+        "count": data.count,
+        "window_minutes": data.window_minutes,
+        "server": data.server,
+        "world": data.world,
+        "x": data.x,
+        "y": data.y,
+        "z": data.z,
+    }))
     return {"status": "ok"}
 
 

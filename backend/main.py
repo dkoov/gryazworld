@@ -16,12 +16,13 @@ from routers import admin
 from routers import messenger
 from routers import bank_web
 from routers import court
+from routers import polls
 try:
     from routers import internal
 except ImportError:
     internal = None
 from routers.fines import warn_router
-from cron import check_expired_subscriptions
+from cron import check_expired_subscriptions, check_expired_polls
 from auth import PLUGIN_SECRET
 
 
@@ -29,10 +30,16 @@ from auth import PLUGIN_SECRET
 async def lifespan(app: FastAPI):
     await init_db()
     task = asyncio.create_task(check_expired_subscriptions())
+    polls_task = asyncio.create_task(check_expired_polls())
     yield
     task.cancel()
+    polls_task.cancel()
     try:
         await task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await polls_task
     except asyncio.CancelledError:
         pass
 
@@ -162,6 +169,7 @@ app.add_middleware(
 )
 
 app.include_router(player.router)
+app.include_router(player.anticheat_router)
 app.include_router(bank.router)
 app.include_router(fines.router)
 app.include_router(warn_router)
@@ -172,6 +180,9 @@ app.include_router(bank_web.router)
 app.include_router(court.router)
 app.include_router(payments.router)
 app.include_router(portals.router)
+app.include_router(polls.router)
+app.include_router(polls.admin_router)
+app.include_router(polls.game_router)
 if internal is not None:
     app.include_router(internal.router)
 

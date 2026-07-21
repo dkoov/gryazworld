@@ -27,6 +27,19 @@ interface WhitelistCheckResponse {
   addedBy?: string;
 }
 
+interface ChangeNicknameBody {
+  discordUserId: string;
+  newNickname: string;
+  currentNickname?: string;
+}
+
+interface ChangeNicknameResponse {
+  ok: boolean;
+  oldNickname?: string;
+  newNickname?: string;
+  error?: string;
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -75,4 +88,8 @@ export async function whitelistCheck(minecraftName: string): Promise<WhitelistCh
     "GET",
     `/internal/whitelist/check/${encodeURIComponent(minecraftName)}`,
   );
+}
+
+export async function whitelistChangeNickname(body: ChangeNicknameBody): Promise<ChangeNicknameResponse> {
+  return request<ChangeNicknameResponse>("POST", "/internal/whitelist/changenick", body);
 }

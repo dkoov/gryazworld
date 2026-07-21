@@ -223,6 +223,44 @@ async function handleWarn(client: ExtendedClient, data: any, overdue = false): P
   }
 }
 
+async function handlePollVote(client: ExtendedClient, data: any): Promise<void> {
+  const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
+  if (!notifyChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("Новый голос")
+    .setColor(0x8b5cf6)
+    .setDescription(`**${String(data.poll_title ?? "?")}**`)
+    .addFields(
+      { name: "Проголосовали за", value: String(data.candidate_nickname ?? "?"), inline: true },
+      { name: "Игрок", value: String(data.voter_nickname ?? "?"), inline: true }
+    )
+    .setTimestamp();
+
+  await notifyChannel.send({ embeds: [embed] }).catch((e) =>
+    console.error("[Notify] poll_vote:", e)
+  );
+}
+
+async function handlePollClosed(client: ExtendedClient, data: any): Promise<void> {
+  const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
+  if (!notifyChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("Голосование завершено")
+    .setColor(0xffd700)
+    .setDescription(`**${String(data.poll_title ?? "?")}**`)
+    .addFields(
+      { name: "Победитель", value: String(data.winner_nickname ?? "Без победителя"), inline: true },
+      { name: "Голосов", value: `${data.winner_votes ?? 0} из ${data.total_votes ?? 0}`, inline: true }
+    )
+    .setTimestamp();
+
+  await notifyChannel.send({ embeds: [embed] }).catch((e) =>
+    console.error("[Notify] poll_closed:", e)
+  );
+}
+
 async function handleChat(client: ExtendedClient, data: any): Promise<void> {
   const nickname = String(data.nickname ?? "?");
   const message = String(data.message ?? "").slice(0, 1900);
@@ -277,6 +315,12 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "chat":
             await handleChat(client, data);
+            break;
+          case "poll_vote":
+            await handlePollVote(client, data);
+            break;
+          case "poll_closed":
+            await handlePollClosed(client, data);
             break;
           default:
             console.warn(`[Notify] неизвестный тип: ${type}`);

@@ -30,18 +30,32 @@ function writeAll(votes: VoteRecord[]) {
   fs.writeFileSync(DB_PATH, JSON.stringify(votes, null, 2));
 }
 
-export function hasVoted(voterId: string, targetId: string): boolean {
-  return readAll().some((v) => v.voterId === voterId && v.targetId === targetId);
+/** Каждый голосующий может держать только один активный голос -- возвращает его текущего кандидата (или null). */
+export function getVoteTarget(voterId: string): string | null {
+  const record = readAll().find((v) => v.voterId === voterId);
+  return record ? record.targetId : null;
 }
 
 export function countVotes(targetId: string): number {
   return readAll().filter((v) => v.targetId === targetId).length;
 }
 
-/** Записывает голос и возвращает новое количество голосов за targetId. */
-export function addVote(voterId: string, targetId: string): number {
+/**
+ * Заменяет голос voterId на targetId, снимая прошлый голос (если был) с прошлого кандидата.
+ * Возвращает прошлого кандидата и актуальные счётчики после замены.
+ */
+export function setVote(
+  voterId: string,
+  targetId: string
+): { previousTargetId: string | null; previousCount: number; newCount: number } {
   const votes = readAll();
+  const existingIndex = votes.findIndex((v) => v.voterId === voterId);
+  const previousTargetId = existingIndex >= 0 ? votes[existingIndex].targetId : null;
+  if (existingIndex >= 0) votes.splice(existingIndex, 1);
   votes.push({ voterId, targetId, createdAt: Math.floor(Date.now() / 1000) });
   writeAll(votes);
-  return votes.filter((v) => v.targetId === targetId).length;
+
+  const previousCount = previousTargetId ? votes.filter((v) => v.targetId === previousTargetId).length : 0;
+  const newCount = votes.filter((v) => v.targetId === targetId).length;
+  return { previousTargetId, previousCount, newCount };
 }

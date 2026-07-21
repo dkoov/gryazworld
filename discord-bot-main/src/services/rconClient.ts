@@ -1,4 +1,4 @@
-import { whitelistAdd } from "./backendClient";
+import { whitelistAdd, whitelistChangeNickname } from "./backendClient";
 
 const WINGS_URL     = process.env.WINGS_URL     ?? "http://65.109.82.139:8080";
 const WINGS_TOKEN   = process.env.WINGS_TOKEN   ?? "";
@@ -43,4 +43,35 @@ export async function rconWhitelistAdd(
   } catch (e) {
     console.warn(`[Whitelist] Wings push failed (не критично, бэкенд уже обновлён): ${e}`);
   }
+}
+
+export class WhitelistChangeError extends Error {
+  constructor(public code: string) {
+    super(code);
+  }
+}
+
+/** Самостоятельное исправление ника в вайтлисте (например, опечатка в заявке). */
+export async function rconWhitelistChangeNick(
+  discordUserId: string,
+  newNickname: string,
+  currentNickname?: string,
+): Promise<{ oldNickname: string; newNickname: string }> {
+  const result = await whitelistChangeNickname({ discordUserId, newNickname, currentNickname });
+  if (!result.ok || !result.oldNickname || !result.newNickname) {
+    throw new WhitelistChangeError(result.error ?? "unknown_error");
+  }
+  console.log(`[Whitelist] Nick changed: ${result.oldNickname} -> ${result.newNickname} (discord:${discordUserId})`);
+
+  if (WINGS_TOKEN) {
+    try {
+      await sendVelocityCommand(`vwhitelist remove ${result.oldNickname}`);
+      await sendVelocityCommand(`vwhitelist add ${result.newNickname}`);
+      console.log(`[Whitelist] vwhitelist remove ${result.oldNickname} / add ${result.newNickname}`);
+    } catch (e) {
+      console.warn(`[Whitelist] Wings push failed (не критично, бэкенд уже обновлён): ${e}`);
+    }
+  }
+
+  return { oldNickname: result.oldNickname, newNickname: result.newNickname };
 }

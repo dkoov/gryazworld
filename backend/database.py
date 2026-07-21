@@ -324,6 +324,60 @@ class IpBan(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+# ── Голосования ──────────────────────────────────────────────────────────────
+
+class Poll(Base):
+    __tablename__ = "polls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)  # тема голосования
+    visible = Column(Boolean, default=True, nullable=False)  # показывать в навигации/списке
+    is_closed = Column(Boolean, default=False, nullable=False)
+    deadline = Column(DateTime, nullable=True)  # если задан -- автозакрытие по крону
+    winner_announced = Column(Boolean, default=False, nullable=False)
+    created_by = Column(String, nullable=True)  # ник админа сайта
+    created_at = Column(DateTime, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class PollCandidate(Base):
+    __tablename__ = "poll_candidates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    poll_id = Column(Integer, ForeignKey("polls.id", ondelete="CASCADE"), nullable=False)
+    nickname = Column(String, nullable=False)
+
+
+class PollVote(Base):
+    __tablename__ = "poll_votes"
+    __table_args__ = (
+        UniqueConstraint("poll_id", "voter_player_id", name="uq_poll_vote_once"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    poll_id = Column(Integer, ForeignKey("polls.id", ondelete="CASCADE"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("poll_candidates.id", ondelete="CASCADE"), nullable=False)
+    voter_player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    source = Column(String, default="web", nullable=False)  # web | game
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PendingGameRole(Base):
+    """Игровая роль (charsystem), назначенная игроку, который ещё ни разу не заходил на сервер
+    (placeholder-uuid web-/manual:/discord:) -- выдаётся автоматически при первом реальном
+    /mc/player/join, когда появляется настоящий uuid. См. player_join / IchoPlus-подписки --
+    та же идея, отдельная сущность, т.к. это игровая роль, а не подписка."""
+    __tablename__ = "pending_game_roles"
+    __table_args__ = (
+        UniqueConstraint("player_id", "role_name", name="uq_pending_role_once"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    role_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 async def get_db() -> AsyncSession:
     async with SessionLocal() as session:
         yield session

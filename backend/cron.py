@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import select, delete
 
-from database import SessionLocal, Player, Subscription
+from database import SessionLocal, Player, Subscription, Poll
 import charsystem_client
 
 logger = logging.getLogger(__name__)
@@ -81,3 +81,34 @@ async def check_expired_subscriptions():
             logger.exception("Unexpected error in check_expired_subscriptions")
 
         await asyncio.sleep(3600)
+
+
+async def check_expired_polls():
+    """Раз в минуту: закрывает голосования, у которых истёк дедлайн, считает победителя
+    и шлёт уведомление в Discord (общая логика с ручным закрытием -- routers.polls._close_poll)."""
+    from routers.polls import _close_poll  # локальный импорт -- избегаем цикла импортов при старте
+
+    while True:
+        try:
+            session = SessionLocal()
+            try:
+                result = await session.execute(
+                    select(Poll).where(
+                        Poll.is_closed == False,  # noqa: E712
+                        Poll.deadline.is_not(None),
+                        Poll.deadline <= datetime.utcnow(),
+                    )
+                )
+                expired_polls = result.scalars().all()
+                for poll in expired_polls:
+                    try:
+                        await _close_poll(poll, session)
+                        logger.info("Голосование #%s закрыто по дедлайну", poll.id)
+                    except Exception:
+                        logger.exception("Не удалось закрыть голосование #%s", poll.id)
+            finally:
+                await session.close()
+        except Exception:
+            logger.exception("Unexpected error in check_expired_polls")
+
+        await asyncio.sleep(60)

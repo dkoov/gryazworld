@@ -77,6 +77,28 @@ export default function BankPage() {
   const [fromDropdownOpen, setFromDropdownOpen] = useState(false)
   const fromDropdownRef = useRef(null)
 
+  const [recipientCards, setRecipientCards] = useState([])
+  const [recipientCardId, setRecipientCardId] = useState(null)
+  const [toDropdownOpen, setToDropdownOpen] = useState(false)
+  const toDropdownRef = useRef(null)
+
+  useEffect(() => {
+    if (transferMode !== 'transfer' || !transferNick.trim()) {
+      setRecipientCards([]); setRecipientCardId(null)
+      return
+    }
+    const nick = transferNick.trim()
+    const t = setTimeout(() => {
+      apiFetch(`/web/bank/player/${encodeURIComponent(nick)}/cards`)
+        .then(cards => {
+          setRecipientCards(cards)
+          setRecipientCardId(cards.find(c => c.is_primary)?.id ?? cards[0]?.id ?? null)
+        })
+        .catch(() => { setRecipientCards([]); setRecipientCardId(null) })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [transferNick, transferMode])
+
   const [invoices, setInvoices] = useState([])
   const [invoiceBusyId, setInvoiceBusyId] = useState(null)
 
@@ -108,6 +130,7 @@ export default function BankPage() {
   useEffect(() => {
     function onClickOutside(e) {
       if (fromDropdownRef.current && !fromDropdownRef.current.contains(e.target)) setFromDropdownOpen(false)
+      if (toDropdownRef.current && !toDropdownRef.current.contains(e.target)) setToDropdownOpen(false)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
@@ -161,6 +184,7 @@ export default function BankPage() {
     setTransferNick(''); setTransferAmount(''); setTransferComment('')
     setTransferFromId(activeId)
     setFromDropdownOpen(false)
+    setRecipientCards([]); setRecipientCardId(null); setToDropdownOpen(false)
     setModal('transfer')
     setFormError('')
   }
@@ -260,7 +284,12 @@ export default function BankPage() {
       } else {
         await apiFetch(`/web/bank/accounts/${fromId}/transfer`, {
           method: 'POST',
-          body: JSON.stringify({ to_nickname: transferNick.trim(), amount: amt, comment: transferComment.trim() }),
+          body: JSON.stringify({
+            to_nickname: transferNick.trim(),
+            amount: amt,
+            comment: transferComment.trim(),
+            to_account_id: recipientCardId,
+          }),
         })
         loadAccounts()
         loadTxs(fromId)
@@ -730,6 +759,38 @@ export default function BankPage() {
             placeholder={transferMode === 'invoice' ? 'Кто оплатит счёт' : 'Ник игрока'}
           />
         </div>
+
+        {transferMode === 'transfer' && recipientCards.length > 1 && (() => {
+          const selected = recipientCards.find(c => c.id === recipientCardId)
+          return (
+            <div className="bt-select-row" ref={toDropdownRef}>
+              <div className="bt-select-main" onClick={() => setToDropdownOpen(v => !v)}>
+                <img className="bt-select-avatar" src={mcHead(transferNick, 40)} alt="" />
+                <div className="bt-select-info">
+                  <div className="bt-select-name">Карта получателя</div>
+                  <div className="bt-select-sub">
+                    {selected?.label || (selected?.is_primary ? 'Основная карта' : 'Карта')}
+                  </div>
+                </div>
+                <span className={`bt-select-chevron ${toDropdownOpen ? 'open' : ''}`}>▾</span>
+              </div>
+              {toDropdownOpen && (
+                <div className="bt-select-dropdown">
+                  {recipientCards.map(c => (
+                    <div
+                      key={c.id}
+                      className="bt-select-option"
+                      onMouseDown={() => { setRecipientCardId(c.id); setToDropdownOpen(false) }}
+                    >
+                      <img src={mcHead(transferNick, 28)} alt="" />
+                      <span>{c.label || (c.is_primary ? 'Основная карта' : 'Карта')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         <div className="inp-group">
           <div className="bank-amount-input-wrap right">

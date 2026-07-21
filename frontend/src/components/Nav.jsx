@@ -28,9 +28,16 @@ export default function Nav() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [theme, setTheme] = useState(getTheme())
   const [comingSoon, setComingSoon] = useState(null) // null | { title, desc }
+  const [hasPolls, setHasPolls] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => { applyTheme(theme) }, [theme])
+
+  useEffect(() => {
+    apiFetch('/web/polls')
+      .then(polls => setHasPolls(Array.isArray(polls) && polls.length > 0))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handler = () => setUser(getDiscordUser())
@@ -94,6 +101,8 @@ export default function Nav() {
         <li><NavLink to="/shop">Магазин</NavLink></li>
         <li><NavLink to="/wiki">Wiki</NavLink></li>
         <li><NavLink to="/stats">Статистика</NavLink></li>
+        <li><NavLink to="/ichorbecs">Ichorbecs</NavLink></li>
+        {hasPolls && <li><NavLink to="/vote">Голосование</NavLink></li>}
         {/* HIDDEN: до решения команды
         <li><NavLink to="/communities">Общины</NavLink></li>
         */}
@@ -197,6 +206,8 @@ export default function Nav() {
             <li><NavLink to="/shop">Магазин</NavLink></li>
             <li><NavLink to="/wiki">Wiki</NavLink></li>
             <li><NavLink to="/stats">Статистика</NavLink></li>
+        <li><NavLink to="/ichorbecs">Ichorbecs</NavLink></li>
+            {hasPolls && <li><NavLink to="/vote">Голосование</NavLink></li>}
             {/* HIDDEN: до решения команды
             <li><NavLink to="/communities">Общины</NavLink></li>
             */}

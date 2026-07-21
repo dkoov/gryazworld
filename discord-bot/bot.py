@@ -140,22 +140,14 @@ def _ban_embed(data: dict) -> discord.Embed:
 
 def _join_embed(data: dict) -> discord.Embed:
     nickname = data.get("nickname", "?")
-    server = data.get("server", "")
-    desc = f"Присоединился к игре"
-    if server and server != "unknown":
-        desc += f" **[{server}]**"
-    embed = discord.Embed(color=0x43B581, description=desc)
+    embed = discord.Embed(color=0x43B581, description="+ | зашел")
     embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
     return embed
 
 
 def _quit_embed(data: dict) -> discord.Embed:
     nickname = data.get("nickname", "?")
-    server = data.get("server", "")
-    desc = "Покинул игру"
-    if server and server != "unknown":
-        desc += f" **[{server}]**"
-    embed = discord.Embed(color=0xE74C3C, description=desc)
+    embed = discord.Embed(color=0xE74C3C, description="- | вышел с сервера")
     embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
     return embed
 
@@ -173,6 +165,26 @@ def _chat_embed(data: dict) -> discord.Embed:
     message = data.get("message", "")
     embed = discord.Embed(color=0x95A5A6, description=message)
     embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    return embed
+
+
+def _xray_alert_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    count = data.get("count", "?")
+    window = data.get("window_minutes", "?")
+    server = data.get("server", "?")
+    world = data.get("world", "?")
+    x, y, z = data.get("x", "?"), data.get("y", "?"), data.get("z", "?")
+    embed = discord.Embed(
+        title="⚠️ Подозрительная добыча алмазов (Anti-Xray)",
+        color=0xFF4444,
+        timestamp=datetime.utcnow(),
+    )
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    embed.add_field(name="Алмазов добыто", value=f"{count} за {window} мин.", inline=True)
+    embed.add_field(name="Сервер / Мир", value=f"{server} / {world}", inline=True)
+    embed.add_field(name="Координаты", value=f"`{x} {y} {z}`", inline=True)
+    embed.add_field(name="История", value=f"`/xraylog {nickname}` в игре", inline=False)
     return embed
 
 
@@ -339,6 +351,8 @@ async def handle_notify(request: web.Request) -> web.Response:
             embed = _ban_embed(data)
         elif event_type == "fine_paid":
             embed = _fine_paid_embed(data)
+        elif event_type == "xray_alert":
+            embed = _xray_alert_embed(data)
         elif event_type == "auth_request":
             discord_id = data.get("discord_id")
             nickname = data.get("nickname")

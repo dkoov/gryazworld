@@ -308,7 +308,9 @@ async def web_pay_fine(
     if not player:
         raise HTTPException(status_code=404, detail="Игрок не найден")
 
-    account_result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    account_result = await db.execute(
+        select(BankAccount).where(BankAccount.player_id == player.id, BankAccount.is_primary == True)  # noqa: E712
+    )
     account = account_result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Счёт не найден")
@@ -324,6 +326,14 @@ async def web_pay_fine(
 
     account.balance -= fine.amount
     fine.status = "paid"
+
+    db.add(Transaction(
+        from_player_id=player.id,
+        from_account_id=account.id,
+        amount=fine.amount,
+        type="fine_payment",
+        comment=f"Fine #{fine.id}: {fine.reason}",
+    ))
     await db.commit()
 
     asyncio.ensure_future(_notify_discord({
@@ -385,6 +395,26 @@ async def player_stats(db: AsyncSession = Depends(get_db)):
             "server": p.server,
         }
         for p in players
+    ]
+
+
+@router.get("/ichorbecs")
+async def ichorbecs(db: AsyncSession = Depends(get_db)):
+    """Топ игроков по суммарному балансу всех карт -- публичный рейтинг богатства.
+    Карты с hide_balance не учитываются -- игрок сам решил их скрыть."""
+    result = await db.execute(
+        select(Player.nickname, func.sum(BankAccount.balance).label("total"))
+        .join(BankAccount, BankAccount.player_id == Player.id)
+        .where(BankAccount.hide_balance == False)  # noqa: E712
+        .group_by(Player.id)
+        .having(func.sum(BankAccount.balance) > 0)
+        .order_by(func.sum(BankAccount.balance).desc())
+        .limit(50)
+    )
+    rows = result.all()
+    return [
+        {"rank": i + 1, "nickname": nickname, "balance": total}
+        for i, (nickname, total) in enumerate(rows)
     ]
 
 
