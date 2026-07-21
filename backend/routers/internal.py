@@ -288,6 +288,7 @@ async def whitelist_list(db: AsyncSession = Depends(get_db)):
 class ChangeNickBody(BaseModel):
     discordUserId: str
     newNickname: str
+    currentNickname: Optional[str] = None
 
 
 @router.post("/whitelist/changenick", dependencies=[Depends(verify_api_key)])
@@ -296,6 +297,21 @@ async def whitelist_changenick(body: ChangeNickBody, db: AsyncSession = Depends(
     из-за которой игрок физически не может зайти (whitelist_check матчит по нику)."""
     result = await db.execute(select(Player).where(Player.discord_id == body.discordUserId))
     player = result.scalar_one_or_none()
+
+    # Часть записей попала в вайтлист без привязки discord_id (например, вайтлист вручную
+    # по нику, без OAuth) -- по нику их не найти через discord_id. Если игрок указал свой
+    # ТЕКУЩИЙ ник в вайтлисте, пробуем найти по нему и линкуем discord_id тут же.
+    if player is None and body.currentNickname:
+        nick_result = await db.execute(
+            select(Player).where(func.lower(Player.nickname) == body.currentNickname.strip().lower())
+        )
+        candidate = nick_result.scalar_one_or_none()
+        if candidate is not None:
+            if candidate.discord_id and candidate.discord_id != body.discordUserId:
+                return {"ok": False, "error": "nickname_owned_by_other"}
+            player = candidate
+            player.discord_id = body.discordUserId
+
     if player is None:
         return {"ok": False, "error": "not_found"}
     if not player.whitelisted:

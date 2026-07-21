@@ -55,8 +55,9 @@ export class WhitelistChangeError extends Error {
 export async function rconWhitelistChangeNick(
   discordUserId: string,
   newNickname: string,
+  currentNickname?: string,
 ): Promise<{ oldNickname: string; newNickname: string }> {
-  const result = await whitelistChangeNickname({ discordUserId, newNickname });
+  const result = await whitelistChangeNickname({ discordUserId, newNickname, currentNickname });
   if (!result.ok || !result.oldNickname || !result.newNickname) {
     throw new WhitelistChangeError(result.error ?? "unknown_error");
   }

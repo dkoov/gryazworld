@@ -128,6 +128,8 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
         )
         player = nick_result.scalar_one_or_none()
 
+    was_online = bool(player.is_online) if player is not None else False
+
     if player is not None:
         player.uuid = data.uuid
         player.nickname = data.nickname
@@ -147,11 +149,15 @@ async def player_join(data: PlayerJoinRequest, db: AsyncSession = Depends(get_db
     await _grant_pending_subscriptions(player, db)
     await _grant_pending_game_roles(player, db)
 
-    asyncio.ensure_future(_notify_discord({
-        "type": "join",
-        "nickname": data.nickname,
-        "server": data.server,
-    }))
+    # Уведомляем в Discord только при заходе в СЕТЬ (был оффлайн), а не при переходе
+    # между внутренними серверами (лобби/фарм/игра и т.д.) -- иначе один игрок спамит
+    # отдельным "зашёл" на каждый хоп между серверами сети.
+    if not was_online:
+        asyncio.ensure_future(_notify_discord({
+            "type": "join",
+            "nickname": data.nickname,
+            "server": data.server,
+        }))
     return {"status": status, "uuid": data.uuid, "nickname": data.nickname}
 
 
@@ -165,7 +171,11 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
 
     nickname = player.nickname
     player.total_seconds += data.session_seconds
-    if player.server is None or player.server == data.server:
+    # Реально вышел из сети, только если это тот же сервер, на котором он числится
+    # (или сервер вовсе не задан) -- иначе это просто переход на другой сервер сети,
+    # где join уже успел (или вот-вот) обновить player.server.
+    left_network = player.server is None or player.server == data.server
+    if left_network:
         player.is_online = False
         player.server = None
 
@@ -194,11 +204,12 @@ async def player_quit(data: PlayerQuitRequest, db: AsyncSession = Depends(get_db
 
     await db.commit()
 
-    asyncio.ensure_future(_notify_discord({
-        "type": "quit",
-        "nickname": nickname,
-        "server": data.server,
-    }))
+    if left_network:
+        asyncio.ensure_future(_notify_discord({
+            "type": "quit",
+            "nickname": nickname,
+            "server": data.server,
+        }))
     return {
         "status": "ok",
         "uuid": data.uuid,

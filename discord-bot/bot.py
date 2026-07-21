@@ -140,22 +140,14 @@ def _ban_embed(data: dict) -> discord.Embed:
 
 def _join_embed(data: dict) -> discord.Embed:
     nickname = data.get("nickname", "?")
-    server = data.get("server", "")
-    desc = f"Присоединился к игре"
-    if server and server != "unknown":
-        desc += f" **[{server}]**"
-    embed = discord.Embed(color=0x43B581, description=desc)
+    embed = discord.Embed(color=0x43B581, description="+ | зашел")
     embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
     return embed
 
 
 def _quit_embed(data: dict) -> discord.Embed:
     nickname = data.get("nickname", "?")
-    server = data.get("server", "")
-    desc = "Покинул игру"
-    if server and server != "unknown":
-        desc += f" **[{server}]**"
-    embed = discord.Embed(color=0xE74C3C, description=desc)
+    embed = discord.Embed(color=0xE74C3C, description="- | вышел с сервера")
     embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
     return embed
 

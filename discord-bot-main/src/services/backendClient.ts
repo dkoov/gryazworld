@@ -30,6 +30,7 @@ interface WhitelistCheckResponse {
 interface ChangeNicknameBody {
   discordUserId: string;
   newNickname: string;
+  currentNickname?: string;
 }
 
 interface ChangeNicknameResponse {

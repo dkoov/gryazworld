@@ -3,11 +3,12 @@ import { Command } from "../../types";
 import { rconWhitelistChangeNick, WhitelistChangeError } from "../../services/rconClient";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  not_found: "Заявка на вайтлист от вашего аккаунта не найдена -- сначала подайте заявку и дождитесь принятия.",
+  not_found: "Не нашёл вас в вайтлисте по привязке аккаунта -- укажи параметр `текущий_ник` (ник, под которым тебя приняли).",
   not_whitelisted: "Вы ещё не в вайтлисте -- дождитесь принятия заявки.",
   same_nickname: "Этот никнейм уже указан у вас в вайтлисте.",
   nickname_taken: "Этот никнейм уже занят другим игроком.",
   bad_nickname: "Некорректный никнейм.",
+  nickname_owned_by_other: "Этот текущий ник уже привязан к другому Discord-аккаунту.",
 };
 
 const command: Command = {
@@ -21,9 +22,18 @@ const command: Command = {
         .setRequired(true)
         .setMinLength(3)
         .setMaxLength(16),
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("текущий_ник")
+        .setDescription("Ник, под которым сейчас в вайтлисте (если бот не находит вас по аккаунту)")
+        .setRequired(false)
+        .setMinLength(3)
+        .setMaxLength(16),
     ),
   execute: async (interaction) => {
     const newNickname = interaction.options.getString("nickname", true).trim();
+    const currentNickname = interaction.options.getString("текущий_ник")?.trim();
 
     if (!/^[A-Za-z0-9_]{3,16}$/.test(newNickname)) {
       await interaction.reply({
@@ -36,7 +46,7 @@ const command: Command = {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const { oldNickname } = await rconWhitelistChangeNick(interaction.user.id, newNickname);
+      const { oldNickname } = await rconWhitelistChangeNick(interaction.user.id, newNickname, currentNickname);
 
       const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
       await member?.setNickname(newNickname).catch(err =>
