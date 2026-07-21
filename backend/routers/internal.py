@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, and_, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import get_db, Player, AuthSession, DiscordAuthRequest, IpBan, PlaytimeDaily
+from database import get_db, Player, AuthSession, DiscordAuthRequest, IpBan, PlaytimeDaily, Subscription
 import charsystem_client
 
 DISCORD_AUTH_API_KEY = os.getenv("DISCORD_AUTH_API_KEY", "")
@@ -348,15 +348,29 @@ async def discord_role_sync(db: AsyncSession = Depends(get_db)):
     """Для периодической синхронизации Minecraft-ролей -> Discord-роли (discord-bot-main).
     Отдаёт {discord_id: [role_name, ...]} для всех привязанных игроков с реальным uuid."""
     result = await db.execute(
-        select(Player.uuid, Player.discord_id).where(Player.discord_id != None, Player.uuid != None)  # noqa: E711
+        select(Player.id, Player.uuid, Player.discord_id).where(Player.discord_id != None, Player.uuid != None)  # noqa: E711
     )
     rows = result.all()
 
     all_roles = await charsystem_client.get_all_player_roles()
 
+    # Активная IchoPlus-подписка, выданная заранее (до первого захода игрока на сервер) --
+    # charsystem ещё не знает о такой роли (она выставляется только при первом /mc/player/join),
+    # поэтому явно добавляем её сюда, иначе синк решает, что IchoPlus нужно снять в Discord.
+    active_sub_result = await db.execute(
+        select(Subscription.player_id).where(
+            Subscription.sku.like("ichoplus_%"),
+            Subscription.expires_at > datetime.utcnow(),
+        )
+    )
+    player_ids_with_ichoplus = {row[0] for row in active_sub_result.all()}
+
     out = []
-    for uuid_, discord_id in rows:
+    for player_id, uuid_, discord_id in rows:
         if uuid_.startswith("web-") or uuid_.startswith("manual:"):
             continue
-        out.append({"discord_id": discord_id, "roles": all_roles.get(uuid_, [])})
+        roles = list(all_roles.get(uuid_, []))
+        if player_id in player_ids_with_ichoplus and "IchoPlus" not in roles:
+            roles.append("IchoPlus")
+        out.append({"discord_id": discord_id, "roles": roles})
     return out

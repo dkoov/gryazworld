@@ -362,6 +362,22 @@ class PollVote(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PendingGameRole(Base):
+    """Игровая роль (charsystem), назначенная игроку, который ещё ни разу не заходил на сервер
+    (placeholder-uuid web-/manual:/discord:) -- выдаётся автоматически при первом реальном
+    /mc/player/join, когда появляется настоящий uuid. См. player_join / IchoPlus-подписки --
+    та же идея, отдельная сущность, т.к. это игровая роль, а не подписка."""
+    __tablename__ = "pending_game_roles"
+    __table_args__ = (
+        UniqueConstraint("player_id", "role_name", name="uq_pending_role_once"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    role_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 async def get_db() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
