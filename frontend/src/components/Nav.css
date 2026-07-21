@@ -1,4 +1,4 @@
-﻿.nav {
+.nav {
   position: fixed;
   top: 0;
   left: 0;
@@ -21,9 +21,10 @@
 }
 .nav-logo img {
   height: 34px;
-  width: auto;
+  width: 34px;
+  border-radius: 50%;
+  object-fit: cover;
   display: block;
-  border-radius: 9px;
 }
 
 .nav-links {

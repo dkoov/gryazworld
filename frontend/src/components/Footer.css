@@ -1,4 +1,4 @@
-﻿.footer {
+.footer {
   border-top: 1px solid var(--border);
   padding: 32px 40px;
   display: flex;
@@ -13,10 +13,11 @@
   align-items: center;
 }
 .footer-logo img {
-  height: 28px;
-  width: auto;
+  height: 34px;
+  width: 34px;
+  border-radius: 50%;
+  object-fit: cover;
   display: block;
-  border-radius: 7px;
 }
 
 .footer-links {

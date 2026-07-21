@@ -85,7 +85,7 @@ export default function Nav() {
     <>
     <nav className="nav">
       <div className="nav-logo" onClick={() => navigate('/')}>
-        <img src="/logo.png" alt="Ichorix" />
+        <img src="/logo-circle.png?v=2" alt="Ichorix" />
       </div>
 
       {/* Десктоп ссылки */}

@@ -42,39 +42,38 @@
 .ip-box {
   display: inline-flex;
   align-items: center;
+  background: var(--surface2);
   border: 1px solid var(--border2);
   border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface);
+  padding: 5px;
+  gap: 4px;
 }
 .ip-text {
   padding: 11px 20px;
   font-family: 'Manrope', sans-serif;
-  font-weight: 600;
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--text);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 .ip-copy {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 11px 18px;
-  margin: 3px 3px 3px 0;
+  padding: 11px 20px;
   border-radius: 999px;
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: #0a0a0b;
   cursor: pointer;
   font-family: 'Manrope', sans-serif;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  transition: all 0.15s ease;
+  transition: all 0.2s;
 }
-.ip-copy:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.ip-copy.copied { background: var(--green); }
+.ip-copy:hover { background: var(--accent2); }
+.ip-copy.copied { background: var(--green); color: #fff; }
 
 .stats-controls {
   margin-bottom: 24px;

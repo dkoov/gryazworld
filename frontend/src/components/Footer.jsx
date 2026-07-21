@@ -1,11 +1,11 @@
-﻿import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import './Footer.css'
 
 export default function Footer() {
   return (
     <footer className="footer">
       <Link to="/" className="footer-logo">
-        <img src="/logo.png" alt="Ichorix" />
+        <img src="/logo-circle.png?v=2" alt="Ichorix" />
       </Link>
       <div className="footer-links">
         <Link to="/shop">Магазин</Link>
