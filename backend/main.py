@@ -169,6 +169,7 @@ app.add_middleware(
 )
 
 app.include_router(player.router)
+app.include_router(player.anticheat_router)
 app.include_router(bank.router)
 app.include_router(fines.router)
 app.include_router(warn_router)

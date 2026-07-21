@@ -267,6 +267,36 @@ async def discord_chat_relay(data: DiscordChatRelayRequest):
     return {"status": "ok"}
 
 
+anticheat_router = APIRouter(prefix="/mc/anticheat", tags=["anticheat"])
+
+
+class XrayAlertRequest(BaseModel):
+    nickname: str
+    count: int
+    window_minutes: int
+    server: str
+    world: str
+    x: int
+    y: int
+    z: int
+
+
+@anticheat_router.post("/xray-alert", dependencies=[Depends(verify_plugin_secret)])
+async def xray_alert(data: XrayAlertRequest):
+    asyncio.ensure_future(_notify_discord({
+        "type": "xray_alert",
+        "nickname": data.nickname,
+        "count": data.count,
+        "window_minutes": data.window_minutes,
+        "server": data.server,
+        "world": data.world,
+        "x": data.x,
+        "y": data.y,
+        "z": data.z,
+    }))
+    return {"status": "ok"}
+
+
 @router.post("/check-ip", dependencies=[Depends(verify_plugin_secret)])
 async def check_ip(data: dict, db: AsyncSession = Depends(get_db)):
     uuid = data.get("uuid")

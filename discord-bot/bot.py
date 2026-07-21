@@ -168,6 +168,26 @@ def _chat_embed(data: dict) -> discord.Embed:
     return embed
 
 
+def _xray_alert_embed(data: dict) -> discord.Embed:
+    nickname = data.get("nickname", "?")
+    count = data.get("count", "?")
+    window = data.get("window_minutes", "?")
+    server = data.get("server", "?")
+    world = data.get("world", "?")
+    x, y, z = data.get("x", "?"), data.get("y", "?"), data.get("z", "?")
+    embed = discord.Embed(
+        title="⚠️ Подозрительная добыча алмазов (Anti-Xray)",
+        color=0xFF4444,
+        timestamp=datetime.utcnow(),
+    )
+    embed.set_author(name=nickname, icon_url=AVATAR_URL.format(nickname))
+    embed.add_field(name="Алмазов добыто", value=f"{count} за {window} мин.", inline=True)
+    embed.add_field(name="Сервер / Мир", value=f"{server} / {world}", inline=True)
+    embed.add_field(name="Координаты", value=f"`{x} {y} {z}`", inline=True)
+    embed.add_field(name="История", value=f"`/xraylog {nickname}` в игре", inline=False)
+    return embed
+
+
 async def send_to_events_channel(embed: discord.Embed):
     channel_id = EVENTS_CHANNEL_ID if EVENTS_CHANNEL_ID else FINES_CHANNEL_ID
     channel = client.get_channel(channel_id)
@@ -331,6 +351,8 @@ async def handle_notify(request: web.Request) -> web.Response:
             embed = _ban_embed(data)
         elif event_type == "fine_paid":
             embed = _fine_paid_embed(data)
+        elif event_type == "xray_alert":
+            embed = _xray_alert_embed(data)
         elif event_type == "auth_request":
             discord_id = data.get("discord_id")
             nickname = data.get("nickname")
