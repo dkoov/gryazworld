@@ -77,6 +77,21 @@ const button: Button = {
     const applicant = await guild.members.fetch(app.userId).catch(() => null);
 
     if (applicant) {
+      // Вайтлист в бэкенде -- источник истины. Делаем его ПЕРВЫМ и, если он не прошёл,
+      // не продолжаем "церемонию принятия" (роль/ник/DM/закрытие треда) -- иначе получаем
+      // ситуацию "Discord сказал принято, а бэкенд игрока не знает" (не даёт зайти на сервер).
+      try {
+        await rconWhitelistAdd(app.nickname, app.userId, interaction.user.id);
+      } catch (err) {
+        console.error("[RCON] Failed to whitelist add:", err);
+        await interaction.editReply({
+          content:
+            `⚠️ Не удалось добавить **${app.nickname}** в вайтлист (бэкенд недоступен). ` +
+            `Заявка НЕ закрыта, роль и уведомление НЕ отправлены -- нажмите «Принять» ещё раз, когда бэкенд снова заработает.`,
+        });
+        return;
+      }
+
       const acceptedRoleId = process.env.ACCEPTED_ROLE_ID;
       if (acceptedRoleId) {
         const roleExists = guild.roles.cache.has(acceptedRoleId);
@@ -92,12 +107,6 @@ const button: Button = {
         console.error(`[AppAccept] Ошибка смены ника:`, err)
       );
 
-      try {
-        await rconWhitelistAdd(app.nickname, app.userId, interaction.user.id);
-      } catch (err) {
-        console.error("[RCON] Failed to whitelist add:", err);
-      }
-
       await applicant.send({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
@@ -111,6 +120,8 @@ const button: Button = {
 
     if (thread?.isThread()) {
       await thread.delete().catch(() => null);
+    } else {
+      await interaction.editReply({ content: `Заявка **${app.nickname}** принята.` }).catch(() => null);
     }
   },
 };

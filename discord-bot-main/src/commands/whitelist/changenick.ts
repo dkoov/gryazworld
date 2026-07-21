@@ -37,6 +37,12 @@ const command: Command = {
 
     try {
       const { oldNickname } = await rconWhitelistChangeNick(interaction.user.id, newNickname);
+
+      const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
+      await member?.setNickname(newNickname).catch(err =>
+        console.error("[ChangeNick] Не удалось сменить ник в Discord:", err)
+      );
+
       await interaction.editReply({
         content: `Никнейм в вайтлисте изменён: **${oldNickname}** → **${newNickname}**. Теперь можно зайти на сервер под этим ником.`,
       });
