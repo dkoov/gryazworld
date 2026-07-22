@@ -14,3 +14,4 @@ __pycache__/
 discord-bot-main/data/
 discord-bot-main/.env
 data/
+target/
