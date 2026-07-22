@@ -54,10 +54,16 @@ async def session_check(name: str, ip: str, db: AsyncSession = Depends(get_db)):
             )
         ).order_by(AuthSession.expires_at.desc())
     )
-    session = result.scalars().first()
-    if session is None:
+    sessions = result.scalars().all()
+    if not sessions:
         return {"valid": False, "sessionId": None, "denied": False}
-    return {"valid": True, "sessionId": session.session_id, "denied": False}
+    # Одноразовое использование: подтверждение действует только на этот конкретный вход --
+    # IP на будущее не запоминаем, следующий раз (даже с того же IP) снова спросит Discord.
+    session_id = sessions[0].session_id
+    for s in sessions:
+        await db.delete(s)
+    await db.commit()
+    return {"valid": True, "sessionId": session_id, "denied": False}
 
 
 # ── 3. POST /internal/auth/request ───────────────────────────────────────────
