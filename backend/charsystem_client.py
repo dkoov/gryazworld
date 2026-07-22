@@ -154,6 +154,25 @@ async def get_all_player_roles() -> dict[str, list[str]]:
         conn.close()
 
 
+async def _signal_role_refresh(uuid: str) -> None:
+    """Будит NetworkManager того сервера, на котором игрок сейчас online, чтобы он
+    перечитал роли и применил права живому игроку немедленно (без ожидания /rejoin)."""
+    try:
+        conn = await _connect()
+    except Exception as e:
+        log.warning("charsystem недоступен (role refresh signal): %s", e)
+        return
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO cs_role_refresh_bus (uuid) VALUES (%s)",
+                (uuid,),
+            )
+        await conn.commit()
+    finally:
+        conn.close()
+
+
 async def grant_role(uuid: str, role_name: str) -> None:
     """Add a role in cs_player_roles and make it the displayed primary role
     (cs_players.role_name) -- mirrors what /role give does in-game."""
@@ -171,6 +190,7 @@ async def grant_role(uuid: str, role_name: str) -> None:
         await conn.commit()
     finally:
         conn.close()
+    await _signal_role_refresh(uuid)
 
 
 async def revoke_role(uuid: str, role_name: str) -> None:
@@ -201,6 +221,7 @@ async def revoke_role(uuid: str, role_name: str) -> None:
         await conn.commit()
     finally:
         conn.close()
+    await _signal_role_refresh(uuid)
 
 
 async def push_private_message(target_uuid: str, from_name: str, message: str) -> bool:
