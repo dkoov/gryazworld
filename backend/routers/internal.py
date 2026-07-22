@@ -52,9 +52,9 @@ async def session_check(name: str, ip: str, db: AsyncSession = Depends(get_db)):
                 AuthSession.ip == ip,
                 AuthSession.expires_at > now,
             )
-        )
+        ).order_by(AuthSession.expires_at.desc())
     )
-    session = result.scalar_one_or_none()
+    session = result.scalars().first()
     if session is None:
         return {"valid": False, "sessionId": None, "denied": False}
     return {"valid": True, "sessionId": session.session_id, "denied": False}
@@ -126,13 +126,28 @@ async def auth_confirm(body: ConfirmBody, db: AsyncSession = Depends(get_db)):
         await db.commit()
         return {"ok": False, "error": "expired", "minecraftName": req.minecraft_name}
 
-    session = AuthSession(
-        minecraft_name=req.minecraft_name,
-        ip=req.ip_address,
-        session_id=str(uuid.uuid4()),
-        expires_at=now + timedelta(days=body.durationDays),
+    existing_result = await db.execute(
+        select(AuthSession).where(
+            and_(
+                AuthSession.minecraft_name.ilike(req.minecraft_name),
+                AuthSession.ip == req.ip_address,
+            )
+        ).order_by(AuthSession.expires_at.desc())
     )
-    db.add(session)
+    existing_sessions = existing_result.scalars().all()
+    new_expires_at = now + timedelta(days=body.durationDays)
+    if existing_sessions:
+        # Обновляем самую свежую запись, удаляем остальные дубликаты (если накопились раньше).
+        existing_sessions[0].expires_at = new_expires_at
+        for stale in existing_sessions[1:]:
+            await db.delete(stale)
+    else:
+        db.add(AuthSession(
+            minecraft_name=req.minecraft_name,
+            ip=req.ip_address,
+            session_id=str(uuid.uuid4()),
+            expires_at=new_expires_at,
+        ))
     await db.delete(req)
     await db.commit()
     return {"ok": True, "error": None, "minecraftName": req.minecraft_name}
