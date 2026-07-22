@@ -225,11 +225,15 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
             days = 30 if "1m" in sku else 60 if "2m" in sku else 90
             sub_result = await db.execute(
                 select(Subscription)
-                .where(Subscription.player_id == player.id, Subscription.sku == sku)
+                .where(
+                    Subscription.player_id == player.id,
+                    Subscription.sku.like("ichoplus_%"),
+                    Subscription.expires_at > datetime.utcnow(),
+                )
                 .order_by(Subscription.expires_at.desc())
             )
             current = sub_result.scalar_one_or_none()
-            base = max(datetime.utcnow(), current.expires_at) if current else datetime.utcnow()
+            base = current.expires_at if current else datetime.utcnow()
             db.add(
                 Subscription(
                     player_id=player.id,

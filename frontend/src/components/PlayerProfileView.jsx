@@ -2,7 +2,6 @@ import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, Calendar, CalendarDays, Flame } from 'lucide-react'
 import DiscordIcon from './DiscordIcon'
-import VkIcon from './VkIcon'
 import TwitchIcon from './TwitchIcon'
 import { getRoleStyle } from '../roleColors'
 import './PlayerProfileView.css'
@@ -90,12 +89,9 @@ function timeAgo(iso) {
 export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions, showSkinViewer }) {
   const navigate = useNavigate()
   const [showAllChars, setShowAllChars] = useState(false)
-  const [showAllCommunities, setShowAllCommunities] = useState(false)
 
   const characters = profile.characters
   const shownChars = characters ? (showAllChars ? characters : characters.slice(0, 3)) : []
-  const communities = profile.communities || []
-  const shownCommunities = showAllCommunities ? communities : communities.slice(0, 2)
   const baseRoles = profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role_name || 'Игрок']
   const roles = profile.is_admin
     ? ['Администратор', ...baseRoles.filter(r => r.toLowerCase() !== 'администратор')]
@@ -141,16 +137,10 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
               </div>
             )}
             {isSelf && (
-              <>
-                <div className="pv-social-row pv-social-inactive">
-                  <span className="pv-social-icon"><VkIcon size={16} color="currentColor" /></span>
-                  <span>Подключить ВКонтакте</span>
-                </div>
-                <div className="pv-social-row pv-social-inactive">
-                  <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
-                  <span>Подключить Twitch</span>
-                </div>
-              </>
+              <div className="pv-social-row pv-social-inactive">
+                <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
+                <span>Подключить Twitch</span>
+              </div>
             )}
           </div>
         )}
@@ -312,33 +302,8 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
         </div>
 
         <div className="pv-card">
-          <div className="pv-section-title">Общины ({communities.length})</div>
-          {communities.length === 0 ? (
-            <div className="pv-empty-inline">Не состоит ни в одной общине</div>
-          ) : (
-            <>
-              <div className="pv-communities-list">
-                {shownCommunities.map(c => (
-                  <div key={c.id} className="pv-community-card">
-                    <div className="pv-community-info">
-                      <div className="pv-community-name">
-                        <span className="pv-community-icon">{c.icon}</span> {c.name}
-                      </div>
-                      {c.tag && <div className="pv-community-tagline">{c.tag}</div>}
-                      <div className="pv-community-meta">{c.member_count} участников</div>
-                      {c.discord_url && <div className="pv-community-meta">Есть Discord сервер</div>}
-                    </div>
-                    <div className="pv-community-accent" />
-                  </div>
-                ))}
-              </div>
-              {communities.length > 2 && (
-                <button className="pv-show-more" onClick={() => setShowAllCommunities(v => !v)}>
-                  {showAllCommunities ? 'Скрыть' : 'Показать больше...'}
-                </button>
-              )}
-            </>
-          )}
+          <div className="pv-section-title">Общины</div>
+          <div className="pv-empty-inline">Раздел общин пока в разработке</div>
         </div>
       </main>
     </div>
