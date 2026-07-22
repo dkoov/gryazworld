@@ -15,7 +15,7 @@ from yookassa import Payment as YooPayment
 
 from auth import CurrentUser, current_user
 import charsystem_client
-from database import Order, Payment, Player, Subscription, get_db
+from database import Order, Payment, Player, Subscription, DeliveryTask, get_db
 from products import get_product
 from yookassa_client import (
     client_ip_from_xff,
@@ -35,34 +35,72 @@ RETURN_URL_BASE = os.getenv("YOOKASSA_RETURN_URL", "https://gryazworld.ru/paymen
 
 DISCORD_BOT_URL = os.getenv("DISCORD_BOT_URL", "")
 
+MC_PLUGIN_BASE_URL = (
+    f"http://{os.getenv('MC_SERVER_HOST', 'localhost')}:{os.getenv('MC_BAN_PORT', '8080')}"
+)
+PLUGIN_SECRET = os.getenv("PLUGIN_SECRET", "")
+
+
+async def _plugin_post(path: str, payload: dict) -> None:
+    """HTTP POST в API Minecraft-плагина. Бросает исключение при ошибке HTTP --
+    вызывающий код может положить задачу в очередь повторных попыток."""
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{MC_PLUGIN_BASE_URL}{path}",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status >= 400:
+                text = await resp.text()
+                raise RuntimeError(f"plugin HTTP {resp.status}: {text}")
+
 
 async def _notify_discord(payload: dict) -> None:
+    """Отправка уведомления в Discord-бот. Если URL не настроен -- молча пропускает."""
     if not DISCORD_BOT_URL:
         return
-    try:
-        async with aiohttp.ClientSession() as session:
-            await session.post(
-                DISCORD_BOT_URL,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=5),
-            )
-    except Exception as e:
-        log.warning("Discord notification failed: %s", e)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            DISCORD_BOT_URL,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status >= 400:
+                text = await resp.text()
+                raise RuntimeError(f"discord HTTP {resp.status}: {text}")
 
 
 async def _unban_player(nickname: str) -> None:
-    try:
-        async with aiohttp.ClientSession() as session:
-            await session.post(
-                f"http://{os.getenv('MC_SERVER_HOST', 'localhost')}:{os.getenv('MC_BAN_PORT', '8080')}/api/unban",
-                json={
-                    "secret": os.getenv("PLUGIN_SECRET", ""),
-                    "nickname": nickname,
-                },
-                timeout=aiohttp.ClientTimeout(total=5),
-            )
-    except Exception as e:
-        log.warning("Unban HTTP failed: %s", e)
+    await _plugin_post("/api/unban", {"secret": PLUGIN_SECRET, "nickname": nickname})
+
+
+async def _whitelist_add(nickname: str) -> None:
+    await _plugin_post("/api/whitelist/add", {"secret": PLUGIN_SECRET, "nickname": nickname})
+
+
+async def _unmute_player(nickname: str) -> None:
+    await _plugin_post("/api/unmute", {"secret": PLUGIN_SECRET, "nickname": nickname})
+
+
+async def _enqueue_delivery(
+    db: AsyncSession,
+    order_id: str,
+    player_id: int,
+    action: str,
+    payload: dict,
+    error: str,
+) -> None:
+    """Сохраняет задачу для повторной попытки выдачи."""
+    db.add(
+        DeliveryTask(
+            order_id=order_id,
+            player_id=player_id,
+            action=action,
+            payload=json.dumps(payload, ensure_ascii=False),
+            last_error=error[:1024] if error else None,
+            next_attempt_at=datetime.utcnow() + timedelta(minutes=1),
+        )
+    )
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -188,7 +226,11 @@ async def get_order(
 # ─── Выдача товара ───────────────────────────────────────────────────────────
 
 async def deliver_goods(order: Order, db: AsyncSession) -> None:
-    """Выдача купленного товара игроку."""
+    """Выдача купленного товара игроку.
+
+    Все внешние вызовы (плагин, Discord, charsystem) обёрнуты: при сбое задача
+    уходит в delivery_tasks и ретраится кроном.
+    """
     items = json.loads(order.items)
 
     # Найти или создать Player.
@@ -206,21 +248,47 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
         db.add(player)
         await db.flush()
 
+    async def _try_delivery(action: str, payload: dict, coro):
+        """Выполнить coro; при ошибке -- сохранить задачу в очередь."""
+        try:
+            await coro
+        except Exception as e:
+            log.warning("Delivery %s failed for order %s: %s", action, order.id, e)
+            await _enqueue_delivery(db, order.id, player.id, action, payload, str(e))
+
     for item in items:
         sku = item["sku"]
         if sku == "access_seasonal":
             player.has_access = True
+            player.whitelisted = True
+            await _try_delivery(
+                "whitelist_add",
+                {"nickname": order.minecraft_nick},
+                _whitelist_add(order.minecraft_nick),
+            )
         elif sku == "unban":
             player.warns = max(0, player.warns - 3)
-            await _unban_player(order.minecraft_nick)
+            await _try_delivery(
+                "unban",
+                {"nickname": order.minecraft_nick},
+                _unban_player(order.minecraft_nick),
+            )
         elif sku == "unwarn":
             qty = item.get("qty", 1)
             was_banned = player.warns >= 3
             player.warns = max(0, player.warns - qty)
             if was_banned and player.warns < 3:
-                await _unban_player(order.minecraft_nick)
+                await _try_delivery(
+                    "unban",
+                    {"nickname": order.minecraft_nick},
+                    _unban_player(order.minecraft_nick),
+                )
         elif sku == "unmute":
-            log.info("TODO: unmute not implemented in plugin")
+            await _try_delivery(
+                "unmute",
+                {"nickname": order.minecraft_nick},
+                _unmute_player(order.minecraft_nick),
+            )
         elif sku.startswith("ichoplus_"):
             days = 30 if "1m" in sku else 60 if "2m" in sku else 90
             sub_result = await db.execute(
@@ -242,21 +310,23 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
                 )
             )
             if player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("manual:"):
-                try:
-                    await charsystem_client.grant_role(player.uuid, "IchoPlus")
-                except Exception:
-                    log.exception("Failed to grant in-game IchoPlus role for player %s", player.id)
+                await _try_delivery(
+                    "charsystem_grant_role",
+                    {"uuid": player.uuid, "role_name": "IchoPlus"},
+                    charsystem_client.grant_role(player.uuid, "IchoPlus"),
+                )
 
     await db.commit()
-    await _notify_discord(
-        {
-            "type": "purchase",
-            "player": order.minecraft_nick,
-            "discord_id": order.discord_id,
-            "items": items,
-            "amount": order.amount,
-        }
-    )
+
+    # Уведомление о покупке в Discord. Если URL не задан -- просто пропускаем.
+    notify_payload = {
+        "type": "purchase",
+        "player": order.minecraft_nick,
+        "discord_id": order.discord_id,
+        "items": items,
+        "amount": order.amount,
+    }
+    await _try_delivery("discord_notify", notify_payload, _notify_discord(notify_payload))
 
 
 # ─── Webhook ЮKassa ──────────────────────────────────────────────────────────

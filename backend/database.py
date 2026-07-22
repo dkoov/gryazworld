@@ -378,6 +378,28 @@ class PendingGameRole(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class DeliveryTask(Base):
+    """Очередь повторных попыток выдачи товара.
+
+    Если при покупке внешний сервис (плагин Minecraft, Discord-бот, charsystem)
+    недоступен, задача сохраняется сюда и доставляется кроном.
+    """
+    __tablename__ = "delivery_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(String, ForeignKey("orders.id"), nullable=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    action = Column(String, nullable=False)  # whitelist_add, unban, unmute, discord_notify, ...
+    payload = Column(Text, nullable=False)  # JSON
+    attempts = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=5, nullable=False)
+    status = Column(String, default="pending", nullable=False)  # pending | completed | failed
+    next_attempt_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 async def get_db() -> AsyncSession:
     async with SessionLocal() as session:
         yield session

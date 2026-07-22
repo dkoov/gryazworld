@@ -39,7 +39,9 @@ public class BanHttpServer {
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
         this.server.createContext("/api/ban", this::handleBan);
         this.server.createContext("/api/unban", this::handleUnban);
-        this.server.setExecutor(Executors.newFixedThreadPool(2));
+        this.server.createContext("/api/whitelist/add", this::handleWhitelistAdd);
+        this.server.createContext("/api/unmute", this::handleUnmute);
+        this.server.setExecutor(Executors.newFixedThreadPool(4));
         this.server.start();
         this.plugin.getLogger().info("Ban HTTP server started on port " + port);
     }
@@ -95,6 +97,50 @@ public class BanHttpServer {
         Bukkit.getScheduler().runTask((Plugin)this.plugin, () -> {
             Bukkit.getBanList((BanList.Type)BanList.Type.NAME).pardon(nickname);
             this.plugin.getLogger().info("Pardoned player: " + nickname);
+        });
+        this.respond(exchange, 200, "ok");
+    }
+
+    private void handleWhitelistAdd(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            this.respond(exchange, 405, "Method Not Allowed");
+            return;
+        }
+        JsonObject body = this.readJson(exchange);
+        if (body == null || !this.secret.equals(this.getStr(body, "secret"))) {
+            this.respond(exchange, 403, "Forbidden");
+            return;
+        }
+        String nickname = this.getStr(body, "nickname");
+        if (nickname.isEmpty()) {
+            this.respond(exchange, 400, "Missing nickname");
+            return;
+        }
+        Bukkit.getScheduler().runTask((Plugin)this.plugin, () -> {
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "whitelist add " + nickname);
+            this.plugin.getLogger().info("Whitelisted player: " + nickname);
+        });
+        this.respond(exchange, 200, "ok");
+    }
+
+    private void handleUnmute(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            this.respond(exchange, 405, "Method Not Allowed");
+            return;
+        }
+        JsonObject body = this.readJson(exchange);
+        if (body == null || !this.secret.equals(this.getStr(body, "secret"))) {
+            this.respond(exchange, 403, "Forbidden");
+            return;
+        }
+        String nickname = this.getStr(body, "nickname");
+        if (nickname.isEmpty()) {
+            this.respond(exchange, 400, "Missing nickname");
+            return;
+        }
+        Bukkit.getScheduler().runTask((Plugin)this.plugin, () -> {
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "unmute " + nickname);
+            this.plugin.getLogger().info("Unmuted player: " + nickname);
         });
         this.respond(exchange, 200, "ok");
     }

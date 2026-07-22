@@ -261,6 +261,33 @@ async function handlePollClosed(client: ExtendedClient, data: any): Promise<void
   );
 }
 
+async function handlePurchase(client: ExtendedClient, data: any): Promise<void> {
+  const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
+  if (!notifyChannel) return;
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  const itemsText = items
+    .map((it: any) => `${it.name ?? it.sku ?? "?"} x${it.qty ?? 1}`)
+    .join(", ");
+
+  const embed = new EmbedBuilder()
+    .setTitle("Покупка на сайте")
+    .setColor(0x2ecc71)
+    .addFields(
+      { name: "Игрок", value: String(data.player ?? "?"), inline: true },
+      { name: "Сумма", value: `${Math.trunc(data.amount ?? 0)} ₽`, inline: true },
+      { name: "Товары", value: itemsText || "—", inline: false }
+    )
+    .setTimestamp();
+
+  const content = data.discord_id ? `<@${data.discord_id}>` : undefined;
+  await notifyChannel.send({
+    content,
+    embeds: [embed],
+    allowedMentions: data.discord_id ? { users: [String(data.discord_id)] } : undefined,
+  }).catch((e) => console.error("[Notify] purchase:", e));
+}
+
 async function handleChat(client: ExtendedClient, data: any): Promise<void> {
   const nickname = String(data.nickname ?? "?");
   const message = String(data.message ?? "").slice(0, 1900);
@@ -321,6 +348,9 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "poll_closed":
             await handlePollClosed(client, data);
+            break;
+          case "purchase":
+            await handlePurchase(client, data);
             break;
           default:
             console.warn(`[Notify] неизвестный тип: ${type}`);

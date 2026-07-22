@@ -402,6 +402,13 @@ async def discord_role_sync(db: AsyncSession = Depends(get_db)):
     )
     player_ids_with_ichoplus = {row[0] for row in active_sub_result.all()}
 
+    # Игроки, купившие проходку (access_seasonal), получают Discord-роль AccessPass.
+    # Роль синхронизируется тем же механизмом roleSync, что и IchoPlus.
+    access_result = await db.execute(
+        select(Player.id).where(Player.has_access == True)  # noqa: E712
+    )
+    player_ids_with_access = {row[0] for row in access_result.all()}
+
     out = []
     for player_id, uuid_, discord_id in rows:
         if uuid_.startswith("web-") or uuid_.startswith("manual:"):
@@ -409,5 +416,7 @@ async def discord_role_sync(db: AsyncSession = Depends(get_db)):
         roles = list(all_roles.get(uuid_, []))
         if player_id in player_ids_with_ichoplus and "IchoPlus" not in roles:
             roles.append("IchoPlus")
+        if player_id in player_ids_with_access and "AccessPass" not in roles:
+            roles.append("AccessPass")
         out.append({"discord_id": discord_id, "roles": roles})
     return out

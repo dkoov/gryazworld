@@ -15,6 +15,7 @@ const MC_TO_DISCORD_ROLE: Record<string, string> = {
   Moderator: "1470756763522437171", // Модератор
   Police: "1523054974450401441", // СБИ
   "Судья": "1522969933850611752", // Судья
+  AccessPass: "1470758280510050327", // Проходка (access_seasonal)
 };
 
 const MANAGED_ROLE_IDS = new Set(Object.values(MC_TO_DISCORD_ROLE));

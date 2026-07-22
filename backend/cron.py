@@ -1,13 +1,113 @@
 import asyncio
+import json
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 
+import aiohttp
 from sqlalchemy import select, delete
 
-from database import SessionLocal, Player, Subscription, Poll
+from database import SessionLocal, Player, Subscription, Poll, DeliveryTask
 import charsystem_client
 
 logger = logging.getLogger(__name__)
+
+DISCORD_BOT_URL = os.getenv("DISCORD_BOT_URL", "")
+MC_PLUGIN_BASE_URL = (
+    f"http://{os.getenv('MC_SERVER_HOST', 'localhost')}:{os.getenv('MC_BAN_PORT', '8080')}"
+)
+PLUGIN_SECRET = os.getenv("PLUGIN_SECRET", "")
+
+
+async def _plugin_post(path: str, payload: dict) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{MC_PLUGIN_BASE_URL}{path}",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status >= 400:
+                text = await resp.text()
+                raise RuntimeError(f"plugin HTTP {resp.status}: {text}")
+
+
+async def _notify_discord(payload: dict) -> None:
+    if not DISCORD_BOT_URL:
+        return
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            DISCORD_BOT_URL,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status >= 400:
+                text = await resp.text()
+                raise RuntimeError(f"discord HTTP {resp.status}: {text}")
+
+
+async def _execute_delivery_task(task: DeliveryTask) -> None:
+    """Выполняет одну отложенную задачу выдачи товара."""
+    payload = json.loads(task.payload)
+    action = task.action
+
+    if action == "whitelist_add":
+        await _plugin_post("/api/whitelist/add", {"secret": PLUGIN_SECRET, "nickname": payload["nickname"]})
+    elif action == "unban":
+        await _plugin_post("/api/unban", {"secret": PLUGIN_SECRET, "nickname": payload["nickname"]})
+    elif action == "unmute":
+        await _plugin_post("/api/unmute", {"secret": PLUGIN_SECRET, "nickname": payload["nickname"]})
+    elif action == "charsystem_grant_role":
+        await charsystem_client.grant_role(payload["uuid"], payload["role_name"])
+    elif action == "discord_notify":
+        await _notify_discord(payload)
+    else:
+        raise RuntimeError(f"unknown delivery action: {action}")
+
+
+async def process_delivery_tasks():
+    """Раз в минуту: ретраит упавшие задачи выдачи товара с экспоненциальным бэкоффом."""
+    while True:
+        try:
+            session = SessionLocal()
+            try:
+                result = await session.execute(
+                    select(DeliveryTask).where(
+                        DeliveryTask.status == "pending",
+                        DeliveryTask.next_attempt_at <= datetime.utcnow(),
+                    ).order_by(DeliveryTask.next_attempt_at)
+                )
+                tasks = result.scalars().all()
+                for task in tasks:
+                    try:
+                        await _execute_delivery_task(task)
+                        task.status = "completed"
+                        task.last_error = None
+                        logger.info("Delivery task %s completed (%s)", task.id, task.action)
+                    except Exception as e:
+                        task.attempts += 1
+                        task.last_error = str(e)[:1024]
+                        if task.attempts >= task.max_attempts:
+                            task.status = "failed"
+                            logger.error(
+                                "Delivery task %s failed after %s attempts: %s",
+                                task.id, task.attempts, e
+                            )
+                        else:
+                            backoff_seconds = min(2 ** task.attempts * 60, 3600)
+                            task.next_attempt_at = datetime.utcnow() + timedelta(seconds=backoff_seconds)
+                            logger.warning(
+                                "Delivery task %s failed (attempt %s/%s): %s",
+                                task.id, task.attempts, task.max_attempts, e
+                            )
+                    task.updated_at = datetime.utcnow()
+                if tasks:
+                    await session.commit()
+            finally:
+                await session.close()
+        except Exception:
+            logger.exception("Unexpected error in process_delivery_tasks")
+
+        await asyncio.sleep(60)
 
 
 async def check_expired_subscriptions():
