@@ -95,7 +95,7 @@ public class BanHttpServer {
             return;
         }
         Bukkit.getScheduler().runTask((Plugin)this.plugin, () -> {
-            Bukkit.getBanList((BanList.Type)BanList.Type.NAME).pardon(nickname);
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "unban " + nickname + " Разбан через магазин");
             this.plugin.getLogger().info("Pardoned player: " + nickname);
         });
         this.respond(exchange, 200, "ok");
@@ -139,7 +139,7 @@ public class BanHttpServer {
             return;
         }
         Bukkit.getScheduler().runTask((Plugin)this.plugin, () -> {
-            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "unmute " + nickname);
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "unmute " + nickname + " Размут через магазин");
             this.plugin.getLogger().info("Unmuted player: " + nickname);
         });
         this.respond(exchange, 200, "ok");
