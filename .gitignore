@@ -15,3 +15,5 @@ discord-bot-main/data/
 discord-bot-main/.env
 data/
 target/
+backend/.env.bak*
+backend/.env
