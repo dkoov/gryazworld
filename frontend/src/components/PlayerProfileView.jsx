@@ -351,7 +351,7 @@ function Heatmap({ heatmap }) {
               <span
                 key={m.startWeek}
                 className="pv-heatmap-month-cell"
-                style={{ flex: m.span, minWidth: 0 }}
+                style={{ flex: m.span, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'visible' }}
               >
                 {m.label}
               </span>
