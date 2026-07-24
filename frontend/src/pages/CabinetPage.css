@@ -30,6 +30,33 @@
 .cab-extra-row strong { color: var(--gold); }
 .cab-logout-btn { width: 100%; }
 
+.cab-twitch-card {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.cab-twitch-linked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid rgba(145, 70, 255, 0.2);
+  border-radius: var(--radius);
+}
+.cab-twitch-name {
+  color: #9146FF;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cab-twitch-name:hover { text-decoration: underline; }
+.cab-twitch-unlink {
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .cab-fines-card {
   width: 100%;
   max-width: 900px;

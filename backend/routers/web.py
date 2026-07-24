@@ -101,11 +101,19 @@ DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "https://gryazworld.ru/cabinet")
 
+TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID", "")
+TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET", "")
+TWITCH_REDIRECT_URI = os.getenv("TWITCH_REDIRECT_URI", "https://ichorix.cc/cabinet")
+
 MC_SERVER_HOST = os.getenv("MC_SERVER_HOST", "play.gryazworld.ru")
 MC_SERVER_PORT = int(os.getenv("MC_SERVER_PORT", "25565"))
 
 
 class TokenRequest(BaseModel):
+    code: str
+
+
+class TwitchLinkRequest(BaseModel):
     code: str
 
 
@@ -187,6 +195,87 @@ async def discord_token(data: TokenRequest):
         "global_name": display_name,
         "token": token,
     }
+
+
+@router.post("/twitch/link")
+async def twitch_link(
+    data: TwitchLinkRequest,
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange Twitch OAuth2 code and link the Twitch account to the current player."""
+    if not TWITCH_CLIENT_ID or not TWITCH_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Привязка Twitch пока не настроена на сервере")
+
+    async with aiohttp.ClientSession() as session:
+        token_resp = await session.post(
+            "https://id.twitch.tv/oauth2/token",
+            data={
+                "client_id": TWITCH_CLIENT_ID,
+                "client_secret": TWITCH_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": data.code,
+                "redirect_uri": TWITCH_REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if token_resp.status != 200:
+            err = await token_resp.text()
+            raise HTTPException(status_code=400, detail=f"Twitch error: {err}")
+
+        token_data = await token_resp.json()
+        access_token = token_data.get("access_token")
+
+        user_resp = await session.get(
+            "https://api.twitch.tv/helix/users",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Client-Id": TWITCH_CLIENT_ID,
+            },
+        )
+        if user_resp.status != 200:
+            raise HTTPException(status_code=400, detail="Failed to get Twitch user info")
+
+        payload = await user_resp.json()
+        twitch_users = payload.get("data") or []
+        if not twitch_users:
+            raise HTTPException(status_code=400, detail="Twitch не вернул данные пользователя")
+        twitch_user = twitch_users[0]
+
+    result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Сначала привяжите Minecraft-ник")
+
+    # Тот же Twitch-аккаунт не может быть привязан у двух разных игроков.
+    existing = await db.execute(
+        select(Player).where(Player.twitch_id == twitch_user["id"], Player.id != player.id)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="Этот Twitch-аккаунт уже привязан к другому игроку")
+
+    player.twitch_id = twitch_user["id"]
+    player.twitch_username = twitch_user["login"]
+    await db.commit()
+
+    return {"status": "ok", "twitch_username": player.twitch_username}
+
+
+@router.delete("/twitch/link")
+async def twitch_unlink(
+    user: CurrentUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Player).where(Player.discord_id == user.discord_id))
+    player = result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
+
+    player.twitch_id = None
+    player.twitch_username = None
+    await db.commit()
+
+    return {"status": "ok"}
 
 
 @router.post("/link")
@@ -277,6 +366,7 @@ async def get_me(
         "uuid": player.uuid,
         "nickname": player.nickname,
         "discord_id": player.discord_id,
+        "twitch_username": player.twitch_username,
         "is_admin": player.is_admin,
         "total_seconds": player.total_seconds,
         "hours": hours,
@@ -538,6 +628,7 @@ async def public_player_profile(
         "likes_count": likes_count,
         "liked_by_me": liked_by_me,
         "discord_id": player.discord_id,
+        "twitch_username": player.twitch_username,
         "is_admin": player.is_admin,
     }
 

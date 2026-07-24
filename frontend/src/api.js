@@ -27,10 +27,12 @@ function b64urlDecode(str) {
   try { return decodeURIComponent(escape(atob(b64))) } catch { return null }
 }
 
-export function buildOauthState(returnTo) {
+export function buildOauthState(returnTo, provider) {
   const nonce = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random()
   sessionStorage.setItem(OAUTH_NONCE_KEY, nonce)
-  return b64urlEncode(JSON.stringify({ n: nonce, r: returnTo || '/cabinet' }))
+  const payload = { n: nonce, r: returnTo || '/cabinet' }
+  if (provider) payload.p = provider
+  return b64urlEncode(JSON.stringify(payload))
 }
 
 export function parseOauthState(state) {
@@ -72,6 +74,18 @@ export function redirectToDiscordOauth(returnTo) {
   url.searchParams.set('redirect_uri', DISCORD_REDIRECT_URI)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', 'identify')
+  url.searchParams.set('state', state)
+  window.location.href = url.toString()
+}
+
+export function redirectToTwitchOauth(returnTo) {
+  const state = buildOauthState(returnTo, 'twitch')
+  markOauthInFlight()
+  const url = new URL('https://id.twitch.tv/oauth2/authorize')
+  url.searchParams.set('client_id', TWITCH_CLIENT_ID)
+  url.searchParams.set('redirect_uri', TWITCH_REDIRECT_URI)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', '')
   url.searchParams.set('state', state)
   window.location.href = url.toString()
 }
@@ -150,6 +164,8 @@ export function getAvatarUrl(user) {
 
 export const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || ''
 export const DISCORD_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://ichorix.cc/cabinet'
+export const TWITCH_CLIENT_ID = import.meta.env.VITE_TWITCH_CLIENT_ID || ''
+export const TWITCH_REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'https://ichorix.cc/cabinet'
 
 export async function createPayment(items) {
   if (!getSessionToken()) throw new Error('Нужно войти через Discord')

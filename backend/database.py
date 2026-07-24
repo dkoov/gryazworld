@@ -34,6 +34,8 @@ class Player(Base):
     server = Column(String, nullable=True)  # gamegraz, farmserv, None=offline
     whitelisted = Column(Boolean, default=False, nullable=False)  # True = одобрен (заявка/ручной)
     is_admin = Column(Boolean, default=False, nullable=False)  # доступ к /admin (выдача игровых ролей)
+    twitch_username = Column(String, nullable=True)
+    twitch_id = Column(String, nullable=True)
 
     bank_accounts = relationship("BankAccount", back_populates="player")
     fines = relationship("Fine", foreign_keys="Fine.player_id", back_populates="player")
@@ -408,3 +410,11 @@ async def get_db() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for stmt in (
+            "ALTER TABLE players ADD COLUMN twitch_username TEXT",
+            "ALTER TABLE players ADD COLUMN twitch_id TEXT",
+        ):
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass

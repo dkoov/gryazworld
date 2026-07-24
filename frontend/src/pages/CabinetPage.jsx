@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Siren, Gem, Clock } from 'lucide-react'
+import { Siren, Gem, Clock, X } from 'lucide-react'
 import {
   apiFetch,
   getDiscordUser,
@@ -13,8 +13,10 @@ import {
   consumePendingReturn,
   clearOauthInFlight,
   redirectToDiscordOauth,
+  redirectToTwitchOauth,
 } from '../api'
 import DiscordIcon from '../components/DiscordIcon'
+import TwitchIcon from '../components/TwitchIcon'
 import PlayerProfileView from '../components/PlayerProfileView'
 import './CabinetPage.css'
 
@@ -52,6 +54,13 @@ export default function CabinetPage() {
     })
   }
 
+  async function linkTwitchCode(code) {
+    return apiFetch('/web/twitch/link', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
+
   async function loadAccount() {
     return apiFetch('/web/me')
   }
@@ -84,6 +93,25 @@ export default function CabinetPage() {
           clearOauthInFlight()
           addAlert('Ошибка безопасности: state не совпадает')
           setScreen('login')
+          return
+        }
+
+        if (parsed.p === 'twitch') {
+          setScreen('loading')
+          try {
+            const res = await linkTwitchCode(code)
+            addAlert(`Twitch привязан: ${res.twitch_username}`, 'success')
+          } catch (e) {
+            addAlert(e.message)
+          } finally {
+            clearOauthInFlight()
+            try {
+              const acc = await loadEverything()
+              setScreen(acc.linked ? 'profile' : 'login')
+            } catch {
+              setScreen('login')
+            }
+          }
           return
         }
 
@@ -168,6 +196,20 @@ export default function CabinetPage() {
       setLinkError(e.message)
     } finally {
       setLinking(false)
+    }
+  }
+
+  function linkTwitch() {
+    redirectToTwitchOauth('/cabinet')
+  }
+
+  async function unlinkTwitch() {
+    try {
+      await apiFetch('/web/twitch/link', { method: 'DELETE' })
+      addAlert('Twitch отвязан', 'info')
+      await loadEverything()
+    } catch (e) {
+      addAlert(e.message)
     }
   }
 
@@ -272,6 +314,33 @@ export default function CabinetPage() {
               </div>
             }
           />
+
+          <div className="pv-card cab-twitch-card">
+            <div className="pv-section-title">
+              <TwitchIcon size={14} color="#9146FF" />
+              Twitch
+            </div>
+            {account?.twitch_username ? (
+              <div className="cab-twitch-linked">
+                <a
+                  href={`https://twitch.tv/${account.twitch_username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="cab-twitch-name"
+                >
+                  {account.twitch_username}
+                </a>
+                <button className="btn btn-danger cab-twitch-unlink" onClick={unlinkTwitch} title="Отвязать">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button className="btn btn-outline" onClick={linkTwitch}>
+                <TwitchIcon size={16} color="#9146FF" />
+                Привязать Twitch
+              </button>
+            )}
+          </div>
 
           {account?.active_fines?.length > 0 && (
             <div className="pv-card cab-fines-card">
