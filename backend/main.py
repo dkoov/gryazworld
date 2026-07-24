@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 import time
 from collections import defaultdict, deque
@@ -17,6 +17,7 @@ from routers import messenger
 from routers import bank_web
 from routers import court
 from routers import polls
+from routers import soundpack
 try:
     from routers import internal
 except ImportError:
@@ -186,6 +187,7 @@ app.include_router(bank_web.router)
 app.include_router(court.router)
 app.include_router(payments.router)
 app.include_router(portals.router)
+app.include_router(soundpack.router)
 app.include_router(polls.router)
 app.include_router(polls.admin_router)
 app.include_router(polls.game_router)
