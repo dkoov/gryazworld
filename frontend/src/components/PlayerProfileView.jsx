@@ -43,7 +43,9 @@ function buildHeatmapWeeks(heatmap) {
   const byDay = new Map(heatmap.map(h => [h.day, h.seconds]))
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
-  const start = new Date(today.getTime() - 363 * DAY_MS)
+  const yearStart = new Date(Date.UTC(today.getUTCFullYear(), 0, 1))
+  const yearEnd = new Date(Date.UTC(today.getUTCFullYear(), 11, 31))
+  const start = new Date(yearStart)
   const startDow = (start.getUTCDay() + 6) % 7
   start.setTime(start.getTime() - startDow * DAY_MS)
 
@@ -53,7 +55,7 @@ function buildHeatmapWeeks(heatmap) {
   let weekIdx = 0
   let lastMonth = -1
   let currentMark = null
-  while (cursor <= today) {
+  while (cursor <= yearEnd) {
     const week = []
     for (let d = 0; d < 7; d++) {
       const key = cursor.toISOString().slice(0, 10)
