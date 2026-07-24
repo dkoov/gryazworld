@@ -1,3 +1,4 @@
+﻿import hashlib
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -306,6 +307,15 @@ async def whitelist_list(db: AsyncSession = Depends(get_db)):
 
 # ── 12. POST /internal/whitelist/changenick ──────────────────────────────────
 
+def _offline_uuid(name: str) -> str:
+    """Оффлайн-uuid Minecraft (сервера сети работают без online-mode), тот же алгоритм,
+    что использует сам игровой сервер: UUID.nameUUIDFromBytes("OfflinePlayer:<ник>")."""
+    digest = bytearray(hashlib.md5(f"OfflinePlayer:{name}".encode("utf-8")).digest())
+    digest[6] = (digest[6] & 0x0F) | 0x30
+    digest[8] = (digest[8] & 0x3F) | 0x80
+    return str(uuid.UUID(bytes=bytes(digest)))
+
+
 class ChangeNickBody(BaseModel):
     discordUserId: str
     newNickname: str
@@ -353,9 +363,15 @@ async def whitelist_changenick(body: ChangeNickBody, db: AsyncSession = Depends(
 
     old_nickname = player.nickname
     player.nickname = new_nickname
-    # плейсхолдер-uuid из manual: собран из старого ника -- обновляем вместе с ним
     if player.uuid and player.uuid.startswith("manual:"):
+        # плейсхолдер-uuid из manual: собран из старого ника -- обновляем вместе с ним
         player.uuid = f"manual:{new_nickname.lower()}"
+    elif player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("discord:"):
+        # Игрок уже физически заходил на сервер -- его uuid детерминированно зависит от ника
+        # (сеть работает без online-mode), пересчитываем вместе с ником. Без этого запись в
+        # бэкенде "отъезжает" от uuid, который реальный игровой сервер посчитает при следующем
+        # входе под новым ником -- ломается синк онлайна/наигранного времени/варнов по uuid.
+        player.uuid = _offline_uuid(new_nickname)
     await db.commit()
 
     return {"ok": True, "oldNickname": old_nickname, "newNickname": new_nickname}
