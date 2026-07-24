@@ -364,7 +364,7 @@ function Heatmap({ heatmap }) {
               <div key={wi} className="pv-heatmap-week">
                 {week.map(d => (
                   <div key={d.day} className="pv-heatmap-cell-wrap">
-                    <div className={`pv-heatmap-cell pv-lvl-${d.future ? 0 : levelFor(d.seconds)}`} style={d.future ? { opacity: 0.25 } : undefined} />
+                    <div className={`pv-heatmap-cell pv-lvl-${d.future ? 0 : levelFor(d.seconds)}`} />
                     {!d.future && (
                       <div className="pv-heatmap-tooltip">
                         <div className="pv-heatmap-tooltip-date">{formatHeatmapDate(d.day)}</div>
