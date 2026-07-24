@@ -86,7 +86,7 @@ function timeAgo(iso) {
  * Общий вид профиля игрока — используется и на публичной странице /player/:nickname,
  * и в личном кабинете (там же данные из /web/me, но профиль строится идентично).
  */
-export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions, showSkinViewer }) {
+export default function PlayerProfileView({ profile, isSelf, onToggleLike, liking, extraActions, showSkinViewer, onLinkTwitch, onUnlinkTwitch }) {
   const navigate = useNavigate()
   const [showAllChars, setShowAllChars] = useState(false)
 
@@ -136,8 +136,23 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
                 <span>Подключить Discord</span>
               </div>
             )}
-            {isSelf && (
-              <div className="pv-social-row pv-social-inactive">
+            {profile.twitch_username ? (
+              <div className="pv-social-row pv-social-twitch">
+                <a
+                  className="pv-social-link"
+                  href={`https://twitch.tv/${profile.twitch_username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="pv-social-icon"><TwitchIcon size={16} color="#9146FF" /></span>
+                  <span>{profile.twitch_username}</span>
+                </a>
+                {isSelf && onUnlinkTwitch && (
+                  <button className="pv-social-unlink" onClick={onUnlinkTwitch} title="Отвязать">×</button>
+                )}
+              </div>
+            ) : isSelf && (
+              <div className="pv-social-row pv-social-inactive pv-social-clickable" onClick={onLinkTwitch}>
                 <span className="pv-social-icon"><TwitchIcon size={16} color="currentColor" /></span>
                 <span>Подключить Twitch</span>
               </div>
