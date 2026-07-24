@@ -347,13 +347,13 @@ function Heatmap({ heatmap }) {
       <div className="pv-heatmap-scroll">
         <div className="pv-heatmap">
           <div className="pv-heatmap-months">
-            {monthMarks.map(m => (
+            {monthMarks.map((m, i) => (
               <span
                 key={m.startWeek}
                 className="pv-heatmap-month-cell"
                 style={{ flex: m.span, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'visible' }}
               >
-                {m.label}
+                {(i === 0 && m.span < 3) ? '' : m.label}
               </span>
             ))}
           </div>
