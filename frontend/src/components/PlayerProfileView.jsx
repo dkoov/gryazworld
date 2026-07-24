@@ -52,19 +52,34 @@ function buildHeatmapWeeks(heatmap) {
   let cursor = new Date(start)
   let weekIdx = 0
   let lastMonth = -1
+  let currentMark = null
   while (cursor <= today) {
     const week = []
     for (let d = 0; d < 7; d++) {
       const key = cursor.toISOString().slice(0, 10)
       week.push({ day: key, seconds: byDay.get(key) || 0, future: cursor > today })
       if (d === 0 && cursor.getUTCMonth() !== lastMonth) {
+        if (currentMark) {
+          currentMark.endWeek = weekIdx
+          currentMark.span = currentMark.endWeek - currentMark.startWeek
+        }
         lastMonth = cursor.getUTCMonth()
-        monthMarks.push({ weekIdx, label: MONTH_LABELS[lastMonth] })
+        currentMark = {
+          startWeek: weekIdx,
+          endWeek: weeks.length,
+          span: weeks.length - weekIdx,
+          label: MONTH_LABELS[lastMonth],
+        }
+        monthMarks.push(currentMark)
       }
       cursor = new Date(cursor.getTime() + DAY_MS)
     }
     weeks.push(week)
     weekIdx++
+  }
+  if (currentMark) {
+    currentMark.endWeek = weeks.length
+    currentMark.span = currentMark.endWeek - currentMark.startWeek
   }
   return { weeks, monthMarks }
 }
@@ -327,14 +342,19 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
 
 function Heatmap({ heatmap }) {
   const { weeks, monthMarks } = buildHeatmapWeeks(heatmap)
-  const monthLabelByWeek = new Map(monthMarks.map(m => [m.weekIdx, m.label]))
   return (
     <div className="pv-heatmap-block">
       <div className="pv-heatmap-scroll">
         <div className="pv-heatmap">
           <div className="pv-heatmap-months">
-            {weeks.map((_, wi) => (
-              <span key={wi} className="pv-heatmap-month-cell">{monthLabelByWeek.get(wi) || ''}</span>
+            {monthMarks.map(m => (
+              <span
+                key={m.startWeek}
+                className="pv-heatmap-month-cell"
+                style={{ flex: m.span, minWidth: 0 }}
+              >
+                {m.label}
+              </span>
             ))}
           </div>
           <div className="pv-heatmap-grid">

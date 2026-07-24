@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -13,7 +13,6 @@ import {
   Check,
   Plus,
 } from 'lucide-react'
-import { apiFetch } from '../api'
 import { HeroModel } from '../components/HeroModel'
 import './HomePage.css'
 
@@ -286,9 +285,9 @@ function FeaturesSection() {
 const steps = [
   {
     icon: ClipboardList,
-    title: 'Подай заявку',
+    title: 'Купить проходку',
     description:
-      'Заполни зявку в нашем Discord или купи проходку - это помогает нам отсеивать гриферов и делать классный сервер!',
+      'Оплати проходку на сайте — и ты автоматически попадёшь в вайтлист. Никаких заявок и ожидания.',
     actions: [{ type: 'link', label: 'Купить проходку', to: '/shop', variant: 'outline' }],
   },
   {
@@ -304,7 +303,8 @@ const steps = [
     description:
       'Заходи на сервер, знакомься с комьюнити и изучай фишки на вики и делай свой вклад в историю проекта!',
     actions: [
-      { type: 'copy', label: 'play.ichorix.cc', value: 'play.ichorix.cc', variant: 'outline' },
+      { type: 'copy', label: 'ichorix.ru', value: 'ichorix.ru', variant: 'outline' },
+      { type: 'copy', label: 'eu.ichorix.ru', value: 'eu.ichorix.ru', variant: 'outline' },
       { type: 'link', label: 'Вики', to: '/wiki', variant: 'ghost' },
     ],
   },
@@ -467,22 +467,17 @@ const faqs = [
   },
   {
     question: 'Когда стартовал сезон?',
-    answer: 'Сезон стартовал 21 марта 2026 года.',
+    answer: 'Сезон стартовал 25 июля 2026 года.',
   },
   {
     question: 'Как попасть на сервер?',
     answer:
-      'Чтобы попасть на сервер, вы можете подать заявку или купить проходку! Это помогает нам отсеивать большую часть гриферов.',
+      'Купи проходку на сайте — вайтлист выдаётся автоматически сразу после оплаты.',
   },
   {
     question: 'Можно играть с телефона?',
     answer:
       'Только с PojavLauncher или других эмуляторов Java-версии Minecraft на телефон, с Bedrock нельзя зайти.',
-  },
-  {
-    question: 'Какой онлайн на сервере?',
-    dynamic: 'online',
-    answer: null,
   },
   {
     question: 'А если меня убьют/загриферят?',
@@ -530,23 +525,9 @@ function FaqItem({ question, answer, index, isOpen, onToggle }) {
 
 function FaqSection() {
   const [openIndex, setOpenIndex] = useState(null)
-  const [online, setOnline] = useState(null)
-
-  useEffect(() => {
-    apiFetch('/web/server-stats')
-      .then((d) => setOnline(d.online))
-      .catch(() => {})
-  }, [])
 
   const handleToggle = (index) => {
     setOpenIndex(openIndex === index ? null : index)
-  }
-
-  const resolveAnswer = (faq) => {
-    if (faq.dynamic === 'online') {
-      return online === null ? 'Загрузка...' : `Сейчас на сервере ${online} игроков.`
-    }
-    return faq.answer
   }
 
   return (
@@ -582,7 +563,7 @@ function FaqSection() {
               <FaqItem
                 key={i}
                 question={faq.question}
-                answer={resolveAnswer(faq)}
+                answer={faq.answer}
                 index={i}
                 isOpen={openIndex === i}
                 onToggle={handleToggle}
