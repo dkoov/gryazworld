@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import CurrentUser, current_user
-from database import get_db, Player, Subscription
+from database import get_db, Player, Subscription, BankAccount
 import charsystem_client
 
 log = logging.getLogger(__name__)
@@ -184,3 +184,58 @@ async def revoke_subscription(
         log.exception("Failed to revoke in-game IchoPlus role for player %s", player.id)
 
     return {"status": "ok"}
+
+
+def _card_label(account: BankAccount) -> str:
+    if account.label:
+        return account.label
+    return "Основная карта" if account.is_primary else "Карта"
+
+
+@router.get("/player/{nickname}/cards")
+async def list_player_cards(
+    nickname: str, _admin: Player = Depends(require_admin), db: AsyncSession = Depends(get_db)
+):
+    player = await _resolve_player(nickname, db)
+    result = await db.execute(
+        select(BankAccount)
+        .where(BankAccount.player_id == player.id)
+        .order_by(BankAccount.is_primary.desc(), BankAccount.id)
+    )
+    accounts = result.scalars().all()
+    return [
+        {"id": a.id, "label": _card_label(a), "balance": a.balance, "is_primary": a.is_primary}
+        for a in accounts
+    ]
+
+
+class CreateCardRequest(BaseModel):
+    label: str = ""
+
+
+@router.post("/player/{nickname}/cards")
+async def create_player_card(
+    nickname: str,
+    data: CreateCardRequest,
+    _admin: Player = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    player = await _resolve_player(nickname, db)
+    result = await db.execute(select(BankAccount).where(BankAccount.player_id == player.id))
+    own = result.scalars().all()
+    if not any(a.is_primary for a in own):
+        raise HTTPException(status_code=400, detail="У игрока нет основного счёта")
+    if len(own) >= 8:
+        raise HTTPException(status_code=400, detail="Слишком много карт (максимум 8)")
+
+    account = BankAccount(
+        player_id=player.id,
+        balance=0.0,
+        is_primary=False,
+        label=data.label.strip()[:40] or None,
+        created_at=datetime.utcnow(),
+    )
+    db.add(account)
+    await db.commit()
+    await db.refresh(account)
+    return {"id": account.id, "label": _card_label(account), "balance": 0.0, "is_primary": False}
