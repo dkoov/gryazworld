@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import json
 import logging
 import os
@@ -210,5 +210,27 @@ async def check_expired_polls():
                 await session.close()
         except Exception:
             logger.exception("Unexpected error in check_expired_polls")
+
+        await asyncio.sleep(60)
+
+
+async def check_overdue_fines():
+    """Раз в минуту: помечает просроченные штрафы и выдаёт за них варн (см. правила 1.1/1.2).
+    Раньше это делал плагин ServerPanel (fines.check-interval в его config.yml) -- плагин убран
+    как дублирующий vzBank/vzPunish, а этот периодический вызов был единственным, кто дёргал
+    /mc/fines/overdue, так что без него просроченные штрафы просто зависали в статусе pending."""
+    from routers.fines import process_overdue  # локальный импорт -- избегаем цикла импортов при старте
+
+    while True:
+        try:
+            session = SessionLocal()
+            try:
+                result = await process_overdue(db=session)
+                if result.get("processed"):
+                    logger.info("Просроченные штрафы обработаны: %s", result["processed"])
+            finally:
+                await session.close()
+        except Exception:
+            logger.exception("Unexpected error in check_overdue_fines")
 
         await asyncio.sleep(60)

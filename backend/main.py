@@ -23,7 +23,7 @@ try:
 except ImportError:
     internal = None
 from routers.fines import warn_router
-from cron import check_expired_subscriptions, check_expired_polls, process_delivery_tasks
+from cron import check_expired_subscriptions, check_expired_polls, process_delivery_tasks, check_overdue_fines
 from auth import PLUGIN_SECRET
 
 
@@ -33,10 +33,12 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(check_expired_subscriptions())
     polls_task = asyncio.create_task(check_expired_polls())
     delivery_task = asyncio.create_task(process_delivery_tasks())
+    fines_task = asyncio.create_task(check_overdue_fines())
     yield
     task.cancel()
     polls_task.cancel()
     delivery_task.cancel()
+    fines_task.cancel()
     try:
         await task
     except asyncio.CancelledError:
@@ -47,6 +49,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         await delivery_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await fines_task
     except asyncio.CancelledError:
         pass
 
