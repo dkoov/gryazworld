@@ -4,6 +4,7 @@ import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock, Siren } from 'luci
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
+import DeadlinePicker from '../components/DeadlinePicker'
 import './BankPage.css'
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzwhmfizw/image/upload'
@@ -111,7 +112,7 @@ export default function BankPage() {
   const [fineAmount, setFineAmount] = useState('')
   const [fineReason, setFineReason] = useState('')
   const [fineComment, setFineComment] = useState('')
-  const [fineDeadline, setFineDeadline] = useState('')
+  const [fineDeadline, setFineDeadline] = useState(null)
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -200,7 +201,7 @@ export default function BankPage() {
   }
 
   function openFine() {
-    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment(''); setFineDeadline('')
+    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment(''); setFineDeadline(null)
     setFineFormError('')
     setModal('fine')
   }
@@ -220,7 +221,7 @@ export default function BankPage() {
           amount: amt,
           reason: fineReason.trim(),
           comment: fineComment.trim(),
-          deadline: fineDeadline ? new Date(fineDeadline).toISOString() : null,
+          deadline: fineDeadline ? fineDeadline.toISOString() : null,
         }),
       })
       closeModal()
@@ -1009,12 +1010,7 @@ export default function BankPage() {
         </div>
         <div className="inp-group">
           <label>Срок оплаты (необязательно)</label>
-          <input
-            type="datetime-local"
-            value={fineDeadline}
-            onChange={e => setFineDeadline(e.target.value)}
-            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-          />
+          <DeadlinePicker value={fineDeadline} onChange={setFineDeadline} placeholder="Без срока" />
           <div className="bt-char-count">Если не оплатит в срок — автоматически получит варн</div>
         </div>
         <div className="inp-group">

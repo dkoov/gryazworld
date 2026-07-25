@@ -591,23 +591,6 @@
 .inp-group input::placeholder,
 .inp-group textarea::placeholder { color: var(--muted2); }
 
-/* нативный календарь datetime-local -- подстраиваем под тёмную/светлую тему сайта,
-   иначе иконка и всплывающий календарь остаются светлыми и теряются на тёмном фоне */
-.inp-group input[type="datetime-local"] {
-  color-scheme: dark;
-}
-:root[data-theme="light"] .inp-group input[type="datetime-local"] {
-  color-scheme: light;
-}
-.inp-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6) sepia(1) saturate(4) hue-rotate(225deg);
-  cursor: pointer;
-  border-radius: 4px;
-}
-.inp-group input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-  filter: invert(0.75) sepia(1) saturate(4) hue-rotate(225deg);
-}
-
 /* ── Своя картинка карты (IchoPlus) ───────────────────────────────────── */
 .bank-card.has-image,
 .bt-preview-card.has-image,
