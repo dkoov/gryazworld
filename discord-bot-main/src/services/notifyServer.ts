@@ -1,4 +1,4 @@
-import http from "http";
+﻿import http from "http";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from "discord.js";
 import { ExtendedClient } from "../structures/Client";
 import { recordFineMessage, getFineMessage, removeFineMessage } from "./finesStore";
@@ -77,7 +77,11 @@ async function handleFine(client: ExtendedClient, data: any): Promise<void> {
       new ButtonBuilder()
         .setCustomId(`fine_paid_${data.fine_id}`)
         .setLabel("Подтвердить оплату")
-        .setStyle(ButtonStyle.Success)
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`fine_unpaid_${data.fine_id}`)
+        .setLabel("Не оплачен (варн)")
+        .setStyle(ButtonStyle.Danger)
     );
     const content = data.issued_by_discord_id ? `<@${data.issued_by_discord_id}>` : undefined;
     try {
@@ -223,6 +227,29 @@ async function handleWarn(client: ExtendedClient, data: any, overdue = false): P
   }
 }
 
+/** 3 варна. Если варн выдан командой /warn в игре -- игрок уже реально забанен
+ * (плагин сам вызывает /ban через консоль сразу после варна). Если варн выдан
+ * автоматически за просрочку штрафа (cron на бэкенде) -- бэкенд не может достучаться
+ * до игрового сервера напрямую, поэтому это уведомление -- сигнал стаффу забанить вручную. */
+async function handleBan(client: ExtendedClient, data: any): Promise<void> {
+  const embed = new EmbedBuilder()
+    .setTitle("Игрок забанен (3 варна)")
+    .setColor(0x000000)
+    .addFields(
+      { name: "Игрок", value: String(data.player ?? "?"), inline: true },
+      { name: "Причина", value: String(data.reason ?? "3 варна"), inline: false }
+    )
+    .setTimestamp();
+
+  const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
+  if (notifyChannel) {
+    const content = data.discord_id ? `<@${data.discord_id}>` : undefined;
+    await notifyChannel.send({ content, embeds: [embed] }).catch((e) =>
+      console.error("[Notify] ban:", e)
+    );
+  }
+}
+
 async function handlePollVote(client: ExtendedClient, data: any): Promise<void> {
   const notifyChannel = await getChannel(client, NOTIFICATIONS_CHANNEL_ID);
   if (!notifyChannel) return;
@@ -333,6 +360,9 @@ export function startNotifyServer(client: ExtendedClient): void {
             break;
           case "fine_overdue":
             await handleWarn(client, data, true);
+            break;
+          case "ban":
+            await handleBan(client, data);
             break;
           case "claim_dismissed":
             await handleClaimDismissed(client, data);

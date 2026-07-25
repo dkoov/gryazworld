@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock, Siren } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
@@ -111,6 +111,7 @@ export default function BankPage() {
   const [fineAmount, setFineAmount] = useState('')
   const [fineReason, setFineReason] = useState('')
   const [fineComment, setFineComment] = useState('')
+  const [fineDeadline, setFineDeadline] = useState('')
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -199,7 +200,7 @@ export default function BankPage() {
   }
 
   function openFine() {
-    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment('')
+    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment(''); setFineDeadline('')
     setFineFormError('')
     setModal('fine')
   }
@@ -219,6 +220,7 @@ export default function BankPage() {
           amount: amt,
           reason: fineReason.trim(),
           comment: fineComment.trim(),
+          deadline: fineDeadline ? new Date(fineDeadline).toISOString() : null,
         }),
       })
       closeModal()
@@ -1004,6 +1006,16 @@ export default function BankPage() {
             />
             <span className="bank-amount-icon right"><Gem size={14} /></span>
           </div>
+        </div>
+        <div className="inp-group">
+          <label>Срок оплаты (необязательно)</label>
+          <input
+            type="datetime-local"
+            value={fineDeadline}
+            onChange={e => setFineDeadline(e.target.value)}
+            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+          />
+          <div className="bt-char-count">Если не оплатит в срок — автоматически получит варн</div>
         </div>
         <div className="inp-group">
           <textarea

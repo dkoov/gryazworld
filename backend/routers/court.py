@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime
 from typing import Optional
 from urllib.parse import urlparse
@@ -167,6 +167,7 @@ class ApproveClaimRequest(BaseModel):
     amount: Optional[float] = None  # не обязателен -- можно признать иск обоснованным без штрафа
     reason: str
     comment: Optional[str] = None
+    deadline: Optional[datetime] = None
 
 
 @router.post("/web/court/claims/{claim_id}/approve")
@@ -209,6 +210,7 @@ async def approve_claim(
             amount=data.amount,
             reason=data.reason.strip()[:200],
             comment=data.comment.strip()[:350] if data.comment else None,
+            deadline=data.deadline,
             status="pending",
         )
         db.add(fine)
@@ -232,6 +234,7 @@ async def approve_claim(
             "comment": fine.comment,
             "issued_by": fine.issued_by,
             "issued_by_discord_id": me.discord_id,
+            "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
             "claim_thread_id": _thread_id_from_url(claim.thread_url),
         })
     else:
@@ -256,6 +259,7 @@ class CreateFineRequest(BaseModel):
     amount: float
     reason: str
     comment: Optional[str] = None
+    deadline: Optional[datetime] = None
 
 
 @router.post("/web/court/fines")
@@ -286,6 +290,7 @@ async def create_fine(
         amount=data.amount,
         reason=data.reason.strip()[:200],
         comment=data.comment.strip()[:350] if data.comment else None,
+        deadline=data.deadline,
         status="pending",
     )
     db.add(fine)
@@ -302,6 +307,7 @@ async def create_fine(
         "comment": fine.comment,
         "issued_by": fine.issued_by,
         "issued_by_discord_id": me.discord_id,
+        "deadline": fine.deadline.isoformat() + "Z" if fine.deadline else None,
     })
 
     return {"status": "ok", "fine_id": fine.id}

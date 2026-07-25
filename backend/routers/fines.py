@@ -207,6 +207,55 @@ async def mark_fine_paid(data: MarkPaidRequest, db: AsyncSession = Depends(get_d
     return {"status": "ok", "fine_id": fine.id}
 
 
+@router.post("/mark-unpaid", dependencies=[Depends(verify_plugin_secret)])
+async def mark_fine_unpaid(data: MarkPaidRequest, db: AsyncSession = Depends(get_db)):
+    """Полицейский вручную отмечает штраф неоплаченным (кнопка в Discord) -- выдаёт варн
+    сразу, не дожидаясь дедлайна (например, если игрок явно отказался платить)."""
+    result = await db.execute(select(Fine).where(Fine.id == data.fine_id))
+    fine = result.scalar_one_or_none()
+    if fine is None:
+        raise HTTPException(status_code=404, detail="Fine not found")
+    if fine.status == "paid":
+        raise HTTPException(status_code=400, detail="Fine is already paid")
+    if fine.status not in ("pending", "overdue"):
+        raise HTTPException(status_code=400, detail=f"Fine is {fine.status}")
+
+    fine.status = "overdue"
+
+    player_result = await db.execute(select(Player).where(Player.id == fine.player_id))
+    player = player_result.scalar_one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    warn = Warn(
+        player_id=player.id,
+        issued_by="СБИ (штраф не оплачен)",
+        reason=f"Штраф #{fine.id} не оплачен: {fine.reason}",
+    )
+    db.add(warn)
+    player.warns += 1
+    await db.commit()
+
+    await _notify_discord({
+        "type": "warn",
+        "player": player.nickname,
+        "discord_id": player.discord_id,
+        "total_warns": player.warns,
+        "reason": warn.reason,
+        "issued_by": warn.issued_by,
+    })
+
+    if player.warns >= 3:
+        await _notify_discord({
+            "type": "ban",
+            "player": player.nickname,
+            "discord_id": player.discord_id,
+            "reason": "3 варна (последний — неоплаченный штраф)",
+        })
+
+    return {"status": "ok", "fine_id": fine.id, "player": player.nickname, "total_warns": player.warns}
+
+
 @router.get("/overdue", dependencies=[Depends(verify_plugin_secret)])
 async def process_overdue(db: AsyncSession = Depends(get_db)):
     now = datetime.utcnow()

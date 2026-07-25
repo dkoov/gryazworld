@@ -1,4 +1,4 @@
-.bank-page {
+﻿.bank-page {
   width: 100%;
   max-width: 1020px;
   margin: 0 auto;
@@ -547,6 +547,12 @@
 .bank-amount-input { padding-left: 34px !important; }
 .bank-amount-icon.right { left: auto; right: 14px; }
 .bank-amount-input.right { padding-left: 14px !important; padding-right: 34px !important; }
+.bank-amount-input::-webkit-outer-spin-button,
+.bank-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.bank-amount-input[type="number"] { -moz-appearance: textfield; }
 
 .bank-btn-diamond { color: inherit; opacity: 0.85; vertical-align: -2px; }
 
@@ -584,6 +590,23 @@
 .inp-group textarea:focus { border-color: var(--accent); }
 .inp-group input::placeholder,
 .inp-group textarea::placeholder { color: var(--muted2); }
+
+/* нативный календарь datetime-local -- подстраиваем под тёмную/светлую тему сайта,
+   иначе иконка и всплывающий календарь остаются светлыми и теряются на тёмном фоне */
+.inp-group input[type="datetime-local"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] .inp-group input[type="datetime-local"] {
+  color-scheme: light;
+}
+.inp-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(4) hue-rotate(225deg);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.inp-group input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.75) sepia(1) saturate(4) hue-rotate(225deg);
+}
 
 /* ── Своя картинка карты (IchoPlus) ───────────────────────────────────── */
 .bank-card.has-image,
