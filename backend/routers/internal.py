@@ -51,20 +51,26 @@ async def session_check(name: str, ip: str, db: AsyncSession = Depends(get_db)):
             and_(
                 AuthSession.minecraft_name.ilike(name),
                 AuthSession.ip == ip,
-                AuthSession.expires_at > now,
             )
         ).order_by(AuthSession.expires_at.desc())
     )
     sessions = result.scalars().all()
     if not sessions:
         return {"valid": False, "sessionId": None, "denied": False}
-    # Одноразовое использование: подтверждение действует только на этот конкретный вход --
-    # IP на будущее не запоминаем, следующий раз (даже с того же IP) снова спросит Discord.
-    session_id = sessions[0].session_id
-    for s in sessions:
-        await db.delete(s)
-    await db.commit()
-    return {"valid": True, "sessionId": session_id, "denied": False}
+
+    valid = sessions[0]
+    if valid.expires_at <= now:
+        # Просрочена -- подчищаем при обращении (никакого отдельного cron для этого не нужно,
+        # строк на пару-тройку на игрока, ничего не растёт бесконтрольно).
+        for s in sessions:
+            await db.delete(s)
+        await db.commit()
+        return {"valid": False, "sessionId": None, "denied": False}
+
+    # Кэш подтверждённого IP на час: сессия НЕ удаляется при успешной проверке, так что
+    # повторные входы с того же IP в течение часа не переспрашивают Discord. Час отсчитывается
+    # от момента подтверждения (см. auth_confirm) -- не продлевается на каждый вход.
+    return {"valid": True, "sessionId": valid.session_id, "denied": False}
 
 
 # ── 3. POST /internal/auth/request ───────────────────────────────────────────
@@ -115,7 +121,9 @@ async def auth_request(body: AuthRequestBody, db: AsyncSession = Depends(get_db)
 
 class ConfirmBody(BaseModel):
     pendingId: str
-    durationDays: int
+
+
+AUTH_SESSION_HOURS = 1
 
 
 @router.post("/auth/confirm", dependencies=[Depends(verify_api_key)])
@@ -142,7 +150,11 @@ async def auth_confirm(body: ConfirmBody, db: AsyncSession = Depends(get_db)):
         ).order_by(AuthSession.expires_at.desc())
     )
     existing_sessions = existing_result.scalars().all()
-    new_expires_at = now + timedelta(days=body.durationDays)
+    # Подтверждённый IP кэшируется на фиксированный час (не настраивается со стороны бота --
+    # раньше здесь был durationDays от бота, но session_check всё равно удалял сессию на
+    # первой же проверке, так что то значение ни на что не влияло; теперь влияет, поэтому
+    # держим его здесь одним местом, а не разбросанным по ботам).
+    new_expires_at = now + timedelta(hours=AUTH_SESSION_HOURS)
     if existing_sessions:
         # Обновляем самую свежую запись, удаляем остальные дубликаты (если накопились раньше).
         existing_sessions[0].expires_at = new_expires_at
@@ -371,6 +383,49 @@ async def whitelist_changenick(body: ChangeNickBody, db: AsyncSession = Depends(
         # (сеть работает без online-mode), пересчитываем вместе с ником. Без этого запись в
         # бэкенде "отъезжает" от uuid, который реальный игровой сервер посчитает при следующем
         # входе под новым ником -- ломается синк онлайна/наигранного времени/варнов по uuid.
+        player.uuid = _offline_uuid(new_nickname)
+    await db.commit()
+
+    return {"ok": True, "oldNickname": old_nickname, "newNickname": new_nickname}
+
+
+# ── 12b. POST /internal/admin/rename ──────────────────────────────────────────
+
+class AdminRenameBody(BaseModel):
+    currentNickname: str
+    newNickname: str
+
+
+@router.post("/admin/rename", dependencies=[Depends(verify_api_key)])
+async def admin_rename(body: AdminRenameBody, db: AsyncSession = Depends(get_db)):
+    """Принудительная смена ника администратором -- в отличие от /whitelist/changenick,
+    не привязана к discord_id вызывающего (тот эндпоинт для игрока, меняющего СВОЙ ник,
+    и специально отклоняет чужие аккаунты; здесь доверяем самому вызову, т.к. он уже
+    защищён verify_api_key и вызывается только явной админ-командой в Discord)."""
+    result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == body.currentNickname.strip().lower())
+    )
+    player = result.scalar_one_or_none()
+    if player is None:
+        return {"ok": False, "error": "not_found"}
+
+    new_nickname = body.newNickname.strip()
+    if not new_nickname:
+        return {"ok": False, "error": "bad_nickname"}
+    if new_nickname.lower() == player.nickname.lower():
+        return {"ok": False, "error": "same_nickname"}
+
+    taken_result = await db.execute(
+        select(Player).where(func.lower(Player.nickname) == new_nickname.lower(), Player.id != player.id)
+    )
+    if taken_result.scalar_one_or_none() is not None:
+        return {"ok": False, "error": "nickname_taken"}
+
+    old_nickname = player.nickname
+    player.nickname = new_nickname
+    if player.uuid and player.uuid.startswith("manual:"):
+        player.uuid = f"manual:{new_nickname.lower()}"
+    elif player.uuid and not player.uuid.startswith("web-") and not player.uuid.startswith("discord:"):
         player.uuid = _offline_uuid(new_nickname)
     await db.commit()
 

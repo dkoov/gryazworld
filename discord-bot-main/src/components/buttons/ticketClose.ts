@@ -23,10 +23,9 @@ const button: Button = {
     const ticketAuthorId = interaction.customId.replace("ticket_close_", "");
 
     const MOD_ROLE_IDS = ["1470512352943407330", "1470761608228634767", "1518725041653551214"];
-    const isAuthor = member.id === ticketAuthorId;
     const isMod = MOD_ROLE_IDS.some(id => member.roles.cache.has(id));
 
-    if (!isAuthor && !isMod) {
+    if (!isMod) {
       await interaction.reply({
         content: "Только модерация может закрывать тикет.",
         flags: MessageFlags.Ephemeral,
