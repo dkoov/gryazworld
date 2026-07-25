@@ -251,22 +251,30 @@ async def whitelist_add(body: WhitelistAddBody, db: AsyncSession = Depends(get_d
     )
     player = result.scalar_one_or_none()
 
-    # Тот же дискорд-аккаунт мог быть принят раньше под другим ником —
-    # обновляем его запись (players.uuid уникален), а не создаём дубль.
-    if player is None and body.discordUserId:
+    # Тот же дискорд-аккаунт мог быть принят раньше под другим ником -- ищем
+    # его запись ПЕРЕД тем, как трогать discord_id у найденной по нику записи,
+    # иначе можно попытаться поставить уже занятый discord_id на чужую
+    # запись и словить UNIQUE constraint failed: players.discord_id.
+    discord_owner = None
+    if body.discordUserId:
         result = await db.execute(
             select(Player).where(Player.uuid == f"discord:{body.discordUserId}")
         )
-        player = result.scalar_one_or_none()
-        if player is None:
+        discord_owner = result.scalar_one_or_none()
+        if discord_owner is None:
             result = await db.execute(
                 select(Player).where(Player.discord_id == body.discordUserId)
             )
-            player = result.scalars().first()
-        if player is not None:
-            player.nickname = body.minecraftName
+            discord_owner = result.scalars().first()
 
-    if player is None:
+    if discord_owner is not None and discord_owner is not player:
+        # Этот дискорд-аккаунт уже владеет другой записью -- она каноничная,
+        # просто обновляем её ник вместо перезаписи discord_id у записи,
+        # найденной по нику (та может принадлежать другому/старому игроку).
+        discord_owner.nickname = body.minecraftName
+        discord_owner.whitelisted = True
+        player = discord_owner
+    elif player is None:
         # Unique placeholder uuid: by discord id when known, otherwise by nickname
         # (avoids colliding on a shared "discord:unknown" for manual/console adds).
         if body.discordUserId:
