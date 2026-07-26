@@ -33,8 +33,6 @@ router = APIRouter(prefix="/web", tags=["payments"])
 
 RETURN_URL_BASE = os.getenv("YOOKASSA_RETURN_URL", "https://gryazworld.ru/payment/return")
 
-DISCORD_BOT_URL = os.getenv("DISCORD_BOT_URL", "")
-
 MC_PLUGIN_BASE_URL = (
     f"http://{os.getenv('MC_SERVER_HOST', 'localhost')}:{os.getenv('MC_BAN_PORT', '8080')}"
 )
@@ -53,21 +51,6 @@ async def _plugin_post(path: str, payload: dict) -> None:
             if resp.status >= 400:
                 text = await resp.text()
                 raise RuntimeError(f"plugin HTTP {resp.status}: {text}")
-
-
-async def _notify_discord(payload: dict) -> None:
-    """Отправка уведомления в Discord-бот. Если URL не настроен -- молча пропускает."""
-    if not DISCORD_BOT_URL:
-        return
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            DISCORD_BOT_URL,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=5),
-        ) as resp:
-            if resp.status >= 400:
-                text = await resp.text()
-                raise RuntimeError(f"discord HTTP {resp.status}: {text}")
 
 
 async def _unban_player(nickname: str) -> None:
@@ -318,7 +301,8 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
 
     await db.commit()
 
-    # Уведомление о покупке в Discord. Если URL не задан -- просто пропускаем.
+    # Уведомление о покупке в Discord ставится в очередь delivery_tasks;
+    # воркер process_delivery_tasks доставляет его с ретраями.
     notify_payload = {
         "type": "purchase",
         "player": order.minecraft_nick,
@@ -326,7 +310,7 @@ async def deliver_goods(order: Order, db: AsyncSession) -> None:
         "items": items,
         "amount": order.amount,
     }
-    await _try_delivery("discord_notify", notify_payload, _notify_discord(notify_payload))
+    await _enqueue_delivery(db, order.id, player.id, "discord_notify", notify_payload, "")
 
 
 # ─── Webhook ЮKassa ──────────────────────────────────────────────────────────
