@@ -1,0 +1,185 @@
+.dlp-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.dlp-trigger {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 11px 14px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  outline: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: border-color 0.2s;
+}
+.dlp-trigger:hover,
+.dlp-trigger:focus { border-color: var(--accent); }
+.dlp-trigger-empty { color: var(--muted2); font-weight: 400; }
+
+.dlp-clear {
+  flex: none;
+  width: 38px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  border-radius: var(--radius);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.dlp-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+.dlp-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 280px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 14px;
+  z-index: 50;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+  animation: dropdownIn 0.15s ease;
+}
+
+.dlp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.dlp-month-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+.dlp-nav {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dlp-nav:hover { background: rgba(139, 92, 246, 0.15); color: var(--accent2); }
+
+.dlp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.dlp-weekdays span {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted2);
+  padding: 4px 0;
+}
+
+.dlp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dlp-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dlp-day:hover { background: rgba(139, 92, 246, 0.14); }
+.dlp-day-muted { color: var(--muted2); font-weight: 400; }
+.dlp-day-today { box-shadow: inset 0 0 0 1px var(--border2); }
+.dlp-day-selected,
+.dlp-day-selected:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dlp-time-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.dlp-time-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: auto;
+}
+.dlp-time-input {
+  width: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 0;
+  text-align: center;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  border-radius: 8px;
+}
+.dlp-time-input:focus { border-color: var(--accent); }
+.dlp-time-colon { color: var(--muted); font-weight: 700; }
+
+.dlp-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dlp-action-ghost,
+.dlp-action-primary {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  transition: opacity 0.15s;
+}
+.dlp-action-ghost {
+  background: transparent;
+  color: var(--muted);
+}
+.dlp-action-ghost:hover { color: var(--text); }
+.dlp-action-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.dlp-action-primary:hover { opacity: 0.9; }

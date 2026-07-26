@@ -9,7 +9,6 @@ import {
   MessageFlags,
   AttachmentBuilder,
 } from "discord.js";
-import discordTranscripts from "discord-html-transcripts";
 
 export async function logTicketClose(
   client: Client,
@@ -17,19 +16,13 @@ export async function logTicketClose(
   verdict: string,
   closedById: string,
   ticketAuthorId: string,
+  transcript: AttachmentBuilder | null,
 ): Promise<void> {
   const logChannelId = process.env.SUPPORT_LOG_CHANNEL_ID;
   if (!logChannelId) return;
 
   const logChannel = client.channels.cache.get(logChannelId) as TextChannel;
   if (!logChannel) return;
-
-  // @ts-ignore
-  const transcript = await discordTranscripts.createTranscript(thread, {
-    returnType: "attachment",
-    filename: `ticket-${thread.id}.html`,
-    poweredBy: false,
-  }).catch(() => null);
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -48,19 +41,22 @@ export async function logTicketClose(
       new TextDisplayBuilder().setContent(
         `**Вердикт:**\n\`\`\`${verdict}\`\`\``
       )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addFileComponents(
-      new FileBuilder().setURL(`attachment://ticket-${thread.id}.html`)
     );
+
+  if (transcript) {
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+      .addFileComponents(
+        new FileBuilder().setURL(`attachment://ticket-${thread.id}.html`)
+      );
+  }
 
   const msg = await logChannel.send({
     components: [container],
-    files: [transcript as AttachmentBuilder],
+    files: transcript ? [transcript] : [],
     flags: MessageFlags.IsComponentsV2,
     allowedMentions: { parse: [] },
   }).catch(() => null);
   msg?.startThread({
-      name: `Обсуждение`,      
+      name: `Обсуждение`,
   });
 }

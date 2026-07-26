@@ -40,6 +40,18 @@ interface ChangeNicknameResponse {
   error?: string;
 }
 
+interface AdminRenameBody {
+  currentNickname: string;
+  newNickname: string;
+}
+
+interface AdminRenameResponse {
+  ok: boolean;
+  oldNickname?: string;
+  newNickname?: string;
+  error?: string;
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -92,4 +104,8 @@ export async function whitelistCheck(minecraftName: string): Promise<WhitelistCh
 
 export async function whitelistChangeNickname(body: ChangeNicknameBody): Promise<ChangeNicknameResponse> {
   return request<ChangeNicknameResponse>("POST", "/internal/whitelist/changenick", body);
+}
+
+export async function adminRename(body: AdminRenameBody): Promise<AdminRenameResponse> {
+  return request<AdminRenameResponse>("POST", "/internal/admin/rename", body);
 }

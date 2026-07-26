@@ -152,7 +152,8 @@
   display: flex;
   gap: 10px;
 }
-.admin-grant-row select {
+.admin-grant-row select,
+.admin-grant-row input[type="text"] {
   flex: 1;
   padding: 11px 14px;
   border-radius: 10px;

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Crown, Gem, ArrowRight, Receipt, ImagePlus, X, Lock, Siren } from 'lucide-react'
 import { apiFetch, getDiscordUser } from '../api'
 import Modal from '../components/Modal'
 import PlayerNicknameInput from '../components/PlayerNicknameInput'
+import DeadlinePicker from '../components/DeadlinePicker'
 import './BankPage.css'
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzwhmfizw/image/upload'
@@ -65,7 +66,7 @@ export default function BankPage() {
   const [txs, setTxs] = useState([])
   const [search, setSearch] = useState('')
 
-  const [modal, setModal] = useState(null) // null | transfer | edit | access | newCard
+  const [modal, setModal] = useState(null) // null | transfer | edit | access
   const [formError, setFormError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -111,6 +112,7 @@ export default function BankPage() {
   const [fineAmount, setFineAmount] = useState('')
   const [fineReason, setFineReason] = useState('')
   const [fineComment, setFineComment] = useState('')
+  const [fineDeadline, setFineDeadline] = useState(null)
 
   const [editLabel, setEditLabel] = useState('')
   const [editHideBalance, setEditHideBalance] = useState(false)
@@ -120,8 +122,6 @@ export default function BankPage() {
 
   const [accessInfo, setAccessInfo] = useState(null)
   const [accessNick, setAccessNick] = useState('')
-
-  const [newCardLabel, setNewCardLabel] = useState('')
 
   const activeAccount = accounts.find(a => a.id === activeId) || null
   const transferFromAccount = accounts.find(a => a.id === transferFromId) || activeAccount
@@ -199,7 +199,7 @@ export default function BankPage() {
   }
 
   function openFine() {
-    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment('')
+    setFineNick(''); setFineAmount(''); setFineReason(''); setFineComment(''); setFineDeadline(null)
     setFineFormError('')
     setModal('fine')
   }
@@ -219,6 +219,7 @@ export default function BankPage() {
           amount: amt,
           reason: fineReason.trim(),
           comment: fineComment.trim(),
+          deadline: fineDeadline ? fineDeadline.toISOString() : null,
         }),
       })
       closeModal()
@@ -259,12 +260,6 @@ export default function BankPage() {
     apiFetch(`/web/bank/accounts/${activeAccount.id}/access`)
       .then(setAccessInfo)
       .catch(e => setFormError(e.message))
-  }
-
-  function openNewCard() {
-    setNewCardLabel('')
-    setModal('newCard')
-    setFormError('')
   }
 
   async function submitTransfer() {
@@ -366,24 +361,6 @@ export default function BankPage() {
       closeModal()
       setActiveId(null)
       loadAccounts()
-    } catch (e) {
-      setFormError(e.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function submitNewCard() {
-    setBusy(true)
-    setFormError('')
-    try {
-      const created = await apiFetch('/web/bank/accounts', {
-        method: 'POST',
-        body: JSON.stringify({ label: newCardLabel.trim() }),
-      })
-      closeModal()
-      await loadAccounts()
-      setActiveId(created.id)
     } catch (e) {
       setFormError(e.message)
     } finally {
@@ -548,12 +525,6 @@ export default function BankPage() {
                 </div>
               </div>
             ))}
-            <div className="bank-other-row bank-other-add" onClick={openNewCard}>
-              <div className="bank-other-preview add">+</div>
-              <div className="bank-other-info">
-                <div className="bank-other-name">Новая карта</div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -943,25 +914,6 @@ export default function BankPage() {
         <button className="btn btn-primary" style={{ width: '100%', marginTop: 18 }} onClick={closeModal}>Готово</button>
       </Modal>
 
-      <Modal open={modal === 'newCard'} onClose={closeModal}>
-        <h2>Новая карта</h2>
-        <div className="inp-group">
-          <label>Название карты</label>
-          <input
-            type="text"
-            value={newCardLabel}
-            onChange={e => setNewCardLabel(e.target.value)}
-            placeholder="Например, Резервная карта"
-            maxLength={40}
-          />
-        </div>
-        {formError && <p className="bank-transfer-error">{formError}</p>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
-          <button className="btn btn-ghost" onClick={closeModal}>Отменить</button>
-          <button className="btn btn-primary" disabled={busy} onClick={submitNewCard}>Создать</button>
-        </div>
-      </Modal>
-
       <Modal open={modal === 'fine'} onClose={closeModal} wide>
         <h2><Siren size={18} className="bank-fine-modal-icon" /> Выдать штраф</h2>
 
@@ -1004,6 +956,11 @@ export default function BankPage() {
             />
             <span className="bank-amount-icon right"><Gem size={14} /></span>
           </div>
+        </div>
+        <div className="inp-group">
+          <label>Срок оплаты (необязательно)</label>
+          <DeadlinePicker value={fineDeadline} onChange={setFineDeadline} placeholder="Без срока" />
+          <div className="bt-char-count">Если не оплатит в срок — автоматически получит варн</div>
         </div>
         <div className="inp-group">
           <textarea

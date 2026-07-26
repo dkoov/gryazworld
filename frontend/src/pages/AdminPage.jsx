@@ -33,6 +33,11 @@ export default function AdminPage() {
   const [subBusy, setSubBusy] = useState(false)
   const [subError, setSubError] = useState('')
 
+  const [cards, setCards] = useState(null)
+  const [cardBusy, setCardBusy] = useState(false)
+  const [cardError, setCardError] = useState('')
+  const [newCardLabel, setNewCardLabel] = useState('')
+
   const [polls, setPolls] = useState(null)
   const [pollError, setPollError] = useState('')
   const [pollBusy, setPollBusy] = useState(false)
@@ -158,6 +163,7 @@ export default function AdminPage() {
       .then(d => setPlayerRoles(d.roles))
       .catch(e => setError(e.message))
     loadSubscription(nickname)
+    loadCards(nickname)
   }
 
   function loadSubscription(nickname) {
@@ -166,6 +172,32 @@ export default function AdminPage() {
     apiFetch(`/web/admin/player/${encodeURIComponent(nickname)}/subscription`)
       .then(setSubscription)
       .catch(e => setSubError(e.message))
+  }
+
+  function loadCards(nickname) {
+    setCards(null)
+    setCardError('')
+    apiFetch(`/web/admin/player/${encodeURIComponent(nickname)}/cards`)
+      .then(setCards)
+      .catch(e => setCardError(e.message))
+  }
+
+  async function createCard() {
+    if (!selected) return
+    setCardBusy(true)
+    setCardError('')
+    try {
+      await apiFetch(`/web/admin/player/${encodeURIComponent(selected)}/cards`, {
+        method: 'POST',
+        body: JSON.stringify({ label: newCardLabel.trim() }),
+      })
+      setNewCardLabel('')
+      loadCards(selected)
+    } catch (e) {
+      setCardError(e.message)
+    } finally {
+      setCardBusy(false)
+    }
   }
 
   async function grantSubscription(months, forever) {
@@ -354,6 +386,34 @@ export default function AdminPage() {
                         {subscription.active && (
                           <button className="admin-sub-btn revoke" disabled={subBusy} onClick={revokeSubscription}>Снять</button>
                         )}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="admin-section-label">Карты</div>
+                  {cardError && <div className="admin-error">{cardError}</div>}
+                  {cards === null ? (
+                    <div className="admin-empty">Загрузка...</div>
+                  ) : (
+                    <>
+                      <div className="admin-roles-list">
+                        {cards.map(c => (
+                          <div key={c.id} className="admin-role-chip">
+                            {c.label} · {c.balance}₽
+                          </div>
+                        ))}
+                      </div>
+                      <div className="admin-grant-row" style={{ marginTop: 10 }}>
+                        <input
+                          type="text"
+                          placeholder="Название карты (необязательно)"
+                          value={newCardLabel}
+                          onChange={e => setNewCardLabel(e.target.value)}
+                          maxLength={40}
+                        />
+                        <button className="btn btn-primary" disabled={cardBusy} onClick={createCard}>
+                          Создать карту
+                        </button>
                       </div>
                     </>
                   )}

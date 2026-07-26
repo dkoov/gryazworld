@@ -109,30 +109,10 @@ async def list_accounts(user: CurrentUser = Depends(current_user), db: AsyncSess
     ]
 
 
-class CreateAccountRequest(BaseModel):
-    label: str = ""
-
-
 @router.post("/accounts")
-async def create_account(
-    data: CreateAccountRequest, user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)
-):
-    me = await _resolve_self(user, db)
-    own = await _own_accounts(me.id, db)
-    if not any(a.is_primary for a in own):
-        raise HTTPException(status_code=403, detail="Сначала обратись к банкиру за основным счётом")
-
-    account = BankAccount(
-        player_id=me.id,
-        balance=0.0,
-        is_primary=False,
-        label=data.label.strip()[:40] or None,
-        created_at=datetime.utcnow(),
-    )
-    db.add(account)
-    await db.commit()
-    await db.refresh(account)
-    return {"id": account.id, "label": _account_label(account, me.nickname), "balance": 0.0}
+async def create_account(user: CurrentUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    await _resolve_self(user, db)
+    raise HTTPException(status_code=403, detail="Открыть новую карту можно только в игре, через банкомат")
 
 
 class UpdateAccountRequest(BaseModel):

@@ -1,4 +1,4 @@
-.bank-page {
+﻿.bank-page {
   width: 100%;
   max-width: 1020px;
   margin: 0 auto;
@@ -547,6 +547,12 @@
 .bank-amount-input { padding-left: 34px !important; }
 .bank-amount-icon.right { left: auto; right: 14px; }
 .bank-amount-input.right { padding-left: 14px !important; padding-right: 34px !important; }
+.bank-amount-input::-webkit-outer-spin-button,
+.bank-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.bank-amount-input[type="number"] { -moz-appearance: textfield; }
 
 .bank-btn-diamond { color: inherit; opacity: 0.85; vertical-align: -2px; }
 
