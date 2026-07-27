@@ -8,6 +8,16 @@ function fmtHours(seconds) {
   return Math.floor((seconds ?? 0) / 3600)
 }
 
+const SERVER_NAMES = {
+  lobby: 'Лобби',
+  game: 'МП',
+  farm: 'МФ',
+  bingo: 'Бинго',
+}
+function serverLabel(id) {
+  return SERVER_NAMES[id] || id
+}
+
 export default function StatsPage() {
   const [players, setPlayers] = useState([])
   const [serverStats, setServerStats] = useState({ online: 0, servers: {} })
@@ -77,9 +87,9 @@ export default function StatsPage() {
           <div className="server-cell-body">
             <div className="server-cell-name">Мир построек</div>
             <div className="server-cell-online">
-              <span className="online-dot" />{serverStats.servers?.gamegraz?.online ?? 0}
+              <span className="online-dot" />{serverStats.servers?.game?.online ?? 0}
             </div>
-            <div className="server-cell-hours">{fmtHours(serverStats.servers?.gamegraz?.total_seconds)} ч. наиграно</div>
+            <div className="server-cell-hours">{fmtHours(serverStats.servers?.game?.total_seconds)} ч. наиграно</div>
           </div>
         </div>
         <div className="server-cell" style={{ animationDelay: '0.14s' }}>
@@ -87,9 +97,9 @@ export default function StatsPage() {
           <div className="server-cell-body">
             <div className="server-cell-name">Мир ферм</div>
             <div className="server-cell-online">
-              <span className="online-dot" />{serverStats.servers?.farmserv?.online ?? 0}
+              <span className="online-dot" />{serverStats.servers?.farm?.online ?? 0}
             </div>
-            <div className="server-cell-hours">{fmtHours(serverStats.servers?.farmserv?.total_seconds)} ч. наиграно</div>
+            <div className="server-cell-hours">{fmtHours(serverStats.servers?.farm?.total_seconds)} ч. наиграно</div>
           </div>
         </div>
       </div>
@@ -123,7 +133,7 @@ export default function StatsPage() {
               className={serverTab === name ? 'active' : ''}
               onClick={() => setServerTab(name)}
             >
-              {name}
+              {serverLabel(name)}
             </button>
           ))}
         </div>
@@ -163,7 +173,7 @@ function PlayerCard({ player, delay }) {
       style={{ animationDelay: `${delay}s` }}
     >
       {player.is_online && player.server && (
-        <span className="player-server">{player.server}</span>
+        <span className="player-server">{serverLabel(player.server)}</span>
       )}
       <div className="player-skin-wrap">
         <img

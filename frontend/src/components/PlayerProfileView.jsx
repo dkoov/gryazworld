@@ -10,8 +10,8 @@ const SkinViewer = lazy(() => import('./SkinViewer'))
 
 const SERVER_NAMES = {
   lobby: 'Лобби',
-  gamegraz: 'Мир построек',
-  farmserv: 'Мир ферм',
+  game: 'МП',
+  farm: 'МФ',
   bingo: 'Бинго',
 }
 function serverLabel(id) {
@@ -188,7 +188,7 @@ export default function PlayerProfileView({ profile, isSelf, onToggleLike, likin
               <h1 className="pv-name">{profile.nickname}</h1>
             </div>
             <div className="pv-status-text">
-              {profile.is_online ? `На сервере (${profile.server})` : 'Не в сети'}
+              {profile.is_online ? `На сервере (${serverLabel(profile.server)})` : 'Не в сети'}
             </div>
           </div>
           {isSelf ? (
