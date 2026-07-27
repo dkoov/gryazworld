@@ -245,9 +245,7 @@ async def mark_fine_unpaid(data: MarkPaidRequest, db: AsyncSession = Depends(get
         "issued_by": warn.issued_by,
     })
 
-    if player.warns >= 3 and player.whitelisted:
-        player.whitelisted = False
-        await db.commit()
+    if player.warns >= 3:
         await _notify_discord({
             "type": "ban",
             "player": player.nickname,
@@ -295,8 +293,7 @@ async def process_overdue(db: AsyncSession = Depends(get_db)):
             "total_warns": player.warns,
         })
 
-        if player.warns >= 3 and player.whitelisted:
-            player.whitelisted = False
+        if player.warns >= 3:
             await _notify_discord({
                 "type": "ban",
                 "player": player.nickname,
@@ -377,9 +374,7 @@ async def issue_warn(data: IssueWarnRequest, db: AsyncSession = Depends(get_db))
         "issued_by": warn.issued_by,
     })
 
-    if player.warns >= 3 and player.whitelisted:
-        player.whitelisted = False
-        await db.commit()
+    if player.warns >= 3:
         await _notify_discord({
             "type": "ban",
             "player": player.nickname,
@@ -424,8 +419,6 @@ async def remove_warn(data: RemoveWarnRequest, db: AsyncSession = Depends(get_db
 
     was_banned = player.warns >= 3
     player.warns = max(0, player.warns - data.amount)
-    if was_banned and player.warns < 3:
-        player.whitelisted = True
     await db.commit()
 
     await _notify_discord({
