@@ -88,9 +88,31 @@ export async function syncRoles(client: ExtendedClient): Promise<void> {
   }
 }
 
+// 350+ записей, каждая — минимум один await (fetch участника + возможные add/remove
+// с рейт-лимитом Discord) — один проход легко может занять дольше SYNC_INTERVAL_MS.
+// Без этого флага setInterval запускал бы следующий проход поверх незавершённого:
+// два цикла с разными снимками состояния гонялись друг за другом и откатывали
+// изменения друг друга (роль то появлялась, то через секунды пропадала).
+let syncInProgress = false;
+
+async function runSyncGuarded(client: ExtendedClient): Promise<void> {
+  if (syncInProgress) {
+    console.warn("[RoleSync] предыдущий проход ещё не завершился — пропускаю этот тик");
+    return;
+  }
+  syncInProgress = true;
+  try {
+    await syncRoles(client);
+  } catch (e) {
+    console.error("[RoleSync] ошибка:", e);
+  } finally {
+    syncInProgress = false;
+  }
+}
+
 export function startRoleSync(client: ExtendedClient): void {
-  syncRoles(client).catch((e) => console.error("[RoleSync] ошибка:", e));
+  runSyncGuarded(client);
   setInterval(() => {
-    syncRoles(client).catch((e) => console.error("[RoleSync] ошибка:", e));
+    runSyncGuarded(client);
   }, SYNC_INTERVAL_MS);
 }
