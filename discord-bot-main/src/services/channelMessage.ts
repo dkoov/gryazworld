@@ -57,6 +57,26 @@ export async function sendOrEditSequence(
   return results;
 }
 
+export async function deleteStoredSequenceMessage(
+  client: ExtendedClient,
+  channelId: string,
+  key: string
+): Promise<void> {
+  const channel = client.channels.cache.get(channelId) as TextChannel;
+  const stored = loadMessages();
+  const storeKey = `${channelId}:${key}`;
+  const messageId = stored[storeKey];
+
+  if (messageId) {
+    if (channel) {
+      const existing = await channel.messages.fetch(messageId).catch(() => null);
+      if (existing) await existing.delete().catch(() => {});
+    }
+    delete stored[storeKey];
+    saveMessages(stored);
+  }
+}
+
 export async function sendOrEdit(
   client: ExtendedClient,
   channelId: string,
