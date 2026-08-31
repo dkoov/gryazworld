@@ -17,3 +17,4 @@ data/
 target/
 backend/.env.bak*
 backend/.env
+.claude/
